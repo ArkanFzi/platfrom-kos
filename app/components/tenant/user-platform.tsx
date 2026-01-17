@@ -1,0 +1,526 @@
+import { useState } from 'react';
+import { Homepage } from './homepage';
+import { RoomDetail } from './RoomDetail';
+import { BookingFlow } from './booking-flow';
+import { BookingHistory } from './booking-history';
+import { Home, Search, Calendar, History, User, Menu, LogOut, Mail, Phone, MapPin, CreditCard, X, CheckCircle2, DollarSign, XCircle } from 'lucide-react';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
+import { Label } from '@/app/components/ui/label';
+import { Card } from '@/app/components/ui/card';
+import { Badge } from '@/app/components/ui/badge';
+
+interface UserPlatformProps {
+  onLogout?: () => void;
+}
+
+export function UserPlatform({ onLogout }: UserPlatformProps) {
+  const [activeView, setActiveView] = useState('home');
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  
+  // Editable user data
+  const [userData, setUserData] = useState({
+    name: 'John Doe',
+    email: 'john.doe@example.com',
+    phone: '+1 (555) 123-4567',
+    address: '123 Main Street, New York, NY 10001',
+    joinDate: 'January 2026',
+    status: 'Active',
+    totalBookings: 3,
+    totalSpent: 3600,
+    profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NzIyNDZ8MHwxfHNlYXJjaHwxfHx1c2VyJTIwYXZhdGFyfGVufDB8fHx8fDE3MDAwMDAwMDB8&ixlib=rb-4.0.3&q=80&w=400',
+  });
+
+  const [editData, setEditData] = useState(userData);
+
+  const navigateToRoomDetail = (roomId: string) => {
+    setSelectedRoomId(roomId);
+    setActiveView('room-detail');
+  };
+
+  const navigateToBooking = (roomId: string) => {
+    setSelectedRoomId(roomId);
+    setActiveView('booking');
+  };
+
+  const handleSaveProfile = () => {
+    setUserData(editData);
+    setIsEditingProfile(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditData(userData);
+    setIsEditingProfile(false);
+  };
+
+  const menuItems = [
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'search', label: 'Search', icon: Search },
+    { id: 'history', label: 'My Bookings', icon: History },
+    { id: 'profile', label: 'Profile', icon: User },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-stone-50 font-['Poppins']">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-2xl border-b border-slate-200/60 shadow-md hover:shadow-lg transition-shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setActiveView('home')}>
+              <div className="w-11 h-11 bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 rounded-xl flex items-center justify-center shadow-lg">
+                <Home className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900">LuxeStay</h1>
+                <p className="text-xs text-slate-500">Premium Living</p>
+              </div>
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-2">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveView(item.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                      activeView === item.id
+                        ? 'bg-gradient-to-r from-stone-700 to-stone-900 text-white shadow-lg'
+                        : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Mobile Menu Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="md:hidden border-slate-200 hover:bg-slate-100"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+          </div>
+
+          {/* Mobile Navigation */}
+          {mobileMenuOpen && (
+            <div className="md:hidden py-4 border-t border-slate-200 bg-slate-50">
+              <nav className="space-y-2">
+                {menuItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveView(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
+                        activeView === item.id
+                          ? 'bg-gradient-to-r from-stone-700 to-stone-900 text-white'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="text-sm">{item.label}</span>
+                    </button>
+                  );
+                })}
+                
+              </nav>
+            </div>
+          )}        </div>
+      </header>
+
+      {/* Main Content */}
+      <main>
+        {activeView === 'home' && <Homepage onRoomClick={navigateToRoomDetail} />}
+        {activeView === 'search' && <Homepage onRoomClick={navigateToRoomDetail} />}        {activeView === 'room-detail' && selectedRoomId && (
+          <RoomDetail roomId={selectedRoomId} onBookNow={navigateToBooking} onBack={() => setActiveView('home')} />
+        )}
+        {activeView === 'booking' && selectedRoomId && (
+          <BookingFlow roomId={selectedRoomId} onBack={() => setActiveView('room-detail')} />
+        )}
+        {activeView === 'history' && <BookingHistory onViewRoom={navigateToRoomDetail} />}
+        {activeView === 'profile' && (
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            {/* Profile Header */}
+            <Card className="mb-10 p-8 bg-gradient-to-r from-stone-900 via-stone-800 to-slate-900 text-white border-0 shadow-2xl">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
+                {/* Avatar */}
+                <div className="relative">
+                  <img
+                    src={userData.profileImage}
+                    alt={userData.name}
+                    className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-xl"
+                  />
+                  <div className="absolute bottom-0 right-0 bg-emerald-400 w-8 h-8 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+                    <span className="text-sm">✓</span>
+                  </div>
+                </div>
+
+                {/* User Info */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <h1 className="text-4xl font-bold text-white">{userData.name}</h1>
+                    <Badge className="bg-emerald-400 text-emerald-900 font-bold px-4 py-1">{userData.status}</Badge>
+                  </div>
+                  <p className="text-stone-200 mb-6 text-lg">{userData.email}</p>
+                  
+                  <div className="grid grid-cols-3 gap-6">
+                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+                      <p className="text-stone-200 text-sm font-semibold mb-2">Total Bookings</p>
+                      <p className="text-3xl font-bold text-white">{userData.totalBookings}</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+                      <p className="text-stone-200 text-sm font-semibold mb-2">Total Spent</p>
+                      <p className="text-3xl font-bold text-white">${userData.totalSpent}</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+                      <p className="text-stone-200 text-sm font-semibold mb-2">Member Since</p>
+                      <p className="text-xl font-bold text-white">{userData.joinDate}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Edit Button */}
+                {!isEditingProfile && (
+                  <Button 
+                    onClick={() => setIsEditingProfile(true)}
+                    className="bg-white text-stone-900 hover:bg-stone-100 font-bold px-6 py-2 shadow-lg"
+                  >                    Edit Profile
+                  </Button>
+                )}
+              </div>
+            </Card>
+            {/* Edit Profile Modal */}
+            {isEditingProfile && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
+                  <div className="p-8">
+                    <div className="flex items-center justify-between mb-8">
+                      <div>
+                        <h2 className="text-3xl font-bold text-slate-900">Edit Profile</h2>
+                        <p className="text-slate-600 mt-1">Update your personal information</p>
+                      </div>
+                      <button 
+                        onClick={handleCancelEdit}
+                        className="p-2 hover:bg-slate-100 rounded-lg transition duration-200"
+                      >
+                        <X className="w-6 h-6 text-slate-600 hover:text-slate-900" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div>
+                        <Label className="text-slate-900 font-semibold mb-3 block">Full Name</Label>
+                        <Input
+                          value={editData.name}
+                          onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                          className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
+                          placeholder="Enter your full name"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-slate-900 font-semibold mb-3 block">Email Address</Label>
+                        <Input
+                          type="email"
+                          value={editData.email}
+                          onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                          className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
+                          placeholder="your.email@example.com"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-slate-900 font-semibold mb-3 block">Phone Number</Label>
+                        <Input
+                          value={editData.phone}
+                          onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                          className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
+                          placeholder="+1 (555) 123-4567"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-slate-900 font-semibold mb-3 block">Address</Label>
+                        <Input
+                          value={editData.address}
+                          onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                          className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
+                          placeholder="123 Main Street, City, State"
+                        />
+                      </div>
+
+                      <div className="flex gap-4 pt-6 border-t border-slate-200">
+                        <Button 
+                          onClick={handleSaveProfile}
+                          className="flex-1 bg-stone-900 hover:bg-stone-800 text-white font-bold py-3 shadow-lg hover:shadow-xl transition-all"
+                        >
+                          Save Changes
+                        </Button>
+                        <Button 
+                          onClick={handleCancelEdit}
+                          variant="outline"
+                          className="flex-1 border-2 border-slate-300 hover:bg-slate-50 font-bold py-3"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* Profile Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Personal Information */}
+              <Card className="p-8 bg-white/80 backdrop-blur-sm border-slate-200/60 hover:shadow-lg transition-all">
+                <div className="flex items-center gap-3 mb-7">
+                  <div className="w-10 h-10 bg-gradient-to-br from-stone-700 to-stone-900 rounded-lg flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Personal Information</h2>
+                </div>
+                
+                <div className="space-y-6">
+                  <div className="pb-4 border-b border-slate-200">
+                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Full Name</label>
+                    <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.name}</p>
+                  </div>
+                  
+                  <div className="pb-4 border-b border-slate-200">
+                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-stone-700" />
+                      Email Address
+                    </label>
+                    <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.email}</p>
+                  </div>
+
+                  <div className="pb-4 border-b border-slate-200">
+                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-stone-700" />
+                      Phone Number
+                    </label>
+                    <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.phone}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-stone-700" />
+                      Address
+                    </label>
+                    <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.address}</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Account & Preferences */}
+              <Card className="p-8 bg-white/80 backdrop-blur-sm border-slate-200/60 hover:shadow-lg transition-all">
+                <div className="flex items-center gap-3 mb-7">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Account & Settings</h2>
+                </div>
+                
+                <div className="space-y-6">
+                  <div className="pb-4 border-b border-slate-200">
+                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Member Since</label>
+                    <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.joinDate}</p>
+                  </div>
+
+                  <div className="pb-4 border-b border-slate-200">
+                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Account Status</label>
+                    <div className="mt-2 flex items-center gap-3">
+                      <div className="w-3 h-3 bg-emerald-400 rounded-full shadow-md" />
+                      <p className="text-slate-900 text-lg font-semibold">{userData.status}</p>
+                    </div>
+                  </div>
+
+                  <div className="pb-4 border-b border-slate-200">
+                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Verification</label>
+                    <Badge className="mt-2 bg-emerald-100 text-emerald-800 font-bold px-3 py-1">✓ Email Verified</Badge>
+                  </div>
+
+                  <div className="pt-2">
+                    <Button variant="outline" className="w-full font-semibold border-2 border-slate-300 hover:bg-slate-50 py-2">
+                      Change Password
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Booking Statistics */}
+            <Card className="mt-10 p-8 bg-gradient-to-br from-white to-slate-50 border-slate-200/60 hover:shadow-lg transition-all">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-12 h-12 bg-gradient-to-br from-stone-700 to-stone-900 rounded-lg flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900">Booking Statistics</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm text-blue-700 font-semibold uppercase tracking-wide">Active Bookings</p>
+                    <Calendar className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <p className="text-4xl font-bold text-blue-600">1</p>
+                </div>
+                <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm text-green-700 font-semibold uppercase tracking-wide">Completed</p>
+                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  </div>
+                  <p className="text-4xl font-bold text-green-600">2</p>
+                </div>
+                <div className="p-6 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm text-orange-700 font-semibold uppercase tracking-wide">Total Spent</p>
+                    <DollarSign className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <p className="text-4xl font-bold text-orange-600">${userData.totalSpent}</p>
+                </div>
+                <div className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm text-purple-700 font-semibold uppercase tracking-wide">Avg. Rating</p>
+                    <span className="text-xl">⭐</span>
+                  </div>
+                  <p className="text-4xl font-bold text-purple-600">4.8/5</p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Danger Zone */}
+            <Card className="mt-10 p-8 border-red-200 bg-gradient-to-br from-red-50 to-rose-50 hover:shadow-lg transition-all">
+              <div className="flex items-center gap-3 mb-4">
+                <XCircle className="w-6 h-6 text-red-600" />
+                <h2 className="text-2xl font-bold text-red-900">Danger Zone</h2>
+              </div>
+              <p className="text-sm text-red-700 mb-8 leading-relaxed">
+                These actions are irreversible. Please carefully review before proceeding.
+              </p>
+              <div className="space-y-4">
+                <div className="flex gap-4 flex-col sm:flex-row">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-100 font-semibold py-2"
+                  >
+                    Deactivate Account
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-100 font-semibold py-2"
+                  >
+                    Delete Account
+                  </Button>
+                </div>
+                
+                {/* Logout Button */}
+                <Button 
+                  onClick={onLogout}
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 shadow-lg hover:shadow-xl transition-all"
+                >
+                  <LogOut className="w-5 h-5 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white py-16 mt-24 border-t border-slate-800/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
+            {/* Brand */}
+            <div className="md:col-span-1">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-stone-400 to-stone-600 rounded-lg flex items-center justify-center">
+                  <Home className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="font-bold text-lg">LuxeStay</h3>
+              </div>
+              <p className="text-slate-400 text-sm leading-relaxed">Premium boarding house and apartment management for modern living.</p>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Quick Links</h4>
+              <ul className="space-y-3 text-sm">
+                <li><a href="#" className="text-slate-400 hover:text-white transition-colors">About Us</a></li>
+                <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Contact</a></li>
+                <li><a href="#" className="text-slate-400 hover:text-white transition-colors">FAQ</a></li>
+                <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Blog</a></li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Legal</h4>
+              <ul className="space-y-3 text-sm">
+                <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Privacy Policy</a></li>
+                <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Terms of Service</a></li>
+                <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Cookie Policy</a></li>
+                <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Disclaimer</a></li>
+              </ul>
+            </div>
+
+            {/* Contact Info */}
+            <div>
+              <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Contact</h4>
+              <ul className="space-y-3 text-sm text-slate-400">
+                <li className="flex items-start gap-2">
+                  <Mail className="w-4 h-4 text-stone-400 mt-0.5 flex-shrink-0" />
+                  <span>info@luxestay.com</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Phone className="w-4 h-4 text-stone-400 mt-0.5 flex-shrink-0" />
+                  <span>+1 (555) 123-4567</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <MapPin className="w-4 h-4 text-stone-400 mt-0.5 flex-shrink-0" />
+                  <span>123 Premium Street, City Center</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-slate-800/50 my-8" />
+
+          {/* Footer Bottom */}
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            <p className="text-slate-400 text-sm text-center md:text-left mb-4 md:mb-0">
+              &copy; 2026 LuxeStay. All rights reserved.
+            </p>
+            <div className="flex items-center gap-6">
+              <a href="#" className="text-slate-400 hover:text-white transition-colors">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3a9 9 0 01-9 9m0-9a9 9 0 109 9m-9-9V3m0 9a9 9 0 009-9"/></svg>
+              </a>
+              <a href="#" className="text-slate-400 hover:text-white transition-colors">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a6 6 0 00-6 6v3H7v4h2v8h4v-8h3l1-4h-4V8a2 2 0 012-2h3z"/></svg>
+              </a>
+              <a href="#" className="text-slate-400 hover:text-white transition-colors">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2s9 5 20 5a9.5 9.5 0 00-9-5.5c4.75 2.25 9-0.5 11-4.5a4.5 4.5 0 00-1-1z"/></svg>
+              </a>
+            </div>
+          </div>        </div>
+      </footer>
+    </div>
+  );
+}
