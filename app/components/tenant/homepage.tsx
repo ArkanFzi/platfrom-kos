@@ -2,11 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, useInView, useMotionValue, useSpring } from 'framer-motion';
-import { Card } from '@/app/components/ui/card';
+import { 
+  Card, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription, 
+  CardContent, 
+  CardFooter,
+  CardAction 
+} from '@/app/components/ui/card'; 
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Badge } from '@/app/components/ui/badge';
-import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
+import { ImageWithFallback } from '@/app/components/gambar/ImageWithFallback';
 import { 
   Search, 
   MapPin, 
@@ -97,14 +105,15 @@ export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: Homep
   const filteredRooms = featuredRooms.filter((room) => {
     const matchesLocation = room.location.toLowerCase().includes(searchLocation.toLowerCase()) || searchLocation === '';
     const matchesType = selectedType === 'all' || room.type.toLowerCase() === selectedType.toLowerCase();
+    
     let matchesPrice = true;
     if (selectedPrice === '0-1000') matchesPrice = room.price <= 1000;
-    else if (selectedPrice === '1000-2000') matchesPrice = room.price >= 1000 && room.price <= 2000;
-    else if (selectedPrice === '2000+') matchesPrice = room.price >= 2000;
+    else if (selectedPrice === '1000-2000') matchesPrice = room.price > 1000 && room.price <= 2000;
+    else if (selectedPrice === '2000+') matchesPrice = room.price > 2000;
+    
     return matchesLocation && matchesType && matchesPrice;
   });
 
-  // Bagi ulasan menjadi dua baris
   const firstRowReviews = reviewsData.slice(0, 3);
   const secondRowReviews = reviewsData.slice(3, 6);
 
@@ -134,65 +143,95 @@ export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: Homep
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-stone-200 mb-3 block uppercase tracking-wide">Price</label>
-                  <select value={selectedPrice} onChange={(e) => {
-                    const value = e.target.value;
-                    setSelectedPrice(value);
-                    if (value === 'all') {
-                      setSearchLocation('');
-                      setSelectedType('all');
-                      setIsSearching(false);
-                    }
-                  }} className="w-full px-4 py-2.5 bg-white/90 border border-white/30 rounded-lg text-slate-900 dark:bg-slate-700/90 dark:text-slate-100"><option value="all">All Prices</option><option value="0-1000">$0 - $1000</option><option value="1000-2000">$1000 - $2000</option><option value="2000+">$2000+</option></select>
+                  <select value={selectedPrice} onChange={(e) => setSelectedPrice(e.target.value)} className="w-full px-4 py-2.5 bg-white/90 border border-white/30 rounded-lg text-slate-900 dark:bg-slate-700/90 dark:text-slate-100">
+                    <option value="all">All Prices</option>
+                    <option value="0-1000">$0 - $1000</option>
+                    <option value="1000-2000">$1000 - $2000</option>
+                    <option value="2000+">$2000+</option>
+                  </select>
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-stone-200 mb-3 block uppercase tracking-wide">Type</label>
-                  <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className="w-full px-4 py-2.5 bg-white/90 border border-white/30 rounded-lg text-slate-900 dark:bg-slate-700/90 dark:text-slate-100"><option value="all">All Types</option><option value="standard">Standard</option><option value="deluxe">Deluxe</option><option value="premium">Premium</option><option value="executive">Executive</option></select>
+                  <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className="w-full px-4 py-2.5 bg-white/90 border border-white/30 rounded-lg text-slate-900 dark:bg-slate-700/90 dark:text-slate-100">
+                    <option value="all">All Types</option>
+                    <option value="standard">Standard</option>
+                    <option value="deluxe">Deluxe</option>
+                    <option value="premium">Premium</option>
+                    <option value="executive">Executive</option>
+                  </select>
                 </div>
               </div>
-              <Button onClick={() => setIsSearching(true)} className="w-full md:w-auto mt-6 bg-gradient-to-r from-stone-700 to-stone-800 hover:from-stone-600 hover:to-stone-700 text-white font-semibold px-8 shadow-lg"><Search className="w-5 h-5 mr-2" /> Search Rooms</Button>
+              <Button onClick={() => isSearching ? (setSearchLocation(''), setSelectedPrice('all'), setSelectedType('all'), setIsSearching(false)) : setIsSearching(true)} className="w-full md:w-auto mt-6 bg-gradient-to-r from-stone-700 to-stone-800 hover:from-stone-600 hover:to-stone-700 text-white font-semibold px-8 shadow-lg">
+                <Search className="w-5 h-5 mr-2" /> {isSearching ? 'Clear Search' : 'Search Rooms'}
+              </Button>
             </Card>
           </motion.div>
         </div>
       </section>
 
-      {/* Featured Rooms with Scroll Animation */}
+      {/* Featured Rooms Section */}
       <section className="max-w-7xl mx-auto px-4 py-20 bg-slate-50 dark:bg-slate-900/50">
         <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp} className="text-center mb-16">
           <h2 className="text-5xl font-bold text-slate-900 dark:text-slate-100 mb-4">{isSearching ? 'Search Results' : 'Featured Rooms'}</h2>
           <p className="text-lg text-slate-600 dark:text-slate-400">Handpicked premium accommodations</p>
         </motion.div>
 
-        <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {filteredRooms.map((room) => (
             <motion.div key={room.id} variants={fadeInUp}>
               <Card className="bg-white dark:bg-slate-800 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group border-0 h-full flex flex-col">
                 <div className="relative h-72 overflow-hidden bg-slate-200">
                   <ImageWithFallback src={room.image} alt={room.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                  <div className="absolute top-4 right-4 flex gap-3">
+                  <div className="absolute top-4 left-4">
                     <Badge className="bg-gradient-to-r from-stone-700 to-stone-900 text-white border-0">{room.type}</Badge>
-                    <button onClick={(e) => { e.stopPropagation(); onToggleWishlist?.(room.id); }} className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all ${wishlist.includes(room.id) ? 'bg-red-500 text-white' : 'bg-white dark:bg-slate-700 text-slate-400'}`}><Heart className={`w-5 h-5 ${wishlist.includes(room.id) ? 'fill-white' : ''}`} /></button>
                   </div>
                 </div>
-                <div className="p-6 flex-1 flex flex-col">
-                  <h3 className="text-xl font-bold mb-4">{room.name}</h3>
-                  <div className="flex gap-2 mb-6 flex-wrap">
+
+                <CardHeader className="relative">
+                  <CardTitle className="text-xl font-bold">{room.name}</CardTitle>
+                  <CardDescription className="flex items-center gap-1">
+                    <MapPin size={14} /> {room.location}
+                  </CardDescription>
+                  <CardAction>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onToggleWishlist?.(room.id); }} 
+                      className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all ${wishlist.includes(room.id) ? 'bg-red-500 text-white' : 'bg-white dark:bg-slate-700 text-slate-400'}`}
+                    >
+                      <Heart className={`w-5 h-5 ${wishlist.includes(room.id) ? 'fill-white' : ''}`} />
+                    </button>
+                  </CardAction>
+                </CardHeader>
+
+                <CardContent className="flex-1">
+                  <div className="flex flex-wrap gap-2">
                     {room.facilities.map((f) => {
                       const Icon = facilityIcons[f];
-                      return <div key={f} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded-full text-xs font-medium">{Icon && <Icon className="w-3.5 h-3.5" />}<span>{f}</span></div>
+                      return (
+                        <div key={f} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded-full text-xs font-medium">
+                          {Icon && <Icon className="w-3.5 h-3.5" />}
+                          <span>{f}</span>
+                        </div>
+                      )
                     })}
                   </div>
-                  <div className="border-t pt-5 mt-auto flex items-center justify-between">
-                    <div><span className="text-3xl font-bold">${room.price}</span><span className="text-sm ml-1">/mo</span></div>
-                    <Button onClick={() => onRoomClick(room.id)} className="bg-stone-800 hover:bg-stone-700 text-white font-semibold shadow-md">View Details</Button>
+                </CardContent>
+
+                <CardFooter className="border-t pt-5 flex items-center justify-between">
+                  <div>
+                    <span className="text-3xl font-bold">${room.price}</span>
+                    <span className="text-sm ml-1">/mo</span>
                   </div>
-                </div>
+                  <Button onClick={() => onRoomClick(room.id)} className="bg-stone-800 hover:bg-stone-700 text-white font-semibold shadow-md">
+                    View Details
+                  </Button>
+                </CardFooter>
               </Card>
             </motion.div>
           ))}
         </motion.div>
       </section>
 
-      {/* Why Choose Us with Scroll Animation */}
+      {/* Why Choose Us Section */}
       <section className="bg-white dark:bg-slate-950 py-20">
         <div className="max-w-7xl mx-auto px-4">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -209,7 +248,7 @@ export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: Homep
         </div>
       </section>
 
-      {/* Our Story with Side-Slide Animation */}
+      {/* Our Story Section */}
       <section className="bg-white dark:bg-slate-950 py-20 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -233,14 +272,13 @@ export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: Homep
         </div>
       </section>
 
-      {/* --- REVIEWS SECTION: TWO ROW AUTO-SCROLL (Opposite Directions) --- */}
+      {/* Reviews Section */}
       <section className="bg-slate-50 dark:bg-slate-900/50 py-20 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 mb-16 text-center">
           <h2 className="text-5xl font-bold text-slate-900 dark:text-slate-100 mb-4">What Our Residents Say</h2>
           <p className="text-lg text-slate-600 dark:text-slate-400">Real experiences from our community</p>
         </div>
 
-        {/* Row 1: Ke Kanan (X: negative to positive) */}
         <div className="relative flex mb-8">
           <motion.div 
             className="flex gap-8 px-4"
@@ -260,7 +298,6 @@ export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: Homep
           </motion.div>
         </div>
 
-        {/* Row 2: Ke Kiri (X: 0 to negative) */}
         <div className="relative flex">
           <motion.div 
             className="flex gap-8 px-4"
@@ -281,38 +318,27 @@ export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: Homep
         </div>
       </section>
 
-      {/* --- TRUST INDICATORS: COUNTER 0 TO TARGET --- */}
+      {/* Trust Indicators Section */}
       <section className="bg-white dark:bg-slate-950 py-20 border-t border-slate-100 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
-            
             <div className="flex flex-col items-center">
-              <p className="text-5xl font-bold text-slate-900 dark:text-white mb-2">
-                <Counter value={4.9} decimals={1} />
-              </p>
+              <p className="text-5xl font-bold text-slate-900 dark:text-white mb-2"><Counter value={4.9} decimals={1} /></p>
               <p className="text-sm text-slate-500 font-medium">AVERAGE RATING</p>
               <div className="flex gap-1 mt-2">{[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}</div>
             </div>
-
             <div className="flex flex-col items-center">
-              <p className="text-5xl font-bold text-slate-900 dark:text-white mb-2">
-                <Counter value={2500} suffix="+" />
-              </p>
+              <p className="text-5xl font-bold text-slate-900 dark:text-white mb-2"><Counter value={2500} suffix="+" /></p>
               <p className="text-sm text-slate-500 font-medium uppercase">Happy Residents</p>
             </div>
-
             <div className="flex flex-col items-center">
-              <p className="text-5xl font-bold text-slate-900 dark:text-white mb-2">
-                <Counter value={98} suffix="%" />
-              </p>
+              <p className="text-5xl font-bold text-slate-900 dark:text-white mb-2"><Counter value={98} suffix="%" /></p>
               <p className="text-sm text-slate-500 font-medium uppercase">Satisfaction Rate</p>
             </div>
-
             <div className="flex flex-col items-center">
               <p className="text-5xl font-bold text-slate-900 dark:text-white mb-2">24/7</p>
               <p className="text-sm text-slate-500 font-medium uppercase">Support Available</p>
             </div>
-
           </div>
         </div>
       </section>
