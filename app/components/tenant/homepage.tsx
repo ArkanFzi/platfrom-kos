@@ -43,10 +43,10 @@ function Counter({ value, suffix = "", decimals = 0 }: { value: number, suffix?:
 // --- Animation Variants ---
 const fadeInUp = {
   hidden: { opacity: 0, y: 40 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    transition: { duration: 0.8, ease: "easeOut" } 
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.8 }
   }
 };
 
@@ -134,7 +134,15 @@ export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: Homep
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-stone-200 mb-3 block uppercase tracking-wide">Price</label>
-                  <select value={selectedPrice} onChange={(e) => setSelectedPrice(e.target.value)} className="w-full px-4 py-2.5 bg-white/90 border border-white/30 rounded-lg text-slate-900 dark:bg-slate-700/90 dark:text-slate-100"><option value="all">All Prices</option><option value="0-1000">$0 - $1000</option><option value="1000-2000">$1000 - $2000</option><option value="2000+">$2000+</option></select>
+                  <select value={selectedPrice} onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedPrice(value);
+                    if (value === 'all') {
+                      setSearchLocation('');
+                      setSelectedType('all');
+                      setIsSearching(false);
+                    }
+                  }} className="w-full px-4 py-2.5 bg-white/90 border border-white/30 rounded-lg text-slate-900 dark:bg-slate-700/90 dark:text-slate-100"><option value="all">All Prices</option><option value="0-1000">$0 - $1000</option><option value="1000-2000">$1000 - $2000</option><option value="2000+">$2000+</option></select>
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-stone-200 mb-3 block uppercase tracking-wide">Type</label>
