@@ -24,6 +24,9 @@ func (h *GalleryHandler) GetGalleries(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if galleries == nil {
+		galleries = []models.Gallery{}
+	}
 	c.JSON(http.StatusOK, galleries)
 }
 

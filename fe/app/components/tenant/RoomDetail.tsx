@@ -34,6 +34,8 @@ interface RoomDetailProps {
   roomId: string;
   onBookNow: (roomId: string) => void;
   onBack: () => void;
+  isLoggedIn?: boolean;
+  onLoginPrompt?: () => void;
 }
 
 interface RoomData {
@@ -109,7 +111,7 @@ interface Review {
   }
 }
 
-export function RoomDetail({ roomId, onBookNow, onBack }: RoomDetailProps) {
+export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPrompt }: RoomDetailProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
@@ -140,22 +142,29 @@ export function RoomDetail({ roomId, onBookNow, onBack }: RoomDetailProps) {
   }, [roomId]);
 
   const handleSubmitReview = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+          alert("Please login as a tenant to write a review.");
+          return;
+      }
+
       setIsSubmittingReview(true);
       try {
           const kID = parseInt(roomId) || 1;
           await api.createReview({
               kamar_id: kID,
               rating: newReview.rating,
-              comment: newReview.comment,
-              user_id: 1 // Mock user ID for now
+              comment: newReview.comment
+              // user_id is now handled by backend from token
           });
           // Refresh reviews
           const data = await api.getReviews(String(kID));
           setReviews(data);
           setNewReview({ rating: 5, comment: '' });
-      } catch (e) {
+      } catch (e: unknown) {
           console.error("Failed to submit review", e);
-          alert("Failed to submit review. Please try again.");
+          const message = e instanceof Error ? e.message : "Failed to submit review. Please try again.";
+          alert(message);
       } finally {
           setIsSubmittingReview(false);
       }
@@ -532,12 +541,15 @@ export function RoomDetail({ roomId, onBookNow, onBack }: RoomDetailProps) {
                 </div>
               </div>
 
-              <Button 
-                onClick={() => onBookNow(roomId)}
-                className="w-full h-12 text-lg bg-stone-800 hover:bg-stone-900 text-white mb-6 shadow-lg shadow-stone-800/20"
-              >
-                Book Now
-              </Button>
+                <Button 
+                    onClick={() => {
+                        if (!isLoggedIn) onLoginPrompt?.();
+                        else onBookNow(roomId);
+                    }}
+                    className="flex-1 bg-stone-900 hover:bg-stone-800 text-white h-14 text-lg font-bold rounded-xl shadow-xl shadow-stone-900/20"
+                >
+                    {isLoggedIn ? 'Rent This Room Now' : 'Login to Rent'}
+                </Button>
 
               <div className="space-y-3 text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/30 p-4 rounded-lg">
                 <div className="flex justify-between">

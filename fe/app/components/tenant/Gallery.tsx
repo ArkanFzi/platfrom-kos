@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
+import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
 
 // --- Data Kos-Kosan ---
 const initialKosData = [
@@ -104,7 +105,7 @@ export function Gallery() {
                   }`}
                 >
                   <div className="relative aspect-[3/4] overflow-hidden bg-stone-200 dark:bg-slate-900 mb-6 group">
-                    <img 
+                    <ImageWithFallback 
                       src={item.imageUrl} 
                       alt={item.title}
                       className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"

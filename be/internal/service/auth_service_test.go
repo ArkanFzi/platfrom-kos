@@ -14,12 +14,23 @@ type MockUserRepository struct {
 	FindUserFn func(username string) (*models.User, error)
 }
 
+// MockPenyewaRepository helps to mock the repository layer
+type MockPenyewaRepository struct{}
+
+func (m *MockPenyewaRepository) FindByUserID(userID uint) (*models.Penyewa, error) { return nil, nil }
+func (m *MockPenyewaRepository) Create(penyewa *models.Penyewa) error              { return nil }
+func (m *MockPenyewaRepository) Update(penyewa *models.Penyewa) error              { return nil }
+
 func (m *MockUserRepository) Create(user *models.User) error {
 	return nil
 }
 
 func (m *MockUserRepository) FindByUsername(username string) (*models.User, error) {
 	return m.FindUserFn(username)
+}
+
+func (m *MockUserRepository) FindByID(id uint) (*models.User, error) {
+	return nil, nil // Not used in current tests
 }
 
 func TestLogin_Success(t *testing.T) {
@@ -41,7 +52,7 @@ func TestLogin_Success(t *testing.T) {
 	}
 
 	cfg := &config.Config{JWTSecret: "secret"}
-	authService := NewAuthService(mockRepo, cfg)
+	authService := NewAuthService(mockRepo, &MockPenyewaRepository{}, cfg)
 
 	// Execute
 	token, user, err := authService.Login("testuser", password)
@@ -73,7 +84,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 	}
 
 	cfg := &config.Config{JWTSecret: "secret"}
-	authService := NewAuthService(mockRepo, cfg)
+	authService := NewAuthService(mockRepo, &MockPenyewaRepository{}, cfg)
 
 	// Execute
 	_, _, err := authService.Login("testuser", "wrongpassword")

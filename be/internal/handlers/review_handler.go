@@ -30,6 +30,9 @@ func (h *ReviewHandler) GetReviews(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if reviews == nil {
+		reviews = []models.Review{}
+	}
 	c.JSON(http.StatusOK, reviews)
 }
 
@@ -38,6 +41,9 @@ func (h *ReviewHandler) GetAllReviews(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+	if reviews == nil {
+		reviews = []models.Review{}
 	}
 	c.JSON(http.StatusOK, reviews)
 }
@@ -49,10 +55,24 @@ func (h *ReviewHandler) CreateReview(c *gin.Context) {
 		return
 	}
 
-	// Assuming UserID is set from context middleware in a real app,
-	// for now we trust the payload or it could be hardcoded if no auth
-	// userID, _ := c.Get("user_id")
-	// userRole, _ := c.Get("role")
+	// Extract UserID from context (set by AuthMiddleware)
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		return
+	}
+
+	// Convert userID from interface{} to uint
+	// Depending on how jwt claims are parsed, it might be float64 or uint
+	switch v := userID.(type) {
+	case float64:
+		review.UserID = uint(v)
+	case uint:
+		review.UserID = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id type in context"})
+		return
+	}
 
 	if err := h.service.CreateReview(&review); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

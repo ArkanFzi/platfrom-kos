@@ -81,7 +81,9 @@ export function AppProvider({ children }: AppProviderProps) {
     if (storedRooms) {
       try {
         return JSON.parse(storedRooms);
-      } catch {
+      } catch (e) {
+        console.warn("Corrupted rooms data, resetting to initial", e);
+        localStorage.removeItem(STORAGE_ROOMS_KEY);
         return INITIAL_ROOMS;
       }
     }
@@ -93,8 +95,11 @@ export function AppProvider({ children }: AppProviderProps) {
     const storedBookings = localStorage.getItem(STORAGE_BOOKINGS_KEY);
     if (storedBookings) {
       try {
-        return JSON.parse(storedBookings);
-      } catch {
+        const parsed = JSON.parse(storedBookings);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.warn("Corrupted bookings data, clearing", e);
+        localStorage.removeItem(STORAGE_BOOKINGS_KEY);
         return [];
       }
     }
@@ -106,8 +111,11 @@ export function AppProvider({ children }: AppProviderProps) {
     const storedUser = localStorage.getItem(STORAGE_CURRENT_USER_KEY);
     if (storedUser) {
       try {
-        return JSON.parse(storedUser);
-      } catch {
+        const parsed = JSON.parse(storedUser);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+      } catch (e) {
+        console.warn("Corrupted current user data, clearing", e);
+        localStorage.removeItem(STORAGE_CURRENT_USER_KEY);
         return null;
       }
     }

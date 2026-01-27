@@ -1,0 +1,113 @@
+package handlers
+
+import (
+	"koskosan-be/internal/models"
+	"koskosan-be/internal/service"
+	"koskosan-be/internal/utils"
+	"net/http"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+)
+
+type ProfileHandler struct {
+	service service.ProfileService
+}
+
+func NewProfileHandler(s service.ProfileService) *ProfileHandler {
+	return &ProfileHandler{s}
+}
+
+func (h *ProfileHandler) GetProfile(c *gin.Context) {
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	var userID uint
+	switch v := userIDRaw.(type) {
+	case float64:
+		userID = uint(v)
+	case uint:
+		userID = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id type"})
+		return
+	}
+
+	user, penyewa, err := h.service.GetProfile(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user":    user,
+		"penyewa": penyewa,
+	})
+}
+
+func (h *ProfileHandler) UpdateProfile(c *gin.Context) {
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	var userID uint
+	switch v := userIDRaw.(type) {
+	case float64:
+		userID = uint(v)
+	case uint:
+		userID = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id type"})
+		return
+	}
+
+	var input models.Penyewa
+	contentType := c.GetHeader("Content-Type")
+
+	if strings.Contains(contentType, "multipart/form-data") {
+		_, err := c.MultipartForm()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to parse form"})
+			return
+		}
+
+		input.NamaLengkap = c.PostForm("nama_lengkap")
+		input.NIK = c.PostForm("nik")
+		input.NomorHP = c.PostForm("nomor_hp")
+		input.AlamatAsal = c.PostForm("alamat_asal")
+		input.JenisKelamin = c.PostForm("jenis_kelamin")
+
+		// Handle file upload
+		file, err := c.FormFile("foto_profil")
+		if err == nil {
+			if utils.IsImageFile(file) {
+				filename, err := utils.SaveFile(file, "uploads/profiles")
+				if err == nil {
+					input.FotoProfil = "/uploads/profiles/" + filename
+				}
+			}
+		}
+	} else {
+		// Handle JSON
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	penyewa, err := h.service.UpdateProfile(userID, input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "profile updated successfully",
+		"penyewa": penyewa,
+	})
+}

@@ -37,3 +37,32 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"user":  user,
 	})
 }
+
+func (h *AuthHandler) Register(c *gin.Context) {
+	var input struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+		Role     string `json:"role"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Default role if not provided
+	if input.Role == "" {
+		input.Role = "tenant"
+	}
+
+	user, err := h.service.Register(input.Username, input.Password, input.Role)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "user registered successfully",
+		"user":    user,
+	})
+}

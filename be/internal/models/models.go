@@ -63,6 +63,7 @@ type Penyewa struct {
 	NomorHP      string         `json:"nomor_hp"`
 	AlamatAsal   string         `json:"alamat_asal"`
 	JenisKelamin string         `json:"jenis_kelamin"` // enum
+	FotoProfil   string         `json:"foto_profil"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`

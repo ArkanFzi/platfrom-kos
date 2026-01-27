@@ -9,76 +9,85 @@ import { CancelBooking } from './cancel-booking';
 import { 
   Calendar, 
   MapPin, 
-  DollarSign,
   Eye,
   Clock,
   Search,
   CheckCircle2,
   XCircle,
   TrendingUp,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
+import { api } from '@/app/services/api';
+import { useEffect } from 'react';
 
 interface Booking {
   id: string;
   roomName: string;
   roomImage: string;
   location: string;
-  status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
+  status: string;
   moveInDate: string;
   moveOutDate: string;
   monthlyRent: number;
   totalPaid: number;
   duration: string;
+  rawStatus: string;
 }
 
-const mockBookings: Booking[] = [
-  {
-    id: '1',
-    roomName: 'Deluxe Suite #12',
-    roomImage: 'https://images.unsplash.com/photo-1668512624222-2e375314be39?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBib2FyZGluZyUyMGhvdXNlJTIwYmVkcm9vbXxlbnwxfHx8fDE3Njg1NzcyMzF8MA&ixlib=rb-4.1.0&q=80&w=400',
-    location: 'Downtown District',
-    status: 'Confirmed',
-    moveInDate: '2026-02-01',
-    moveOutDate: '2026-08-01',
-    monthlyRent: 1200,
-    totalPaid: 2400,
-    duration: '6 months'
-  },
-  {
-    id: '2',
-    roomName: 'Modern Studio #24',
-    roomImage: 'https://images.unsplash.com/photo-1662454419736-de132ff75638?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBhcGFydG1lbnQlMjBiZWRyb29tJTIwaW50ZXJpb3J8ZW58MXx8fHwxNzY4NTc3MjMxfDA&ixlib=rb-4.1.0&q=80&w=400',
-    location: 'University Area',
-    status: 'Pending',
-    moveInDate: '2026-03-01',
-    moveOutDate: '2026-06-01',
-    monthlyRent: 800,
-    totalPaid: 1600,
-    duration: '3 months'
-  },
-  {
-    id: '3',
-    roomName: 'Premium Apartment #8',
-    roomImage: 'https://images.unsplash.com/photo-1507138451611-3001135909fa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb3p5JTIwc3R1ZGlvJTIwYXBhcnRtZW50fGVufDF8fHx8MTc2ODUwNTcxM3ww&ixlib=rb-4.1.0&q=80&w=400',
-    location: 'Business District',
-    status: 'Completed',
-    moveInDate: '2025-08-01',
-    moveOutDate: '2026-01-01',
-    monthlyRent: 1500,
-    totalPaid: 9000,
-    duration: '6 months'
-  },
-];
+interface KamarData {
+  nomor_kamar: string;
+  tipe_kamar: string;
+  image_url: string;
+  floor: number;
+  harga_per_bulan: number;
+}
+
 
 interface BookingHistoryProps {
   onViewRoom: (roomId: string) => void;
 }
 
 export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [extendModalOpen, setExtendModalOpen] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        const data = await api.getMyBookings();
+        const mapped = data.map((b: { id: number; kamar: KamarData; tanggal_mulai: string; durasi_sewa: number; status_bayar: string; total_bayar: number }) => {
+          const moveIn = new Date(b.tanggal_mulai);
+          const moveOut = new Date(moveIn);
+          moveOut.setMonth(moveOut.getMonth() + b.durasi_sewa);
+
+          return {
+            id: b.id.toString(),
+            roomName: b.kamar.nomor_kamar + " - " + b.kamar.tipe_kamar,
+            roomImage: b.kamar.image_url.startsWith('http') ? b.kamar.image_url : `http://localhost:8080${b.kamar.image_url}`,
+            location: `Floor ${b.kamar.floor}`,
+            status: b.status_bayar === 'Confirmed' ? 'Confirmed' : (b.status_bayar === 'Pending' ? 'Pending' : 'Completed'),
+            moveInDate: b.tanggal_mulai,
+            moveOutDate: moveOut.toISOString().split('T')[0],
+            monthlyRent: b.kamar.harga_per_bulan,
+            totalPaid: b.total_bayar,
+            duration: `${b.durasi_sewa} Months`,
+            rawStatus: b.status_bayar
+          };
+        });
+        setBookings(mapped);
+      } catch (err) {
+        console.error("Failed to fetch bookings", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBookings();
+  }, []);
 
   const handleExtendClick = (booking: Booking) => {
     setSelectedBooking(booking);
@@ -142,10 +151,10 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
           transition={{ staggerChildren: 0.1, delayChildren: 0.2 }}
         >
           {[
-            { label: 'Total Bookings', value: '3', icon: '📅', color: 'from-stone-700 to-stone-900', bgColor: 'from-stone-50 to-stone-100 dark:from-slate-900 dark:to-slate-900' },
-            { label: 'Active', value: '1', icon: '✓', color: 'from-emerald-500 to-emerald-600', bgColor: 'from-emerald-50 to-emerald-100 dark:from-slate-900 dark:to-slate-900' },
-            { label: 'Pending', value: '1', icon: '⏳', color: 'from-amber-500 to-amber-600', bgColor: 'from-amber-50 to-amber-100 dark:from-slate-900 dark:to-slate-900' },
-            { label: 'Total Spent', value: '$13,000', icon: '💰', color: 'from-blue-500 to-blue-600', bgColor: 'from-blue-50 to-blue-100 dark:from-slate-900 dark:to-slate-900' },
+            { label: 'Number Room', value: bookings.length.toString(), icon: '🏠', color: 'from-stone-700 to-stone-900', bgColor: 'from-stone-50 to-stone-100 dark:from-slate-900 dark:to-slate-900' },
+            { label: 'Bill Completed', value: bookings.filter(b => b.rawStatus === 'Confirmed').length.toString(), icon: '✓', color: 'from-emerald-500 to-emerald-600', bgColor: 'from-emerald-50 to-emerald-100 dark:from-slate-900 dark:to-slate-900' },
+            { label: 'Pending Bills', value: bookings.filter(b => b.rawStatus === 'Pending').length.toString(), icon: '⏳', color: 'from-amber-500 to-amber-600', bgColor: 'from-amber-50 to-amber-100 dark:from-slate-900 dark:to-slate-900' },
+            { label: 'Total', value: `Rp ${bookings.reduce((sum, b) => sum + b.totalPaid, 0).toLocaleString()}`, icon: '💰', color: 'from-blue-500 to-blue-600', bgColor: 'from-blue-50 to-blue-100 dark:from-slate-900 dark:to-slate-900' },
           ].map((stat, index) => (
             <motion.div
               key={stat.label}
@@ -172,7 +181,12 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
           animate={{ opacity: 1 }}
           transition={{ staggerChildren: 0.15, delayChildren: 0.4 }}
         >
-          {mockBookings.map((booking, index) => (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <Loader2 className="w-10 h-10 text-stone-600 animate-spin" />
+              <p className="text-slate-500 font-medium italic">Sinking your luxury reservations...</p>
+            </div>
+          ) : bookings.map((booking, index) => (
             <motion.div
               key={booking.id}
               initial={{ opacity: 0, y: 20 }}
@@ -259,7 +273,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
                       >
                         <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold mb-2 uppercase tracking-wide">Monthly</p>
                         <div className="flex items-center gap-1">
-                          <DollarSign className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
+                          <span className="font-bold text-emerald-900 dark:text-emerald-200 text-sm">Rp</span>
                           <span className="font-bold text-emerald-900 dark:text-emerald-200 text-lg">{booking.monthlyRent.toLocaleString()}</span>
                         </div>
                       </motion.div>
@@ -270,7 +284,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
                         <div>
                           <p className="text-sm text-slate-600 dark:text-slate-400 font-medium mb-1">Total Amount Paid</p>
                           <p className="text-4xl font-bold bg-gradient-to-r from-stone-700 to-stone-900 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">
-                            ${booking.totalPaid.toLocaleString()}
+                            Rp {booking.totalPaid.toLocaleString()}
                           </p>
                         </div>
                       </motion.div>
@@ -319,7 +333,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
         </motion.div>
 
         {/* Empty State */}
-        {mockBookings.length === 0 && (
+        {!isLoading && bookings.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -374,7 +388,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
             totalPaid: selectedBooking.totalPaid,
             image: selectedBooking.roomImage,
             duration: selectedBooking.duration,
-            status: selectedBooking.status,
+            status: selectedBooking.status as 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled',
           }}
         />
       )}

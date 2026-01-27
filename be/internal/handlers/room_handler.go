@@ -24,6 +24,9 @@ func (h *KamarHandler) GetKamars(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if kamars == nil {
+		kamars = []models.Kamar{}
+	}
 	c.JSON(http.StatusOK, kamars)
 }
 

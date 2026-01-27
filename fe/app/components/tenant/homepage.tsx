@@ -91,9 +91,11 @@ interface HomepageProps {
   onRoomClick: (roomId: string) => void;
   wishlist?: string[];
   onToggleWishlist?: (roomId: string) => void;
+  isLoggedIn?: boolean;
+  onLoginPrompt?: () => void;
 }
 
-export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: HomepageProps) {
+export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist, isLoggedIn, onLoginPrompt }: HomepageProps) {
   // --- Logic State ---
   const [searchLocation, setSearchLocation] = useState('');
   const [selectedPrice, setSelectedPrice] = useState('all');
@@ -159,13 +161,32 @@ export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: Homep
       
       {/* 1. Hero Section */}
       <section className="relative bg-gradient-to-br from-slate-900 via-stone-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-white py-24 overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1721009714214-e688d8c07506?q=80&w=1080')] bg-cover bg-center opacity-15" />
+        <ImageWithFallback 
+          src="https://images.unsplash.com/photo-1721009714214-e688d8c07506?q=80&w=1080"
+          alt="Hero Background"
+          className="absolute inset-0 w-full h-full object-cover opacity-15"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent dark:from-slate-950" />
 
         <div className="relative max-w-7xl mx-auto px-4">
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} className="text-center mb-16">
             <h1 className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-white via-stone-100 to-stone-200 bg-clip-text text-transparent">Find Your Perfect Space</h1>
             <p className="text-xl md:text-2xl text-stone-300 max-w-2xl mx-auto">Premium boarding houses and apartments tailored to your lifestyle</p>
+            
+            {!isLoggedIn && (
+               <motion.div 
+               initial={{ opacity: 0, scale: 0.9 }} 
+               animate={{ opacity: 1, scale: 1 }} 
+               transition={{ delay: 0.8 }}
+               className="mt-10 flex flex-wrap justify-center gap-4"
+             >
+               <Button onClick={onLoginPrompt} className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-8 py-6 rounded-xl text-lg shadow-2xl shadow-amber-500/20">Mulai Sewa Sekarang</Button>
+               <div className="flex items-center gap-2 text-stone-400 bg-black/20 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                 <CheckCircle2 className="w-4 h-4 text-amber-500" />
+                 <span className="text-sm">Bergabung dengan 1,200+ penyewa puas</span>
+               </div>
+             </motion.div>
+            )}
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 1 }} className="max-w-5xl mx-auto">
@@ -209,6 +230,19 @@ export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: Homep
         </div>
       </section>
 
+      {/* Conversion Banner for Guests */}
+      {!isLoggedIn && (
+        <section className="bg-amber-500 py-12">
+          <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="text-center md:text-left">
+              <h3 className="text-3xl font-bold text-slate-900 mb-2">Penawaran Eksklusif Member Baru</h3>
+              <p className="text-slate-800 font-medium">Dapatkan diskon sewa pertama 15% dengan mendaftar hari ini.</p>
+            </div>
+            <Button onClick={onLoginPrompt} className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-6 rounded-xl font-bold whitespace-nowrap shadow-xl">Ambil Promo</Button>
+          </div>
+        </section>
+      )}
+
       {/* 2. Featured/Search Results Section */}
       <section className="max-w-7xl mx-auto px-4 py-20 bg-slate-50 dark:bg-slate-900/50">
         <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp} className="text-center mb-16">
@@ -246,8 +280,12 @@ export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: Homep
                     </CardDescription>
                     <CardAction>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); onToggleWishlist?.(room.id); }} 
-                        className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all ${wishlist.includes(room.id) ? 'bg-red-500 text-white' : 'bg-white dark:bg-slate-700 text-slate-400'}`}
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          if (!isLoggedIn) onLoginPrompt?.();
+                          else onToggleWishlist?.(room.id); 
+                        }} 
+                        className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all ${wishlist.includes(room.id) ? 'bg-red-500 text-white' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500'}`}
                       >
                         <Heart className={`w-5 h-5 ${wishlist.includes(room.id) ? 'fill-white' : ''}`} />
                       </button>
@@ -273,7 +311,7 @@ export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist }: Homep
                       <span className="text-3xl font-bold">${room.price}</span>
                       <span className="text-sm ml-1">/mo</span>
                     </div>
-                    <Button onClick={() => onRoomClick(room.id)} className="bg-stone-800 hover:bg-stone-700 text-white font-semibold shadow-md">
+                    <Button onClick={() => onRoomClick(room.id)} className="bg-stone-800 hover:bg-stone-700 text-white font-semibold shadow-md px-6">
                       View Details
                     </Button>
                   </CardFooter>

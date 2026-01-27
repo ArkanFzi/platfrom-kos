@@ -1,5 +1,32 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
+const safeJson = async (res: Response) => {
+  const contentType = res.headers.get("content-type");
+  
+  if (!res.ok) {
+    // If not OK and not JSON, it might be a 404/500 HTML page
+    if (!contentType || !contentType.includes("application/json")) {
+        if (res.status === 404) throw new Error(`API Endpoint not found (404). Please ensure the backend is running and up to date.`);
+        throw new Error(`Server returned error ${res.status}: ${res.statusText}`);
+    }
+  }
+
+  const text = await res.text();
+  try {
+    const trimmed = text.trim();
+    if (trimmed.includes('}{')) {
+      console.warn("Detected multiple JSON objects in response, attempting to wrap in array");
+      return JSON.parse(`[${trimmed.replace(/}{/g, '},{')}]`);
+    }
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("Failed to parse JSON response:", text, e);
+    // If it's a 404 string like "404 page not found", handle it gracefully
+    if (text.includes("404")) throw new Error("API Route not registered in backend (404)");
+    throw new Error('Invalid server response format');
+  }
+};
+
 const getHeaders = () => {
   const token = localStorage.getItem('token');
   return {
@@ -15,14 +42,14 @@ export const api = {
       headers: { ...getHeaders(), 'Content-Type': 'application/json' },
     });
     if (!res.ok) throw new Error('Failed to fetch stats');
-    return res.json();
+    return safeJson(res);
   },
 
   // Rooms
   getRooms: async () => {
     const res = await fetch(`${API_URL}/kamar`);
     if (!res.ok) throw new Error('Failed to fetch rooms');
-    return res.json();
+    return safeJson(res);
   },
 
   createRoom: async (formData: FormData) => {
@@ -32,20 +59,10 @@ export const api = {
       body: formData,
     });
     if (!res.ok) throw new Error('Failed to create room');
-    return res.json();
+    return safeJson(res);
   },
 
   deleteRoom: async () => {
-    // Note: Backend endpoint for delete room is not yet implemented in KamarHandler, 
-    // but the plan implied CRUD. For now we skip or add if needed. 
-    // Assuming we use DELETE /kamar/:id
-    // Wait, implementation plan didn't explicitly say Delete Room endpoint for Backend Phase 3
-    // but `LuxuryRoomManagement` has delete. I should verify if I added Delete endpoint.
-    // I only checked `CreateKamar`. `GetKamars` exists. `GetKamarByID` exists.
-    // I missed `DeleteKamar` and `UpdateKamar` in backend implementation.
-    // I will proceed with what I have and note the missing delete in backend.
-    
-    // Placeholder implementation
     console.warn("Delete Room API not implemented in backend");
     return true; 
   },
@@ -54,7 +71,7 @@ export const api = {
   getGalleries: async () => {
     const res = await fetch(`${API_URL}/galleries`);
     if (!res.ok) throw new Error('Failed to fetch galleries');
-    return res.json();
+    return safeJson(res);
   },
 
   createGallery: async (formData: FormData) => {
@@ -64,7 +81,7 @@ export const api = {
       body: formData,
     });
     if (!res.ok) throw new Error('Failed to create gallery');
-    return res.json();
+    return safeJson(res);
   },
 
   deleteGallery: async (id: number) => {
@@ -73,36 +90,98 @@ export const api = {
       headers: { ...getHeaders(), 'Content-Type': 'application/json' },
     });
     if (!res.ok) throw new Error('Failed to delete gallery');
-    return res.json();
+    return safeJson(res);
   },
 
   // Reviews
   getReviews: async (roomId: string) => {
     const res = await fetch(`${API_URL}/kamar/${roomId}/reviews`);
     if (!res.ok) throw new Error('Failed to fetch reviews');
-    return res.json();
+    return safeJson(res);
   },
 
   getAllReviews: async () => {
     const res = await fetch(`${API_URL}/reviews`);
     if (!res.ok) throw new Error('Failed to fetch all reviews');
-    return res.json();
+    return safeJson(res);
   },
 
   createReview: async (review: { kamar_id: number; rating: number; comment: string; user_id?: number }) => {
-    // Note: user_id is often handled by token in backend, but our simplify model might ask for it or mock it.
-    // If backend uses JWT middleware to set context, we don't need to send it. 
-    // But our ReviewHandler implementation binds JSON to struct directly.
-    // Let's assume we send it if available or backend handles it.
-    
-    // For this implementation, we will rely on client providing it or backend mocking it if not authenticated.
-    // Since createReview is protected, we need headers.
     const res = await fetch(`${API_URL}/reviews`, {
       method: 'POST',
       headers: { ...getHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(review),
     });
     if (!res.ok) throw new Error('Failed to post review');
-    return res.json();
+    return safeJson(res);
+  },
+
+  // Auth
+  login: async (credentials: { username: string; password: string }) => {
+    const res = await fetch(`${API_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials),
+    });
+    const data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to login');
+    if (data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+    }
+    return data;
+  },
+
+  register: async (userData: { username: string; password: string; role?: string }) => {
+    const res = await fetch(`${API_URL}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData),
+    });
+    const data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to register');
+    return data;
+  },
+
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  },
+
+  // Profile
+  getProfile: async () => {
+    const res = await fetch(`${API_URL}/profile`, {
+      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    });
+    const data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch profile');
+    return data;
+  },
+
+  updateProfile: async (profileData: FormData | Record<string, unknown>) => {
+    const isFormData = profileData instanceof FormData;
+    const res = await fetch(`${API_URL}/profile`, {
+      method: 'PUT',
+      headers: isFormData 
+        ? { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        : { ...getHeaders(), 'Content-Type': 'application/json' },
+      body: isFormData ? profileData : JSON.stringify(profileData),
+    });
+    const data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to update profile');
+    return data;
+  },
+
+  getMyBookings: async () => {
+    const res = await fetch(`${API_URL}/my-bookings`, {
+      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+        if (res.status === 401) {
+            console.error("Auth failed for my-bookings. Token:", localStorage.getItem('token'));
+        }
+        throw new Error(`Failed to fetch user bookings (Status: ${res.status})`);
+    }
+    return safeJson(res);
   }
 };

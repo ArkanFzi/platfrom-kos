@@ -26,13 +26,17 @@ func main() {
 	kamarRepo := repository.NewKamarRepository(db)
 	galleryRepo := repository.NewGalleryRepository(db)
 	reviewRepo := repository.NewReviewRepository(db)
+	penyewaRepo := repository.NewPenyewaRepository(db)
+	bookingRepo := repository.NewBookingRepository(db)
 
 	// 4. Initialize Services
-	authService := service.NewAuthService(userRepo, cfg)
+	authService := service.NewAuthService(userRepo, penyewaRepo, cfg)
 	kamarService := service.NewKamarService(kamarRepo)
 	galleryService := service.NewGalleryService(galleryRepo)
 	dashboardService := service.NewDashboardService(db)
 	reviewService := service.NewReviewService(reviewRepo)
+	profileService := service.NewProfileService(userRepo, penyewaRepo)
+	bookingService := service.NewBookingService(bookingRepo, penyewaRepo)
 
 	// 5. Initialize Handlers
 	authHandler := handlers.NewAuthHandler(authService)
@@ -40,6 +44,8 @@ func main() {
 	galleryHandler := handlers.NewGalleryHandler(galleryService)
 	dashboardHandler := handlers.NewDashboardHandler(dashboardService)
 	reviewHandler := handlers.NewReviewHandler(reviewService)
+	profileHandler := handlers.NewProfileHandler(profileService)
+	bookingHandler := handlers.NewBookingHandler(bookingService)
 
 	// 6. Setup Router
 	if cfg.Port == "" {
@@ -65,6 +71,7 @@ func main() {
 	{
 		// Public Routes
 		api.POST("/login", authHandler.Login)
+		api.POST("/register", authHandler.Register)
 		api.GET("/kamar", kamarHandler.GetKamars)
 		api.GET("/kamar/:id", kamarHandler.GetKamarByID)
 		api.GET("/kamar/:id/reviews", reviewHandler.GetReviews)
@@ -80,6 +87,9 @@ func main() {
 			protected.DELETE("/galleries/:id", galleryHandler.DeleteGallery)
 			protected.GET("/dashboard", dashboardHandler.GetStats)
 			protected.POST("/reviews", reviewHandler.CreateReview)
+			protected.GET("/profile", profileHandler.GetProfile)
+			protected.PUT("/profile", profileHandler.UpdateProfile)
+			protected.GET("/my-bookings", bookingHandler.GetMyBookings)
 			// Add other protected routes here
 		}
 	}

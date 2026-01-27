@@ -14,6 +14,8 @@ import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { ThemeToggleButton } from '@/app/components/ui/ThemeToggleButton';
 import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
+import { api } from '@/app/services/api';
+import { LogIn } from 'lucide-react';
 
 interface UserPlatformProps {
   onLogout?: () => void;
@@ -27,6 +29,10 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const init = () => {
@@ -46,9 +52,18 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
       const storedWishlist = localStorage.getItem('user_platform_wishlist');
       if (storedWishlist) {
           try {
-              setWishlist(JSON.parse(storedWishlist));
-          } catch {}
+              const parsed = JSON.parse(storedWishlist);
+              if (Array.isArray(parsed)) {
+                setWishlist(parsed);
+              }
+          } catch (e) {
+              console.warn("Corrupted wishlist found, clearing...", e);
+              localStorage.removeItem('user_platform_wishlist');
+          }
       }
+
+      const token = localStorage.getItem('token');
+      setIsLoggedIn(!!token);
     };
     
     setTimeout(init, 0);
@@ -84,16 +99,75 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
     localStorage.setItem('user_platform_wishlist', JSON.stringify(wishlist));
   }, [wishlist, isClient]);
 
+  // Fetch real profile data
+  useEffect(() => {
+    if (isClient && isLoggedIn && activeView === 'profile') {
+      fetchProfile();
+    }
+  }, [isClient, isLoggedIn, activeView]);
+
+  const fetchProfile = async () => {
+    setIsLoadingProfile(true);
+    try {
+      const data = await api.getProfile();
+      let bookingsCount = 0;
+      let totalSpent = 0;
+      
+      try {
+        const bookingsData = await api.getMyBookings();
+        bookingsCount = bookingsData.length;
+        totalSpent = bookingsData.reduce((sum: number, b: { total_bayar: number }) => sum + b.total_bayar, 0);
+      } catch (err) {
+        console.error("Failed to fetch bookings count for profile", err);
+      }
+
+      setUserData({
+        name: data.penyewa?.nama_lengkap || data.user?.username || 'Guest',
+        email: data.user?.email || 'N/A', 
+        phone: data.penyewa?.nomor_hp || 'N/A',
+        address: data.penyewa?.alamat_asal || 'N/A',
+        nik: data.penyewa?.nik || '',
+        jenisKelamin: data.penyewa?.jenis_kelamin || '',
+        joinDate: new Date(data.user?.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        status: 'Active',
+        totalBookings: bookingsCount,
+        totalSpent: totalSpent,
+        profileImage: data.penyewa?.foto_profil 
+            ? (data.penyewa.foto_profil.startsWith('http') ? data.penyewa.foto_profil : `http://localhost:8080${data.penyewa.foto_profil}`)
+            : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NzIyNDZ8MHwxfHNlYXJjaHwxfHx1c2VyJTIwYXZhdGFyfGVufDB8fHx8fDE3MDAwMDAwMDB|&ixlib=rb-4.0.3&q=80&w=400',
+      });
+      setEditData({
+          name: data.penyewa?.nama_lengkap || data.user?.username || '',
+          email: data.user?.email || '',
+          phone: data.penyewa?.nomor_hp || '',
+          address: data.penyewa?.alamat_asal || '',
+          nik: data.penyewa?.nik || '',
+          jenisKelamin: data.penyewa?.jenis_kelamin || '',
+          joinDate: '',
+          status: '',
+          totalBookings: bookingsCount,
+          totalSpent: totalSpent,
+          profileImage: '',
+      });
+    } catch (e) {
+      console.error("Failed to fetch profile", e);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
   // Editable user data
   const [userData, setUserData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-    address: '123 Main Street, New York, NY 10001',
-    joinDate: 'January 2026',
-    status: 'Active',
-    totalBookings: 3,
-    totalSpent: 3600,
+    name: 'Loading...',
+    email: '',
+    phone: '',
+    address: '',
+    nik: '',
+    jenisKelamin: '',
+    joinDate: '',
+    status: '',
+    totalBookings: 0,
+    totalSpent: 0,
     profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NzIyNDZ8MHwxfHNlYXJjaHwxfHx1c2VyJTIwYXZhdGFyfGVufDB8fHx8fDE3MDAwMDAwMDB|&ixlib=rb-4.0.3&q=80&w=400',
   });
 
@@ -117,22 +191,59 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
     setActiveView('booking');
   };
 
-  const handleSaveProfile = () => {
-    setUserData(editData);
-    setIsEditingProfile(false);
+  const handleSaveProfile = async () => {
+    try {
+      const formData = new FormData();
+      formData.append('nama_lengkap', editData.name);
+      formData.append('nomor_hp', editData.phone);
+      formData.append('alamat_asal', editData.address);
+      formData.append('nik', editData.nik);
+      formData.append('jenis_kelamin', editData.jenisKelamin);
+      
+      if (selectedFile) {
+        formData.append('foto_profil', selectedFile);
+      }
+
+      const res = await api.updateProfile(formData);
+      
+      setUserData({
+          ...editData,
+          profileImage: res.penyewa?.foto_profil 
+            ? (res.penyewa.foto_profil.startsWith('http') ? res.penyewa.foto_profil : `http://localhost:8080${res.penyewa.foto_profil}`)
+            : editData.profileImage
+      });
+      setIsEditingProfile(false);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      alert("Profile updated successfully!");
+    } catch (e) {
+      console.error("Failed to update profile", e);
+      alert("Failed to update profile. Please try again.");
+    }
   };
 
   const handleCancelEdit = () => {
     setEditData(userData);
+    setSelectedFile(null);
+    setPreviewUrl(null);
     setIsEditingProfile(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
   };
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'gallery', label: 'Galery Koskosan', icon: Image },
-    { id: 'wishlist', label: 'Wishlist', icon: Heart },
-    { id: 'history', label: 'My Bookings', icon: History },
-    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'wishlist', label: 'Wishlist', icon: Heart, hidden: !isLoggedIn },
+    { id: 'history', label: 'My Bookings', icon: History, hidden: !isLoggedIn },
+    { id: 'profile', label: 'Profile', icon: User, hidden: !isLoggedIn },
   ];
 
 
@@ -157,7 +268,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-2">
-              {menuItems.map((item) => {
+              {menuItems.filter(item => !item.hidden).map((item) => {
                 const Icon = item.icon;
                 return (
                   <button
@@ -174,6 +285,18 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                   </button>
                 );
               })}
+              
+              {!isLoggedIn && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onLogout}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm bg-stone-900 text-white hover:bg-stone-800 transition-all duration-200 ml-2 shadow-lg"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Login</span>
+                </motion.button>
+              )}
               
               {/* Contact Button */}
               <motion.button
@@ -208,7 +331,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
           {mobileMenuOpen && (
             <div className="md:hidden py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
               <nav className="space-y-2">
-                {menuItems.map((item) => {
+                {menuItems.filter(item => !item.hidden).map((item) => {
                   const Icon = item.icon;
                   return (
                     <button
@@ -229,6 +352,16 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                   );
                 })}
                 
+                {!isLoggedIn && (
+                  <button
+                    onClick={onLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm bg-stone-900 text-white hover:bg-stone-800 transition-all shadow-lg"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Login</span>
+                  </button>
+                )}
+                
                 {/* Contact Button - Mobile */}
                 <button
                   onClick={() => {
@@ -246,86 +379,144 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
         </div>
       </header>
 
-      {/* Main Content */}
       <main>
-        {activeView === 'home' && <Homepage onRoomClick={navigateToRoomDetail} wishlist={wishlist} onToggleWishlist={toggleWishlist} />}
+        {activeView === 'home' && (
+          <Homepage 
+            onRoomClick={navigateToRoomDetail} 
+            wishlist={wishlist} 
+            onToggleWishlist={toggleWishlist}
+            isLoggedIn={isLoggedIn}
+            onLoginPrompt={onLogout}
+          />
+        )}
         {activeView === 'gallery' && <Gallery />}
         {activeView === 'contact' && <ContactUs />}
+        
+        {/* Protected Views with Guest Teasers */}
         {activeView === 'wishlist' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            {/* Wishlist Header */}
-            <div className="mb-12">
-              <h1 className="text-4xl font-bold text-slate-900 mb-4">My Wishlist</h1>
-              <p className="text-slate-600 text-lg">Room yang Anda sukai ({wishlist.length} items)</p>
-            </div>
-
-            {wishlist.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center py-16"
-              >
-                <Heart className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold text-slate-700 mb-2">No Wishlist Items Yet</h2>
-                <p className="text-slate-500 mb-6">Tambahkan room favorit Anda ke wishlist</p>
-                <Button
-                  onClick={() => setActiveView('home')}
-                  className="bg-stone-700 hover:bg-stone-800 text-white px-6 py-2 rounded-lg"
-                >
-                  Explore Rooms
-                </Button>
-              </motion.div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[
-                  { id: '1', name: 'Luxury Penthouse', price: 2500, image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBwZW50aG91c2V8ZW58MHx8fHwxNzY4NTI4NDI3fDA&ixlib=rb-4.0.3&q=80&w=500', rating: 4.9 },
-                  { id: '2', name: 'Modern Studio', price: 800, image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBzdHVkaW98ZW58MHx8fHwxNzY4NTI4NDI3fDA&ixlib=rb-4.0.3&q=80&w=500', rating: 4.7 },
-                  { id: '3', name: 'Cozy Apartment', price: 1200, image: 'https://images.unsplash.com/photo-1494145904049-0dca59b4bbad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb3p5JTIwYXBhcnRtZW50fGVufDB8fHx8MTc2ODUyODQyN3ww&ixlib=rb-4.0.3&q=80&w=500', rating: 4.8 },
-                ].filter(room => wishlist.includes(room.id)).map((room) => (
-                  <motion.div
-                    key={room.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all overflow-hidden"
-                  >
-                    <div className="relative h-48 overflow-hidden">
-                      <ImageWithFallback src={room.image} alt={room.name} className="w-full h-full object-cover" />
-                      <button
-                        onClick={() => toggleWishlist(room.id)}
-                        className="absolute top-4 right-4 bg-white rounded-full p-2 hover:bg-red-50 transition-all shadow-lg"
-                      >
-                        <Heart className="w-5 h-5 text-red-500 fill-red-500" />
-                      </button>
-                    </div>
-                    <div className="p-6">
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">{room.name}</h3>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                        <span className="text-sm font-semibold text-slate-700">{room.rating}</span>
-                      </div>
-                      <p className="text-2xl font-bold text-stone-700 mb-4">${room.price}/mo</p>
-                      <Button
-                        onClick={() => navigateToRoomDetail(room.id)}
-                        className="w-full bg-stone-700 hover:bg-stone-800 text-white py-2 rounded-lg"
-                      >
-                        View Details
-                      </Button>
-                    </div>
-                  </motion.div>
-                ))}
+          !isLoggedIn ? (
+            <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+              <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
+                <Heart className="w-20 h-20 text-amber-500 mx-auto mb-6 opacity-20" />
+                <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Simpan Kamar Favoritmu</h2>
+                <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-md mx-auto">Login untuk mulai menyimpan kamar-kamar premium yang kamu sukai ke dalam wishlist personalmu.</p>
+                <Button onClick={onLogout} className="bg-stone-900 hover:bg-stone-800 text-white px-10 py-6 text-lg rounded-xl font-bold shadow-xl shadow-stone-900/20">Login Sekarang</Button>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+              {/* Wishlist Header */}
+              <div className="mb-12">
+                <h1 className="text-4xl font-bold text-slate-900 mb-4">My Wishlist</h1>
+                <p className="text-slate-600 text-lg">Room yang Anda sukai ({wishlist.length} items)</p>
+              </div>
+
+              {wishlist.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-center py-16"
+                >
+                  <Heart className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold text-slate-700 mb-2">No Wishlist Items Yet</h2>
+                  <p className="text-slate-500 mb-6">Tambahkan room favorit Anda ke wishlist</p>
+                  <Button
+                    onClick={() => setActiveView('home')}
+                    className="bg-stone-700 hover:bg-stone-800 text-white px-6 py-2 rounded-lg"
+                  >
+                    Explore Rooms
+                  </Button>
+                </motion.div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[
+                    { id: '1', name: 'Luxury Penthouse', price: 2500, image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBwZW50aG91c2V8ZW58MHx8fHwxNzY4NTI4NDI3fDA&ixlib=rb-4.0.3&q=80&w=500', rating: 4.9 },
+                    { id: '2', name: 'Modern Studio', price: 800, image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBzdHVkaW98ZW58MHx8fHwxNzY4NTI4NDI3fDA&ixlib=rb-4.0.3&q=80&w=500', rating: 4.7 },
+                    { id: '3', name: 'Cozy Apartment', price: 1200, image: 'https://images.unsplash.com/photo-1494145904049-0dca59b4bbad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb3p5JTIwYXBhcnRtZW50fGVufDB8fHx8MTc2ODUyODQyN3ww&ixlib=rb-4.0.3&q=80&w=500', rating: 4.8 },
+                  ].filter(room => wishlist.includes(room.id)).map((room) => (
+                    <motion.div
+                      key={room.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all overflow-hidden"
+                    >
+                      <div className="relative h-48 overflow-hidden">
+                        <ImageWithFallback src={room.image} alt={room.name} className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => toggleWishlist(room.id)}
+                          className="absolute top-4 right-4 bg-white rounded-full p-2 hover:bg-red-50 transition-all shadow-lg"
+                        >
+                          <Heart className="w-5 h-5 text-red-500 fill-red-500" />
+                        </button>
+                      </div>
+                      <div className="p-6">
+                        <h3 className="text-lg font-bold text-slate-900 mb-2">{room.name}</h3>
+                        <div className="flex items-center gap-2 mb-4">
+                          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                          <span className="text-sm font-semibold text-slate-700">{room.rating}</span>
+                        </div>
+                        <p className="text-2xl font-bold text-stone-700 mb-4">${room.price}/mo</p>
+                        <Button
+                          onClick={() => navigateToRoomDetail(room.id)}
+                          className="w-full bg-stone-700 hover:bg-stone-800 text-white py-2 rounded-lg"
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
         )}
 
         {activeView === 'room-detail' && selectedRoomId && (
-          <RoomDetail roomId={selectedRoomId} onBookNow={navigateToBooking} onBack={() => setActiveView('home')} />
+          <RoomDetail 
+            roomId={selectedRoomId} 
+            onBookNow={navigateToBooking} 
+            onBack={() => setActiveView('home')} 
+            isLoggedIn={isLoggedIn}
+            onLoginPrompt={onLogout}
+          />
         )}
+        
         {activeView === 'booking' && selectedRoomId && (
-          <BookingFlow roomId={selectedRoomId} onBack={() => setActiveView('room-detail')} />
+          !isLoggedIn ? (
+            <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+              <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
+                <CreditCard className="w-20 h-20 text-blue-500 mx-auto mb-6 opacity-20" />
+                <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Ready to Move In?</h2>
+                <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-md mx-auto">Silakan login terlebih dahulu untuk melakukan pemesanan kamar premium ini secara aman.</p>
+                <Button onClick={onLogout} className="bg-stone-900 hover:bg-stone-800 text-white px-10 py-6 text-lg rounded-xl font-bold shadow-xl shadow-stone-900/20">Login to Book</Button>
+              </div>
+            </div>
+          ) : (
+            <BookingFlow roomId={selectedRoomId} onBack={() => setActiveView('room-detail')} />
+          )
         )}
-        {activeView === 'history' && <BookingHistory onViewRoom={navigateToRoomDetail} />}
-        {activeView === 'profile' && (
+
+        {activeView === 'history' && (
+          !isLoggedIn ? (
+             <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+              <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
+                <History className="w-20 h-20 text-indigo-500 mx-auto mb-6 opacity-20" />
+                <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Riwayat Pemesanan</h2>
+                <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-md mx-auto">Pantau status transaksi dan riwayat sewa kamar kamu dengan login ke akun personal.</p>
+                <Button onClick={onLogout} className="bg-stone-900 hover:bg-stone-800 text-white px-10 py-6 text-lg rounded-xl font-bold shadow-xl shadow-stone-900/20">Login Sekarang</Button>
+              </div>
+            </div>
+          ) : (
+            <BookingHistory onViewRoom={navigateToRoomDetail} />
+          )
+        )}
+
+        {activeView === 'profile' && isLoggedIn && isLoadingProfile && (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-stone-900"></div>
+          </div>
+        )}
+        {activeView === 'profile' && !isLoadingProfile && (
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             {/* Profile Header */}
             <Card className="mb-10 p-8 bg-gradient-to-r from-stone-900 via-stone-800 to-slate-900 text-white border-0 shadow-2xl">
@@ -352,12 +543,12 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                   
                   <div className="grid grid-cols-3 gap-6">
                     <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
-                      <p className="text-stone-200 text-sm font-semibold mb-2">Total Bookings</p>
+                      <p className="text-stone-200 text-sm font-semibold mb-2">Number Room</p>
                       <p className="text-3xl font-bold text-white">{userData.totalBookings}</p>
                     </div>
                     <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
-                      <p className="text-stone-200 text-sm font-semibold mb-2">Total Spent</p>
-                      <p className="text-3xl font-bold text-white">${userData.totalSpent}</p>
+                      <p className="text-stone-200 text-sm font-semibold mb-2">Total</p>
+                      <p className="text-3xl font-bold text-white">Rp {userData.totalSpent.toLocaleString()}</p>
                     </div>
                     <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
                       <p className="text-stone-200 text-sm font-semibold mb-2">Member Since</p>
@@ -397,6 +588,26 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                     </div>
 
                     <div className="space-y-6">
+                      <div className="flex flex-col items-center mb-6">
+                        <div className="relative group">
+                           <ImageWithFallback
+                            src={previewUrl || editData.profileImage}
+                            alt="Preview"
+                            className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-md group-hover:opacity-75 transition-opacity"
+                          />
+                          <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                            <span className="text-white text-xs font-bold">Change</span>
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              accept="image/*"
+                              onChange={handleFileChange}
+                            />
+                          </label>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2">Click image to change photo</p>
+                      </div>
+
                       <div>
                         <Label className="text-slate-900 font-semibold mb-3 block">Full Name</Label>
                         <Input
@@ -407,15 +618,28 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                         />
                       </div>
 
-                      <div>
-                        <Label className="text-slate-900 font-semibold mb-3 block">Email Address</Label>
-                        <Input
-                          type="email"
-                          value={editData.email}
-                          onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                          className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
-                          placeholder="your.email@example.com"
-                        />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-slate-900 font-semibold mb-3 block">NIK</Label>
+                          <Input
+                            value={editData.nik}
+                            onChange={(e) => setEditData({ ...editData, nik: e.target.value })}
+                            className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
+                            placeholder="NIK"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-slate-900 font-semibold mb-3 block">Gender</Label>
+                          <select
+                            value={editData.jenisKelamin}
+                            onChange={(e) => setEditData({ ...editData, jenisKelamin: e.target.value })}
+                            className="w-full border border-slate-300 rounded-md bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2 px-3"
+                          >
+                            <option value="">Select Gender</option>
+                            <option value="Laki-laki">Laki-laki</option>
+                            <option value="Perempuan">Perempuan</option>
+                          </select>
+                        </div>
                       </div>
 
                       <div>

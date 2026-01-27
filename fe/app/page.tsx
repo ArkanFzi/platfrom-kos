@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/app/components/ui/button';
 
-// Login Component
-import { Login } from '@/app/components/shared/Login';
+// Login Components
+import { UserLogin } from '@/app/components/shared/UserLogin';
+import { UserRegister } from '@/app/components/shared/UserRegister';
 
 // Admin Components
 import { AdminSidebar } from '@/app/components/admin/AdminSidebar';
@@ -18,7 +19,7 @@ import { LuxuryReports } from '@/app/components/admin/LuxuryReports';
 // Tenant Components
 import { UserPlatform } from '@/app/components/tenant/user-platform';
 
-type ViewMode = 'login' | 'home' | 'admin' | 'tenant';
+type ViewMode = 'login' | 'register' | 'home' | 'admin' | 'tenant';
 type AdminPage = 'dashboard' | 'gallery' | 'rooms' | 'tenants' | 'payments' | 'reports';
 type TenantPage = 'landing' | 'room-detail' | 'booking' | 'payment' | 'history';
 
@@ -60,8 +61,15 @@ export default function App() {
       const storedBookingData = localStorage.getItem(STORAGE_KEYS.BOOKING_DATA);
       if (storedBookingData) {
           try {
-              setBookingData(JSON.parse(storedBookingData));
-          } catch {}
+              // Defensive check for line 1 column 5 or other garbage
+              const parsed = JSON.parse(storedBookingData);
+              if (parsed && typeof parsed === 'object') {
+                setBookingData(parsed);
+              }
+          } catch (e) {
+              console.warn("Corrupted booking data found, clearing...", e);
+              localStorage.removeItem(STORAGE_KEYS.BOOKING_DATA);
+          }
       }
 
       const storedUserRole = localStorage.getItem(STORAGE_KEYS.USER_ROLE) as 'admin' | 'tenant' | 'guest';
@@ -124,24 +132,28 @@ export default function App() {
 
 
 
-  // Login Screen
+  // Default Login Screen (User/Tenant)
   if (viewMode === 'login') {
     return (
-      <Login
-        onLoginAsAdmin={() => {
-          setUserRole('admin');
-          setViewMode('admin');
+      <UserLogin 
+        onLoginSuccess={() => {
+            setUserRole('tenant');
+            setViewMode('tenant');
         }}
-        onLoginAsUser={() => {
-          setUserRole('tenant');
-          setViewMode('tenant');
-        }}
-        onLoginAsGuest={() => {
-          setUserRole('guest');
-          setViewMode('home');
-        }}
+        onBack={() => setViewMode('home')}
+        onRegisterClick={() => setViewMode('register')}
       />
     );
+  }
+
+  // User Registration Screen
+  if (viewMode === 'register') {
+      return (
+          <UserRegister 
+            onRegisterSuccess={() => setViewMode('login')}
+            onBackToLogin={() => setViewMode('login')}
+          />
+      );
   }
 
   // Home Selection Screen
@@ -158,51 +170,9 @@ export default function App() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Admin Portal */}
-            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden hover:scale-105 transition-transform">
-              <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-8 text-white">
-                <div className="size-16 bg-white/20 rounded-xl flex items-center justify-center mb-4">
-                  <svg className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-semibold mb-2">Admin Portal</h2>
-                <p className="text-blue-100">
-                  Manage rooms, tenants, payments, and reports
-                </p>
-              </div>
-              <div className="p-8">
-                <ul className="space-y-3 mb-6 text-slate-600">
-                  <li className="flex items-center gap-2">
-                    <span className="size-1.5 bg-blue-600 rounded-full"></span>
-                    Dashboard & Analytics
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="size-1.5 bg-blue-600 rounded-full"></span>
-                    Room Management (CRUD)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="size-1.5 bg-blue-600 rounded-full"></span>
-                    Payment Confirmation
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="size-1.5 bg-blue-600 rounded-full"></span>
-                    Financial Reports
-                  </li>
-                </ul>
-                <Button 
-                  className="w-full" 
-                  size="lg"
-                  onClick={() => setViewMode('admin')}
-                >
-                  Enter Admin Portal
-                </Button>
-              </div>
-            </div>
-
+          <div className="flex justify-center">
             {/* Tenant Portal */}
-            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden hover:scale-105 transition-transform">
+            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden hover:scale-105 transition-transform max-w-md w-full">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-8 text-white">
                 <div className="size-16 bg-white/20 rounded-xl flex items-center justify-center mb-4">
                   <svg className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
