@@ -1,45 +1,62 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import useSWR from 'swr';
-import { motion, useInView, useMotionValue, useSpring, AnimatePresence } from 'framer-motion';
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription, 
-  CardContent, 
+import { useState, useEffect, useRef, useMemo } from "react";
+import useSWR from "swr";
+import {
+  motion,
+  useInView,
+  useMotionValue,
+  useSpring,
+  AnimatePresence,
+} from "framer-motion";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
   CardFooter,
-  CardAction 
-} from '@/app/components/ui/card'; 
-import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
-import { Badge } from '@/app/components/ui/badge';
-import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
-import { 
-  MapPin, 
-  Wifi, 
-  Wind, 
-  Tv, 
-  Coffee, 
+} from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Badge } from "@/app/components/ui/badge";
+import { ImageWithFallback } from "@/app/components/shared/ImageWithFallback";
+import {
+  MapPin,
+  Wifi,
+  Wind,
+  Tv,
+  Coffee,
   Star,
-  Heart,
   CheckCircle2,
   Calendar,
   MessageCircle,
-  LucideIcon
-} from 'lucide-react';
-import { api } from '@/app/services/api';
-import { 
-    Select, 
-    SelectContent, 
-    SelectItem, 
-    SelectTrigger, 
-    SelectValue 
-} from '@/app/components/ui/select';
+  Home,
+  LucideIcon,
+  Search,
+  ChevronRight,
+  Sparkles,
+  ArrowRight,
+} from "lucide-react";
+import { api } from "@/app/services/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
 
 // --- Komponen Counter untuk Trust Indicators ---
-function Counter({ value, suffix = "", decimals = 0 }: { value: number, suffix?: string, decimals?: number }) {
+function Counter({
+  value,
+  suffix = "",
+  decimals = 0,
+}: {
+  value: number;
+  suffix?: string;
+  decimals?: number;
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   const motionValue = useMotionValue(0);
   const springValue = useSpring(motionValue, { damping: 30, stiffness: 100 });
@@ -52,7 +69,8 @@ function Counter({ value, suffix = "", decimals = 0 }: { value: number, suffix?:
   useEffect(() => {
     springValue.on("change", (latest) => {
       if (ref.current) {
-        ref.current.textContent = latest.toFixed(decimals).toLocaleString() + suffix;
+        ref.current.textContent =
+          latest.toFixed(decimals).toLocaleString() + suffix;
       }
     });
   }, [springValue, decimals, suffix]);
@@ -62,401 +80,770 @@ function Counter({ value, suffix = "", decimals = 0 }: { value: number, suffix?:
 
 // --- Animation Variants ---
 const fadeInUp = {
-  hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.8 } }
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
 };
 
 const staggerContainer = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
 };
 
 // --- Interfaces & Data ---
 interface Room {
-  id: string; name: string; type: string; price: number; image: string;
-  location: string; rating: number; reviews: number; facilities: string[];
+  id: string;
+  name: string;
+  type: string;
+  price: number;
+  image: string;
+  location: string;
+  rating: number;
+  reviews: number;
+  facilities: string[];
   status?: string;
 }
 
-const featuredRooms: Room[] = [
-  { id: '1', name: 'Deluxe Suite', type: 'Deluxe', price: 1200, image: 'https://images.unsplash.com/photo-1668512624222-2e375314be39?q=80&w=1080', location: 'Downtown District', rating: 4.8, reviews: 124, facilities: ['WiFi', 'AC', 'TV', 'Coffee Maker'] },
-  { id: '2', name: 'Modern Studio', type: 'Standard', price: 800, image: 'https://images.unsplash.com/photo-1662454419736-de132ff75638?q=80&w=1080', location: 'University Area', rating: 4.6, reviews: 89, facilities: ['WiFi', 'AC', 'TV'] },
-  { id: '3', name: 'Premium Apartment', type: 'Premium', price: 1500, image: 'https://images.unsplash.com/photo-1507138451611-3001135909fa?q=80&w=1080', location: 'Business District', rating: 4.9, reviews: 156, facilities: ['WiFi', 'AC', 'TV', 'Coffee Maker'] },
-  { id: '4', name: 'Executive Suite', type: 'Executive', price: 2000, image: 'https://images.unsplash.com/photo-1661258279966-cfeb51c98327?q=80&w=1080', location: 'Luxury Quarter', rating: 5.0, reviews: 203, facilities: ['WiFi', 'AC', 'TV', 'Coffee Maker'] },
-];
+const facilityIcons: { [key: string]: LucideIcon } = {
+  WiFi: Wifi,
+  AC: Wind,
+  TV: Tv,
+  "Coffee Maker": Coffee,
+};
 
-const facilityIcons: { [key: string]: LucideIcon } = { WiFi: Wifi, AC: Wind, TV: Tv, 'Coffee Maker': Coffee };
-
-const reviewsData = [
-  { name: 'Sarah Chen', role: 'Marketing Executive', review: 'LuxeStay exceeded all my expectations. The attention to detail is incredible.', image: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?q=80&w=400', stayDuration: '8 months' },
-  { name: 'Ahmad Rahman', role: 'University Student', review: 'Finding a place that feels like home while being affordable was crucial.', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400', stayDuration: '1 year' },
-  { name: 'Maria Santos', role: 'Business Analyst', review: 'The Premium Apartment I\'m staying in is absolutely stunning. City view is amazing.', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=400', stayDuration: '6 months' },
-  { name: 'David Kim', role: 'Software Engineer', review: 'The Executive Suite is worth every penny. Workspace is perfect for remote work.', image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=400', stayDuration: '10 months' },
-  { name: 'Nina Putri', role: 'Designer', review: 'I love how LuxeStay combines luxury with functionality. Inspires my work.', image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400', stayDuration: '4 months' },
-  { name: 'Rizky Pratama', role: 'Entrepreneur', review: 'Flexible booking system made moving in seamless. Highly recommended.', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400', stayDuration: '7 months' }
+const defaultReviews = [
+  {
+    name: "Sarah Chen",
+    role: "Marketing Executive",
+    review:
+      "LuxeStay exceeded all my expectations. The attention to detail is incredible.",
+    image:
+      "https://images.unsplash.com/photo-1494790108755-2616b612b786?q=80&w=400",
+    stayDuration: "8 months",
+  },
+  {
+    name: "Ahmad Rahman",
+    role: "University Student",
+    review:
+      "Finding a place that feels like home while being affordable was crucial.",
+    image:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400",
+    stayDuration: "1 year",
+  },
+  {
+    name: "Maria Santos",
+    role: "Business Analyst",
+    review:
+      "The Premium Apartment I'm staying in is absolutely stunning. City view is amazing.",
+    image:
+      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=400",
+    stayDuration: "6 months",
+  },
+  {
+    name: "David Kim",
+    role: "Software Engineer",
+    review:
+      "The Executive Suite is worth every penny. Workspace is perfect for remote work.",
+    image:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=400",
+    stayDuration: "10 months",
+  },
 ];
 
 interface HomepageProps {
   onRoomClick: (roomId: string) => void;
-  wishlist?: string[];
-  onToggleWishlist?: (roomId: string) => void;
   isLoggedIn?: boolean;
   onLoginPrompt?: () => void;
 }
 
-export function Homepage({ onRoomClick, wishlist = [], onToggleWishlist, isLoggedIn, onLoginPrompt }: HomepageProps) {
-  // --- Logic State ---
-  const [searchLocation, setSearchLocation] = useState('');
-  const [selectedPrice, setSelectedPrice] = useState('all');
-  const [selectedType, setSelectedType] = useState('all');
+export function Homepage({
+  onRoomClick,
+  isLoggedIn,
+  onLoginPrompt,
+}: HomepageProps) {
+  const [searchLocation, setSearchLocation] = useState("");
+  const [selectedPrice, setSelectedPrice] = useState("all");
+  const [selectedType, setSelectedType] = useState("all");
 
-  // Cache Rooms
-  const { data: roomsData, isLoading: isLoadingRooms } = useSWR('api/rooms', api.getRooms);
-  
-  // Cache Reviews
-  const { data: reviewsDataApi } = useSWR('api/reviews', api.getAllReviews);
+  const { data: roomsData, isLoading: isLoadingRooms } = useSWR(
+    "api/rooms",
+    api.getRooms,
+  );
+  const { data: reviewsDataApi } = useSWR("api/reviews", api.getAllReviews);
 
   const realRooms = useMemo(() => {
-    if (!roomsData) return [];
-    return (roomsData as Array<{ id: number; nomor_kamar: string; tipe_kamar: string; harga_per_bulan: number; image_url: string; fasilitas: string; status: string }>).map((r) => ({
-      id: String(r.id),
-      name: r.nomor_kamar,
-      type: r.tipe_kamar,
-      price: r.harga_per_bulan,
-      image: r.image_url ? (r.image_url.startsWith('http') ? r.image_url : `http://localhost:8080${r.image_url}`) : 'https://via.placeholder.com/600',
-      location: 'Kota Malang, Jawa Timur', 
-      rating: 4.8, 
-      reviews: 12,
-      facilities: r.fasilitas ? r.fasilitas.split(',').map((f: string) => f.trim()) : [],
-      status: r.status
-    }));
+    if (!roomsData || !Array.isArray(roomsData)) return [];
+    return roomsData.map((r: any) => {
+      // Clean price string if it's formatted like "1.000.000"
+      const rawPrice = r.harga_per_bulan;
+      const numericPrice =
+        typeof rawPrice === "number"
+          ? rawPrice
+          : Number(String(rawPrice || "").replace(/[^0-9]/g, "")) || 0;
+
+      return {
+        id: `real-${r.id}`,
+        name: r.nomor_kamar || "Kamar Tanpa Nama",
+        type: r.tipe_kamar || "Standard",
+        price: numericPrice,
+        image: r.image_url
+          ? r.image_url.startsWith("http")
+            ? r.image_url
+            : `http://localhost:8080${r.image_url}`
+          : "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=1080",
+        location: "Kota Malang, Jawa Timur",
+        rating: 4.8,
+        reviews: 12,
+        facilities: r.fasilitas
+          ? r.fasilitas.split(",").map((f: string) => f.trim())
+          : ["WiFi", "AC"],
+        status: r.status || "Tersedia",
+      };
+    });
   }, [roomsData]);
 
   const reviews = useMemo(() => {
-    if (!reviewsDataApi || reviewsDataApi.length === 0) return reviewsData;
-    const mapped = (reviewsDataApi as Array<{ user?: { username: string }; comment: string; rating: number }>).map((r) => ({
-      name: r.user?.username || 'Anonymous',
-      role: 'Resident',
+    if (
+      !reviewsDataApi ||
+      !Array.isArray(reviewsDataApi) ||
+      reviewsDataApi.length === 0
+    )
+      return defaultReviews;
+    const mapped = reviewsDataApi.map((r: any) => ({
+      name: r.user?.username || "Anonymous",
+      role: "Resident",
       review: r.comment,
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400',
-      stayDuration: 'Verified',
-      rating: r.rating
+      image:
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400",
+      stayDuration: "Verified",
+      rating: r.rating,
     }));
-    return mapped.length >= 4 ? mapped : [...mapped, ...reviewsData];
+    return mapped.length >= 4 ? mapped : [...mapped, ...defaultReviews];
   }, [reviewsDataApi]);
 
-  
-  // --- REAL-TIME FILTER LOGIC ---
   const displayRooms = useMemo(() => {
-    const source = realRooms.length > 0 ? realRooms : featuredRooms;
-    return source.filter((room: Room) => {
-      if (realRooms.length > 0 && room.status !== 'Tersedia') return false;
+    // Hanya gunakan data dari backend (realRooms)
+    return realRooms.filter((room: Room) => {
+      // Filter Location
+      const matchesLocation =
+        !searchLocation ||
+        room.name.toLowerCase().includes(searchLocation.toLowerCase());
 
-      const matchesLocation = searchLocation === '' || room.location.toLowerCase().includes(searchLocation.toLowerCase());
-      
-      const matchesType = selectedType === 'all' || room.type.toLowerCase() === selectedType.toLowerCase();
-      
+      // Filter Type
+      let matchesType = true;
+      if (selectedType !== "all") {
+        matchesType = room.type === selectedType;
+      } else {
+        matchesType = true;
+      }
+
+      // Filter Price
       let matchesPrice = true;
-      const priceVal = realRooms.length > 0 ? room.price : room.price * 1000;
-      if (selectedPrice === '0-1000') matchesPrice = priceVal <= 1000000;
-      else if (selectedPrice === '1000-2000') matchesPrice = priceVal > 1000000 && priceVal <= 2000000;
-      else if (selectedPrice === '2000+') matchesPrice = priceVal > 2000000;
+      if (selectedPrice === "1jt") matchesPrice = room.price === 1000000;
+      else if (selectedPrice === "800rb") matchesPrice = room.price === 800000;
 
-      return matchesLocation && matchesType && matchesPrice;
+      // Status - Only filter out if it's explicitly 'Tidak Tersedia'
+      const matchesStatus = room.status !== "Tidak Tersedia";
+
+      return matchesLocation && matchesType && matchesPrice && matchesStatus;
     });
   }, [realRooms, searchLocation, selectedType, selectedPrice]);
 
-  const midPoint = Math.ceil(reviews.length / 2);
-  const firstRowReviews = reviews.slice(0, midPoint);
-  const secondRowReviews = reviews.slice(midPoint);
-
   const formatCurrency = (val: number) => {
-      if (val < 10000) return `$${val}`; // Mock data fallback
-      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(val);
   };
 
   return (
-    <div className="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors overflow-x-hidden">
-      
-      {/* 1. Hero Section */}
-      <section className="relative bg-gradient-to-br from-slate-900 via-stone-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-white py-24 overflow-hidden">
-        <ImageWithFallback 
-          src="https://images.unsplash.com/photo-1721009714214-e688d8c07506?q=80&w=1080"
-          alt="Hero Background"
-          className="absolute inset-0 w-full h-full object-cover opacity-15"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent dark:from-slate-950" />
-
-        <div className="relative max-w-7xl mx-auto px-4">
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} className="text-center mb-16">
-            <h1 className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-white via-stone-100 to-stone-200 bg-clip-text text-transparent">Find Your Perfect Space</h1>
-            <p className="text-xl md:text-2xl text-stone-300 max-w-2xl mx-auto">Premium male-only boarding houses in Malang tailored to your comfort</p>
-            
-            {!isLoggedIn && (
-               <motion.div 
-               initial={{ opacity: 0, scale: 0.9 }} 
-               animate={{ opacity: 1, scale: 1 }} 
-               transition={{ delay: 0.8 }}
-               className="mt-10 flex flex-wrap justify-center gap-4"
-             >
-               <Button onClick={onLoginPrompt} className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-8 py-6 rounded-xl text-lg shadow-2xl shadow-amber-500/20">Mulai Sewa Sekarang</Button>
-               <div className="flex items-center gap-2 text-stone-400 bg-black/20 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
-                 <CheckCircle2 className="w-4 h-4 text-amber-500" />
-                 <span className="text-sm">Bergabung dengan penghuni Rahmat ZAW</span>
-               </div>
-             </motion.div>
-            )}
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 1 }} className="max-w-5xl mx-auto">
-            <Card className="bg-white/10 backdrop-blur-2xl border border-white/20 p-8 shadow-2xl">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-                <div className="md:col-span-2">
-                  <label className="text-sm font-semibold text-stone-200 mb-3 block uppercase tracking-wide">Location</label>
-                  <div className="relative group">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400 group-focus-within:text-stone-200" />
-                    <Input 
-                      placeholder="Where do you want to stay?" 
-                      value={searchLocation} 
-                      onChange={(e) => setSearchLocation(e.target.value)} 
-                      className="pl-12 bg-white/90 border-white/30 text-slate-900 dark:bg-slate-700/90 dark:text-slate-100 focus:ring-2 focus:ring-stone-400" 
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-stone-200 mb-3 block uppercase tracking-wide">Price</label>
-                  <Select value={selectedPrice} onValueChange={setSelectedPrice}>
-                    <SelectTrigger className="w-full bg-white/90 border-white/30 text-slate-900 dark:bg-slate-700/90 dark:text-slate-100">
-                      <SelectValue placeholder="All Prices" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Prices</SelectItem>
-                      <SelectItem value="0-1000">Rp 0 - Rp 1jt</SelectItem>
-                      <SelectItem value="1000-2000">Rp 1jt - Rp 2jt</SelectItem>
-                      <SelectItem value="2000+">Rp 2jt+</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-stone-200 mb-3 block uppercase tracking-wide">Type</label>
-                  <Select value={selectedType} onValueChange={setSelectedType}>
-                    <SelectTrigger className="w-full bg-white/90 border-white/30 text-slate-900 dark:bg-slate-700/90 dark:text-slate-100">
-                      <SelectValue placeholder="All Types" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="standard">Standard</SelectItem>
-                      <SelectItem value="deluxe">Deluxe</SelectItem>
-                      <SelectItem value="premium">Premium</SelectItem>
-                      <SelectItem value="executive">Executive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-        </div>
-      </section>
-
-
-
-      {/* 2. Featured/Search Results Section */}
-      <section className="max-w-7xl mx-auto px-4 py-20 bg-slate-50 dark:bg-slate-900/50">
-        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp} className="text-center mb-16">
-          <h2 className="text-5xl font-bold text-slate-900 dark:text-slate-100 mb-4">
-            {searchLocation || selectedPrice !== 'all' || selectedType !== 'all' ? 'Search Results' : 'Featured Rooms'}
-          </h2>
-          <p className="text-lg text-slate-600 dark:text-slate-400">
-            {isLoadingRooms ? 'Loading premium rooms...' : displayRooms.length > 0 ? 'Handpicked premium accommodations' : 'No rooms match your specific criteria.'}
-          </p>
-        </motion.div>
-
-        <motion.div layout variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <AnimatePresence mode="popLayout">
-            {displayRooms.map((room) => (
-              <motion.div 
-                key={room.id} 
-                layout 
-                initial={{ opacity: 0, scale: 0.9 }} 
-                animate={{ opacity: 1, scale: 1 }} 
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.3 }}
+    <div className="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors overflow-x-hidden font-sans">
+      {/* 1. Hero Section (Force Side-by-Side on Mobile) */}
+      <section className="relative px-4 pt-16 pb-12 lg:pt-32 lg:pb-32 overflow-hidden bg-white dark:bg-slate-950">
+        <div className="max-w-7xl mx-auto grid grid-cols-12 items-center gap-6 lg:gap-16">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
+            className="col-span-12 lg:col-span-7 text-left"
+          >
+            <Badge
+              variant="outline"
+              className="mb-4 lg:mb-6 px-3 lg:px-4 py-1 lg:py-1.5 text-amber-600 border-amber-200 bg-amber-50 rounded-full font-bold uppercase tracking-wider text-[10px] lg:text-xs"
+            >
+              🏠 Best Boarding House in Malang
+            </Badge>
+            <h1 className="text-3xl md:text-5xl lg:text-7xl font-extrabold leading-[1.1] mb-4 lg:mb-6 text-slate-900 dark:text-white">
+              Find Your Dream <br />
+              <span className="text-amber-500">Home With Ease.</span>
+            </h1>
+            <p className="text-sm md:text-lg lg:text-xl text-slate-600 dark:text-slate-400 mb-6 lg:mb-10 max-w-xl leading-relaxed">
+              Temukan kenyamanan eksklusif dan fasilitas premium di Kos Putra
+              Rahmat ZAW.
+            </p>
+            <div className="flex flex-row gap-3 lg:gap-4">
+              <Button
+                onClick={() =>
+                  window.scrollTo({ top: 800, behavior: "smooth" })
+                }
+                className="bg-slate-900 hover:bg-slate-800 text-white px-4 lg:px-8 py-3 lg:py-6 rounded-xl lg:rounded-2xl text-sm lg:text-lg font-bold shadow-xl"
               >
-                <Card className="bg-white dark:bg-slate-800 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group border-0 h-full flex flex-col">
-                  <div className="relative h-72 overflow-hidden bg-slate-200">
-                    <ImageWithFallback src={room.image} alt={room.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                    <div className="absolute top-4 left-4">
-                      <Badge className="bg-gradient-to-r from-stone-700 to-stone-900 text-white border-0">{room.type}</Badge>
-                    </div>
-                  </div>
+                Explore
+              </Button>
+              <Button
+                variant="ghost"
+                className="px-4 lg:px-8 py-3 lg:py-6 rounded-xl lg:rounded-2xl text-sm lg:text-lg font-bold border-2 border-slate-200"
+              >
+                Learn
+              </Button>
+            </div>
+          </motion.div>
 
-                  <CardHeader className="relative">
-                    <CardTitle className="text-xl font-bold">{room.name}</CardTitle>
-                    <CardDescription className="flex items-center gap-1">
-                      <MapPin size={14} /> {room.location}
-                    </CardDescription>
-                    <CardAction>
-                      <button 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          if (!isLoggedIn) onLoginPrompt?.();
-                          else onToggleWishlist?.(room.id); 
-                        }} 
-                        className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all ${wishlist.includes(room.id) ? 'bg-red-500 text-white' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500'}`}
-                      >
-                        <Heart className={`w-5 h-5 ${wishlist.includes(room.id) ? 'fill-white' : ''}`} />
-                      </button>
-                    </CardAction>
-                  </CardHeader>
-
-                  <CardContent className="flex-1">
-                    <div className="flex flex-wrap gap-2">
-                      {room.facilities.map((f: string) => {
-                        const Icon = facilityIcons[f];
-                        return (
-                          <div key={f} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded-full text-xs font-medium">
-                            {Icon && <Icon className="w-3.5 h-3.5" />}
-                            <span>{f}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </CardContent>
-
-                  <CardFooter className="border-t pt-5 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-baseline">
-                      <span className="text-xl md:text-2xl font-bold">{formatCurrency(room.price)}</span>
-                      <span className="text-xs text-muted-foreground ml-1">/mo</span>
-                    </div>
-                    <Button onClick={() => onRoomClick(room.id)} className="bg-stone-800 hover:bg-stone-700 text-white font-semibold shadow-sm px-4">
-                      View Details
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </motion.div>
-      </section>
-
-      {/* 3. Why Choose Us Section */}
-      <section className="bg-white dark:bg-slate-950 py-24">
-        <div className="max-w-7xl mx-auto px-4">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { title: 'Verified Listings', icon: <CheckCircle2 className="w-12 h-12" />, color: 'from-emerald-50 to-teal-50 border-emerald-100 dark:from-emerald-900/20 dark:to-teal-900/20' },
-              { title: 'Flexible Booking', icon: <Calendar className="w-12 h-12" />, color: 'from-blue-50 to-indigo-50 border-blue-100 dark:from-blue-900/20 dark:to-indigo-900/20' },
-              { title: '24/7 Support', icon: <MessageCircle className="w-12 h-12" />, color: 'from-purple-50 to-pink-50 border-purple-100 dark:from-purple-900/20 dark:to-pink-900/20' }
-            ].map((feature, i) => (
-              <motion.div key={i} variants={fadeInUp}>
-                <Card className={`bg-gradient-to-br ${feature.color} border p-10 text-center hover:shadow-xl transition-all h-full`}>
-                  <div className="text-stone-700 dark:text-stone-300 flex justify-center mb-6">{feature.icon}</div>
-                  <h3 className="text-2xl font-bold mb-4">{feature.title}</h3>
-                  <p className="text-slate-600 dark:text-slate-400 leading-relaxed">Experience premium features and exceptional service in every aspect of your stay.</p>
-                </Card>
-              </motion.div>
-            ))}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8 }}
+            className="col-span-12 lg:col-span-5 relative"
+          >
+            <div className="relative z-10 rounded-[2rem] lg:rounded-[3rem] overflow-hidden shadow-2xl border-[6px] lg:border-[12px] border-white dark:border-slate-800">
+              <ImageWithFallback
+                src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=1080"
+                alt="Main Interior"
+                className="w-full aspect-[4/3] object-cover"
+              />
+            </div>
           </motion.div>
         </div>
       </section>
 
-      {/* 4. Our Story Section */}
-      <section className="bg-slate-50 dark:bg-slate-900/30 py-24 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-            <motion.div initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} transition={{ duration: 1 }} viewport={{ once: true }}>
-              <h2 className="text-5xl font-bold text-slate-900 dark:text-slate-100 mb-8">Redefining Boarding Experience</h2>
-              <div className="space-y-6 text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
-                <p>Didirikan pada tahun 2018, Kost Putra Rahmat ZAW hadir dengan visi untuk merevolusi pengalaman tinggal di kost-kostan di kawasan Sigura-gura, Malang. Fokus kami adalah menyediakan hunian yang nyaman, aman, dan mendukung produktivitas mahasiswa.</p>
-                <p>Kini, Rahmat ZAW mewakili standar baru hunian premium bagi putra yang menginginkan kenyamanan maksimal dalam lingkungan yang kondusif.</p>
+      {/* 2. Search & Filter Section (2x2 Grid on Mobile) */}
+      <section className="relative z-20 -mt-6 lg:-mt-10 px-4">
+        <div className="max-w-5xl mx-auto">
+          <Card className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-white/20 shadow-2xl rounded-[1.5rem] lg:rounded-[2.5rem] p-3 lg:p-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-center">
+              <div className="col-span-2 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Cari kamar..."
+                  value={searchLocation}
+                  onChange={(e) => setSearchLocation(e.target.value)}
+                  className="pl-10 h-10 lg:h-14 bg-slate-50/50 border-none rounded-xl lg:rounded-2xl text-xs lg:text-base"
+                />
               </div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, x: 50 }} whileInView={{ opacity: 1, x: 0 }} transition={{ duration: 1 }} viewport={{ once: true }} className="relative">
-              <div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
-                <ImageWithFallback src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=1000" alt="LuxeStay Story" className="w-full h-full object-cover" />
+              <div className="col-span-1">
+                <Select value={selectedPrice} onValueChange={setSelectedPrice}>
+                  <SelectTrigger className="h-10 lg:h-14 bg-slate-50/50 border-none rounded-xl lg:rounded-2xl text-[10px] lg:text-base">
+                    <SelectValue placeholder="Harga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Harga</SelectItem>
+                    <SelectItem value="1jt">
+                      Rp 1.000.000 (Kamar Mandi Dalam)
+                    </SelectItem>
+                    <SelectItem value="800rb">
+                      Rp 800.000 (Kamar Mandi Luar)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="absolute -bottom-8 -left-8 bg-stone-900 text-white p-8 rounded-2xl shadow-2xl">
-                <p className="text-4xl font-bold mb-1">2018</p>
-                <p className="text-sm uppercase tracking-widest opacity-70">Established</p>
-              </div>
-            </motion.div>
+              <Button
+                onClick={() => {
+                  const el = document.getElementById("featured-rooms");
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="col-span-1 h-10 lg:h-14 bg-slate-900 hover:bg-slate-800 text-white rounded-xl lg:rounded-2xl font-bold text-[10px] lg:text-base transition-transform hover:scale-105"
+              >
+                Cari
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      {/* 3. Featured Rooms Section (Force 2 Columns on Mobile) */}
+      <section
+        id="featured-rooms"
+        className="px-4 py-20 lg:py-32 bg-slate-50 dark:bg-slate-950"
+      >
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10 lg:mb-16">
+            <div className="text-left">
+              <h2 className="text-xl lg:text-4xl font-bold text-slate-900 dark:text-white mb-1">
+                Pilihan Kamar
+              </h2>
+              <p className="text-[10px] lg:text-base text-slate-500">
+                Fasilitas terlengkap.
+              </p>
+            </div>
+            <div className="flex bg-white dark:bg-slate-900 p-0.5 lg:p-1 rounded-lg lg:rounded-2xl shadow-sm border border-slate-100 scale-90 lg:scale-100 origin-right overflow-x-auto no-scrollbar max-w-[60vw]">
+              {["Semua", "Standard", "Premium"].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setSelectedType(tab === "Semua" ? "all" : tab)}
+                  className={`px-3 lg:px-6 py-1.5 lg:py-2.5 rounded-md lg:rounded-xl text-[10px] lg:text-sm font-semibold transition-all whitespace-nowrap ${
+                    selectedType === tab ||
+                    (tab === "Semua" && selectedType === "all")
+                      ? "bg-slate-900 text-white shadow-md"
+                      : "text-slate-500 hover:bg-slate-50"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-8 min-h-[400px]"
+          >
+            <AnimatePresence mode="popLayout">
+              {displayRooms.length > 0 ? (
+                displayRooms.map((room) => (
+                  <motion.div
+                    key={room.id}
+                    layout
+                    variants={fadeInUp}
+                    whileHover={{ y: -5 }}
+                    className="group cursor-pointer h-full"
+                    onClick={() => onRoomClick(room.id)}
+                  >
+                    <Card className="overflow-hidden border-0 bg-white dark:bg-slate-900 shadow-lg lg:shadow-xl lg:shadow-slate-200/50 dark:shadow-none rounded-[1.2rem] lg:rounded-[2.5rem] h-full flex flex-col transition-all duration-300 hover:shadow-2xl">
+                      <div className="relative aspect-[4/3] overflow-hidden">
+                        <ImageWithFallback
+                          src={room.image}
+                          alt={room.name}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                        <div className="absolute top-2 left-2 lg:top-4 lg:left-4">
+                          <Badge className="bg-white/90 backdrop-blur-md text-slate-900 border-0 px-2 lg:px-4 py-0.5 lg:py-1.5 rounded-full font-bold shadow-sm text-[8px] lg:text-xs">
+                            {room.type}
+                          </Badge>
+                        </div>
+                      </div>
+                      <CardHeader className="p-3 lg:p-6 pb-2">
+                        <div className="flex justify-between items-start mb-1">
+                          <CardTitle className="text-sm lg:text-2xl font-bold truncate pr-2">
+                            {room.name}
+                          </CardTitle>
+                          <div className="flex items-center gap-0.5 text-amber-500 font-bold text-[10px] lg:text-base shrink-0">
+                            <Star className="w-2.5 h-2.5 lg:w-4 lg:h-4 fill-current" />
+                            <span>{room.rating}</span>
+                          </div>
+                        </div>
+                        <CardDescription className="flex items-center gap-1 text-slate-500 text-[8px] lg:text-sm">
+                          <MapPin className="w-2 h-2 lg:w-4 lg:h-4" />{" "}
+                          {room.location}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-3 lg:px-6 py-0 flex-1">
+                        <div className="flex flex-wrap gap-1 lg:gap-2 mb-3">
+                          {room.facilities.slice(0, 3).map((f, i) => (
+                            <span
+                              key={i}
+                              className="text-[7px] lg:text-[10px] bg-slate-50 dark:bg-slate-800 px-1.5 lg:px-2 py-0.5 rounded text-slate-400 border border-slate-100 dark:border-slate-700"
+                            >
+                              {f}
+                            </span>
+                          ))}
+                        </div>
+                      </CardContent>
+                      <CardFooter className="p-3 lg:p-6 border-t mt-auto flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-[10px] lg:text-2xl font-extrabold text-slate-900 dark:text-white leading-none">
+                            {formatCurrency(room.price).replace(",00", "")}
+                          </p>
+                          <span className="text-[8px] lg:text-sm font-normal text-slate-400">
+                            per bulan
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-7 lg:h-12 px-3 lg:px-6 bg-slate-900 hover:bg-amber-500 text-white rounded-lg lg:rounded-xl text-[8px] lg:text-sm font-bold transition-all flex items-center gap-1 group/btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRoomClick(room.id);
+                          }}
+                        >
+                          Detail{" "}
+                          <ArrowRight className="w-2 h-2 lg:w-4 lg:h-4 group-hover/btn:translate-x-1 transition-transform" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  </motion.div>
+                ))
+              ) : (
+                <motion.div
+                  className="col-span-full py-20 text-center flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <Home className="w-16 h-16 text-slate-300 mb-4" />
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                    Tidak ada kamar ditemukan
+                  </h3>
+                  <p className="text-slate-500 max-w-xs mx-auto text-center">
+                    Coba cari dengan kriteria lain atau kembali ke kategori
+                    "Semua".
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="mt-6 rounded-full border-slate-300"
+                    onClick={() => {
+                      setSelectedType("all");
+                      setSelectedPrice("all");
+                      setSearchLocation("");
+                    }}
+                  >
+                    Reset Filter
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 4. User Guide Section (Side-by-side on all screens) */}
+      <section className="px-4 py-16 lg:py-24 bg-white dark:bg-slate-900 overflow-hidden">
+        <div className="max-w-7xl mx-auto grid grid-cols-12 items-center gap-4 lg:gap-20">
+          <div className="col-span-7 lg:col-span-6 w-full">
+            <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 mb-4 lg:mb-6 px-3 lg:px-4 py-1 rounded-full font-bold text-[8px] lg:text-[10px]">
+              SIMPLE STEPS
+            </Badge>
+            <h2 className="text-xl md:text-3xl lg:text-6xl font-extrabold leading-tight mb-6 lg:mb-10 text-slate-900 dark:text-white">
+              User guide for <br />
+              <span className="text-amber-500">first timer</span>
+            </h2>
+            <div className="grid grid-cols-1 gap-3 lg:gap-6">
+              {[
+                {
+                  step: "01",
+                  title: "Pilih Kamar",
+                  desc: "Pilih tipe kamar sesuai kebutuhan.",
+                  color: "bg-blue-500",
+                },
+                {
+                  step: "02",
+                  title: "Survey Lokasi",
+                  desc: "Jadwalkan kunjungan fasilitas.",
+                  color: "bg-purple-500",
+                },
+                {
+                  step: "03",
+                  title: "Lakukan Bayar",
+                  desc: "Proses pembayaran aman.",
+                  color: "bg-amber-500",
+                },
+                {
+                  step: "04",
+                  title: "Check-in",
+                  desc: "Nikmati hunian baru Anda.",
+                  color: "bg-emerald-500",
+                },
+              ].map((item, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="flex gap-3 lg:gap-6 p-2 lg:p-6 rounded-xl lg:rounded-[2rem] hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group border border-slate-50 lg:border-transparent lg:hover:border-slate-100"
+                >
+                  <div
+                    className={`w-8 h-8 lg:w-14 lg:h-14 shrink-0 rounded-lg lg:rounded-2xl ${item.color} text-white flex items-center justify-center font-black text-[10px] lg:text-xl shadow-lg`}
+                  >
+                    {item.step}
+                  </div>
+                  <div className="flex flex-col justify-center">
+                    <h3 className="text-[10px] lg:text-2xl font-bold text-slate-900 dark:text-white group-hover:text-amber-500 transition-colors leading-tight">
+                      {item.title}
+                    </h3>
+                    <p className="hidden lg:block text-slate-500 dark:text-slate-400 leading-relaxed text-xs lg:text-base">
+                      {item.desc}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+          <div className="col-span-5 lg:col-span-6 relative flex items-center justify-center">
+            <div className="relative z-10 bg-slate-100 dark:bg-slate-800 rounded-[1.5rem] lg:rounded-[4rem] p-2 lg:p-8 aspect-square w-full">
+              <ImageWithFallback
+                src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=1000"
+                alt="Guide illustration"
+                className="w-full h-full object-cover rounded-[1.2rem] lg:rounded-[3.5rem] shadow-2xl"
+              />
+            </div>
+            {/* Decorative blob for mobile */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-amber-500/10 rounded-full blur-[40px] lg:blur-[100px] -z-10" />
           </div>
         </div>
       </section>
 
-      {/* 5. Reviews Section (Infinite Scroll) */}
-      <section className="bg-white dark:bg-slate-950 py-24 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 mb-16 text-center">
-          <h2 className="text-5xl font-bold text-slate-900 dark:text-slate-100 mb-4">What Our Residents Say</h2>
-          <p className="text-lg text-slate-600 dark:text-slate-400">Real experiences from our growing community</p>
-        </div>
-
-        <div className="space-y-10">
-          <div className="relative flex">
-            <motion.div 
-              className="flex gap-8 px-4"
-              animate={{ x: ["-50%", "0%"] }}
-              transition={{ duration: 30, ease: "linear", repeat: Infinity }}
-            >
-              {[...firstRowReviews, ...firstRowReviews].map((review, i) => (
-                <Card key={i} className="min-w-[400px] bg-slate-50 dark:bg-slate-900 border-0 shadow-md p-8">
-                  <div className="flex gap-1 mb-4">{[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}</div>
-                  <blockquote className="italic mb-8 text-slate-700 dark:text-slate-300 text-lg">&quot;{review.review}&quot;</blockquote>
-                  <div className="flex items-center gap-4 border-t border-slate-200 dark:border-slate-800 pt-6">
-                    <ImageWithFallback src={review.image} className="w-12 h-12 rounded-full object-cover" alt="" />
-                    <div><p className="font-bold">{review.name}</p><p className="text-sm text-slate-500">{review.role} • {review.stayDuration}</p></div>
-                  </div>
-                </Card>
-              ))}
-            </motion.div>
+      {/* 5. Sejarah Section (Force Layout Split) */}
+      <section className="px-4 py-16 lg:py-24 bg-slate-50 dark:bg-slate-950 overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-10 lg:mb-16">
+            <Badge className="bg-slate-900 text-white mb-2 lg:mb-4 px-4 lg:px-6 py-1 lg:py-2 rounded-full text-[10px]">
+              OUR LEGACY
+            </Badge>
+            <h2 className="text-2xl lg:text-5xl font-bold mb-2 lg:mb-4 text-slate-900 dark:text-white">
+              Sejarah Rahmat ZAW
+            </h2>
+            <div className="w-16 lg:w-24 h-1 lg:h-1.5 bg-amber-500 mx-auto rounded-full" />
           </div>
 
+          <div className="grid grid-cols-12 gap-6 lg:gap-16 items-center">
+            <motion.div className="col-span-12 lg:col-span-6 relative order-2 lg:order-1">
+              <div className="aspect-square bg-white dark:bg-slate-900 rounded-[2rem] lg:rounded-[3rem] p-4 lg:p-8 shadow-2xl relative z-10">
+                <ImageWithFallback
+                  src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=1000"
+                  className="w-full h-full object-cover rounded-[1.5rem] lg:rounded-[2rem]"
+                  alt="History Image"
+                />
+              </div>
+              <div className="absolute -bottom-4 -right-4 lg:-bottom-6 lg:-right-6 bg-amber-500 text-white p-4 lg:p-8 rounded-[1.5rem] lg:rounded-[2rem] shadow-xl z-20">
+                <p className="text-xl lg:text-5xl font-black italic leading-none">
+                  EST. 2018
+                </p>
+                <p className="uppercase tracking-widest font-bold text-[8px] lg:text-sm text-white/80">
+                  Malang
+                </p>
+              </div>
+            </motion.div>
+
+            <div className="col-span-12 lg:col-span-6 space-y-4 lg:space-y-8 order-1 lg:order-2">
+              <div className="space-y-3 lg:space-y-6 text-sm lg:text-xl text-slate-600 dark:text-slate-400 leading-relaxed italic border-l-4 border-amber-500 pl-4 lg:pl-8">
+                <p>
+                  Didirikan pada tahun 2018, Kos Putra Rahmat ZAW menyediakan
+                  ekosistem pendukung prestasi mahasiswa.
+                </p>
+                <p className="hidden md:block">
+                  Kini bertransformasi memberikan standar hunian modern dengan
+                  menggabungkan kenyamanan hotel dan kehangatan rumah.
+                </p>
+              </div>
+              <div className="flex gap-3 lg:gap-4">
+                <div className="p-4 lg:p-6 bg-white dark:bg-slate-900 rounded-[1.2rem] lg:rounded-[2rem] shadow-sm border border-slate-100 flex-1">
+                  <p className="text-xl lg:text-4xl font-extrabold text-slate-900 dark:text-white">
+                    6++
+                  </p>
+                  <p className="text-[8px] lg:text-sm text-slate-500 font-bold uppercase tracking-wider">
+                    Tahun Excellence
+                  </p>
+                </div>
+                <div className="p-4 lg:p-6 bg-white dark:bg-slate-900 rounded-[1.2rem] lg:rounded-[2rem] shadow-sm border border-slate-100 flex-1">
+                  <p className="text-xl lg:text-4xl font-extrabold text-slate-900 dark:text-white">
+                    200++
+                  </p>
+                  <p className="text-[8px] lg:text-sm text-slate-500 font-bold uppercase tracking-wider">
+                    Alumni
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. Trust Indicators Section (Optimized for Mobile Row) */}
+      <section className="px-4 py-12 lg:py-24 bg-white dark:bg-slate-900">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-12 text-center">
+            <div className="px-2">
+              <h2 className="text-2xl lg:text-6xl font-black text-slate-900 dark:text-white mb-2 lg:mb-4">
+                <Counter value={4.9} decimals={1} />
+              </h2>
+              <p className="text-slate-400 font-bold tracking-widest uppercase text-[8px] lg:text-sm">
+                Rating
+              </p>
+              <div className="flex gap-0.5 mt-2 justify-center text-amber-500">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className="w-3 h-3 lg:w-5 lg:h-5 fill-current"
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="px-2 border-l border-slate-100 dark:border-slate-800">
+              <h2 className="text-2xl lg:text-6xl font-black text-slate-900 dark:text-white mb-2 lg:mb-4">
+                <Counter value={98} suffix="%" />
+              </h2>
+              <p className="text-slate-400 font-bold tracking-widest uppercase text-[8px] lg:text-sm">
+                Satisfaction
+              </p>
+            </div>
+            <div className="px-2 border-l border-slate-100 dark:border-slate-800 lg:border-l-0">
+              <h2 className="text-2xl lg:text-6xl font-black text-slate-900 dark:text-white mb-2 lg:mb-4">
+                <Counter value={2500} suffix="+" />
+              </h2>
+              <p className="text-slate-400 font-bold tracking-widest uppercase text-[8px] lg:text-sm">
+                Residents
+              </p>
+            </div>
+            <div className="px-2 border-l border-slate-100 dark:border-slate-800">
+              <h2 className="text-2xl lg:text-6xl font-black text-slate-900 dark:text-white mb-2 lg:mb-4">
+                24/7
+              </h2>
+              <p className="text-slate-400 font-bold tracking-widest uppercase text-[8px] lg:text-sm">
+                Support
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. Ulasan Section (Infinite Auto-Scroller - Smaller Cards on Mobile) */}
+      <section className="py-16 lg:py-24 bg-slate-50 dark:bg-slate-950 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 mb-10 lg:mb-16 text-center">
+          <Badge className="bg-amber-500 text-white mb-2 lg:mb-4 px-4 py-1 rounded-full text-[10px]">
+            COMMUNITY
+          </Badge>
+          <h2 className="text-2xl lg:text-5xl font-bold mb-2 lg:mb-4 text-slate-900 dark:text-white">
+            Ulasan Penghuni
+          </h2>
+          <p className="text-slate-500 text-xs lg:text-lg">
+            Suara jujur dari keluarga Rahmat ZAW.
+          </p>
+        </div>
+
+        <div className="relative flex flex-col gap-6 lg:gap-10">
           <div className="relative flex">
-            <motion.div 
-              className="flex gap-8 px-4"
+            <motion.div
+              className="flex gap-4 lg:gap-8 px-4"
               animate={{ x: ["0%", "-50%"] }}
-              transition={{ duration: 35, ease: "linear", repeat: Infinity }}
+              transition={{ duration: 40, ease: "linear", repeat: Infinity }}
             >
-              {[...secondRowReviews, ...secondRowReviews].map((review, i) => (
-                <Card key={i} className="min-w-[400px] bg-slate-50 dark:bg-slate-900 border-0 shadow-md p-8">
-                  <div className="flex gap-1 mb-4">{[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}</div>
-                  <blockquote className="italic mb-8 text-slate-700 dark:text-slate-300 text-lg">&quot;{review.review}&quot;</blockquote>
-                  <div className="flex items-center gap-4 border-t border-slate-200 dark:border-slate-800 pt-6">
-                    <ImageWithFallback src={review.image} className="w-12 h-12 rounded-full object-cover" alt="" />
-                    <div><p className="font-bold">{review.name}</p><p className="text-sm text-slate-500">{review.role} • {review.stayDuration}</p></div>
-                  </div>
-                </Card>
+              {[...reviews, ...reviews].map((r, idx) => (
+                <div key={idx} className="min-w-[280px] lg:min-w-[400px] group">
+                  <Card className="p-6 lg:p-10 bg-white dark:bg-slate-900 border-0 shadow-lg lg:shadow-xl rounded-[1.5rem] lg:rounded-[2.5rem] h-full flex flex-col">
+                    <div className="flex gap-0.5 lg:gap-1 text-amber-500 mb-4 lg:mb-8">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className="w-3 h-3 lg:w-5 lg:h-5 fill-current"
+                        />
+                      ))}
+                    </div>
+                    <p className="text-slate-700 dark:text-slate-300 text-sm lg:text-xl italic leading-relaxed mb-6 lg:mb-10">
+                      &quot;{r.review}&quot;
+                    </p>
+                    <div className="mt-auto flex items-center gap-3 lg:gap-5 border-t dark:border-slate-800 pt-4 lg:pt-8">
+                      <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-full overflow-hidden border border-slate-100">
+                        <ImageWithFallback
+                          src={r.image}
+                          alt={r.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 dark:text-white text-xs lg:text-lg">
+                          {r.name}
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-medium uppercase">
+                          {r.role}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
               ))}
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* 6. Trust Indicators Section */}
-      <section className="bg-slate-50 dark:bg-slate-900/30 py-24 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-16 text-center">
-            <div>
-              <p className="text-6xl font-bold mb-3"><Counter value={4.9} decimals={1} /></p>
-              <p className="text-stone-400 text-sm tracking-widest uppercase font-semibold">Average Rating</p>
-              <div className="flex gap-1 mt-4 justify-center">{[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400 border-0" />)}</div>
-            </div>
-            <div>
-              <p className="text-6xl font-bold mb-3"><Counter value={2500} suffix="+" /></p>
-              <p className="text-stone-400 text-sm tracking-widest uppercase font-semibold">Happy Residents</p>
-            </div>
-            <div>
-              <p className="text-6xl font-bold mb-3"><Counter value={98} suffix="%" /></p>
-              <p className="text-stone-400 text-sm tracking-widest uppercase font-semibold">Satisfaction Rate</p>
-            </div>
-            <div>
-              <p className="text-6xl font-bold mb-3">24/7</p>
-              <p className="text-stone-400 text-sm tracking-widest uppercase font-semibold">Global Support</p>
-            </div>
+      {/* 8. Services Section (2 Columns on Mobile) */}
+      <section className="px-4 py-16 lg:py-24 bg-white dark:bg-slate-900">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12 lg:mb-20">
+            <p className="text-amber-500 font-bold mb-1 lg:mb-2 uppercase tracking-widest text-[10px] lg:text-sm">
+              Services
+            </p>
+            <h2 className="text-2xl lg:text-5xl font-bold text-slate-900 dark:text-white">
+              Kenapa Memilih Kami?
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-8">
+            {[
+              {
+                id: "01",
+                title: "Facilities",
+                desc: "WiFi, AC, Smart TV premium.",
+                icon: <Wifi className="w-6 h-6 lg:w-10 lg:h-10" />,
+              },
+              {
+                id: "02",
+                title: "Location",
+                desc: "Pusat Sigura-gura, Malang.",
+                icon: <MapPin className="w-6 h-6 lg:w-10 lg:h-10" />,
+              },
+              {
+                id: "03",
+                title: "Security",
+                desc: "CCTV 24 jam terkontrol.",
+                icon: <MessageCircle className="w-6 h-6 lg:w-10 lg:h-10" />,
+              },
+            ].map((service) => (
+              <Card
+                key={service.id}
+                className="relative p-6 lg:p-12 bg-slate-50 dark:bg-slate-800 border-0 rounded-[1.5rem] lg:rounded-[3rem] overflow-hidden group hover:bg-slate-900 transition-colors duration-500"
+              >
+                <span className="absolute top-4 right-6 lg:top-10 lg:right-14 text-3xl lg:text-8xl font-black text-slate-200 dark:text-slate-700 group-hover:text-white/10 transition-colors">
+                  {service.id}
+                </span>
+                <div className="relative z-10 text-left">
+                  <div className="w-10 h-10 lg:w-16 h-16 bg-white dark:bg-slate-900 rounded-xl lg:rounded-2xl flex items-center justify-center mb-4 lg:mb-8 shadow-sm group-hover:bg-white transition-colors">
+                    <span className="text-amber-500">{service.icon}</span>
+                  </div>
+                  <h3 className="text-sm lg:text-3xl font-bold mb-2 group-hover:text-white transition-colors">
+                    {service.title}
+                  </h3>
+                  <p className="text-[10px] lg:text-base text-slate-500 leading-relaxed group-hover:text-white/70 transition-colors hidden lg:block">
+                    {service.desc}
+                  </p>
+                </div>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
 
+      {/* CTA Section */}
+      {!isLoggedIn && (
+        <section className="px-6 pb-24">
+          <div className="max-w-7xl mx-auto bg-slate-900 dark:bg-amber-500 rounded-[3.5rem] p-12 lg:p-24 text-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl" />
+            <div className="relative z-10 max-w-3xl mx-auto">
+              <h2 className="text-4xl lg:text-6xl font-bold text-white mb-8">
+                Siap Bergabung dengan{" "}
+                <span className="text-amber-400 dark:text-slate-900">
+                  Keluarga Besar
+                </span>{" "}
+                Rahmat ZAW?
+              </h2>
+              <p className="text-white/70 text-lg mb-12">
+                Dapatkan akses eksklusif ke berbagai fasilitas premium dan promo
+                menarik khusus member baru hari ini.
+              </p>
+              <Button
+                onClick={onLoginPrompt}
+                size="lg"
+                className="bg-white hover:bg-slate-100 text-slate-900 px-12 py-8 rounded-2xl text-xl font-black shadow-2xl"
+              >
+                Daftar Sekarang
+              </Button>
+            </div>
+            <Sparkles className="absolute bottom-10 left-10 text-white/10 w-32 h-32" />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -78,7 +78,7 @@ export function LuxuryRoomManagement() {
   const filteredRooms = rooms
     .filter(room => {
       const matchesSearch = room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           room.id.toLowerCase().includes(searchQuery.toLowerCase());
+        room.id.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'All' || room.status === statusFilter;
       const matchesType = typeFilter === 'All' || room.type === typeFilter;
       return matchesSearch && matchesStatus && matchesType;
@@ -86,53 +86,51 @@ export function LuxuryRoomManagement() {
     .sort((a, b) => {
       const aVal = a[sortField];
       const bVal = b[sortField];
-      
+
       if (typeof aVal === 'string' && typeof bVal === 'string') {
-         return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       }
       const modifier = sortOrder === 'asc' ? 1 : -1;
       return (aVal as number) > (bVal as number) ? modifier : -modifier;
     });
 
   const handleSubmit = async () => {
-      const data = new FormData();
-      data.append('nomor_kamar', formData.name || '');
-      data.append('tipe_kamar', formData.type || 'Single');
-      data.append('harga_per_bulan', String(formData.price));
-      data.append('status', formData.status || 'Tersedia');
-      data.append('capacity', String(formData.capacity));
-      data.append('floor', String(formData.floor));
-      data.append('description', formData.description || '');
-      data.append('fasilitas', (formData.facilities || []).join(', ')); 
-      if (imageFile) {
-        data.append('image', imageFile);
-      }
+    const data = new FormData();
+    data.append('nomor_kamar', formData.name || '');
+    data.append('tipe_kamar', formData.type || 'Single');
+    data.append('harga_per_bulan', String(formData.price));
+    data.append('status', formData.status || 'Tersedia');
+    data.append('capacity', String(formData.capacity));
+    data.append('floor', String(formData.floor));
+    data.append('description', formData.description || '');
+    data.append('fasilitas', (formData.facilities || []).join(', '));
+    if (imageFile) {
+      data.append('image', imageFile);
+    }
 
-      try {
-        if (editingRoom) {
-            await api.updateRoom(editingRoom.id, data);
-        } else {
-            await api.createRoom(data);
-        }
-        await fetchRooms();
-        setIsDialogOpen(false);
-        resetForm();
-        toast.success(editingRoom ? "Room updated successfully!" : "Room created successfully!");
-      } catch (e) {
-        console.error(e);
-        toast.error(editingRoom ? "Failed to update room" : "Failed to create room");
+    try {
+      if (editingRoom) {
+        await api.updateRoom(editingRoom.id, data);
+      } else {
+        await api.createRoom(data);
       }
+      await fetchRooms();
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (e) {
+      console.error(e);
+      alert(editingRoom ? "Failed to update room" : "Failed to create room");
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this room?')) {
       try {
-          await api.deleteRoom(id);
-          await fetchRooms();
-          toast.success("Room deleted successfully!");
+        await api.deleteRoom(id);
+        await fetchRooms();
       } catch (e) {
-          console.error(e);
-          toast.error("Failed to delete room");
+        console.error(e);
+        alert("Failed to delete room");
       }
     }
   };
@@ -183,39 +181,39 @@ export function LuxuryRoomManagement() {
   };
 
   return (
-    <div className="p-8 space-y-8 bg-slate-950 min-h-screen">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 bg-slate-950 min-h-screen">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-amber-500 mb-1">
+          <h1 className="text-2xl md:text-3xl font-bold text-amber-500 mb-1">
             Data Kamar
           </h1>
-          <p className="text-slate-400 text-sm">Manage all rooms and their details</p>
+          <p className="text-slate-400 text-xs md:text-sm">Manage all rooms and their details</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="bg-transparent border-slate-700 text-white hover:bg-slate-800 px-6">
+          <Button variant="outline" className="hidden sm:flex bg-transparent border-slate-700 text-white hover:bg-slate-800 px-6">
             <Download className="size-4 mr-2" />
             Export
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button 
+              <Button
                 onClick={() => { setEditingRoom(null); setFormData({ name: '', type: 'Single', price: 0, status: 'Tersedia', capacity: 1, facilities: [], floor: 1, description: '' }); }}
-                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/20 px-6"
+                className="flex-1 sm:flex-none bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/20 px-4 md:px-6 py-2 h-auto"
               >
                 <Plus className="size-4 mr-2" />
                 Add New Room
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-800 text-white">
+            <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-800 text-white p-4 md:p-6">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-amber-500">
+                <DialogTitle className="text-xl md:text-2xl font-bold text-amber-500">
                   {editingRoom ? 'Edit Room' : 'Add New Room'}
                 </DialogTitle>
               </DialogHeader>
-              <div className="space-y-6 mt-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4 md:space-y-6 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-slate-300">Room Name</Label>
                     <Input
@@ -242,7 +240,7 @@ export function LuxuryRoomManagement() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="price" className="text-slate-300">Price (IDR)</Label>
                     <Input
@@ -269,7 +267,7 @@ export function LuxuryRoomManagement() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="capacity" className="text-slate-300">Capacity</Label>
                     <Input
@@ -300,23 +298,23 @@ export function LuxuryRoomManagement() {
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full h-24 bg-slate-800 border border-slate-700 text-white rounded-lg p-3 focus:ring-amber-500 focus:outline-none"
+                    className="w-full h-24 bg-slate-800 border border-slate-700 text-white rounded-lg p-3 focus:ring-amber-500 focus:outline-none text-sm"
                     placeholder="Describe the room..."
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-slate-300">Room Image</Label>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
                     {formData.image && !imageFile && (
-                      <div className="size-16 rounded-lg overflow-hidden border border-slate-700">
+                      <div className="size-20 rounded-lg overflow-hidden border border-slate-700 flex-shrink-0">
                         <ImageWithFallback src={formData.image} alt="Current" className="w-full h-full object-cover" />
                       </div>
                     )}
-                    <Input 
-                      type="file" 
+                    <Input
+                      type="file"
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImageFile(e.target.files?.[0] || null)}
-                      className="bg-slate-800 border-slate-700 text-white" 
+                      className="bg-slate-800 border-slate-700 text-white text-xs h-auto py-2"
                     />
                   </div>
                 </div>
@@ -325,11 +323,11 @@ export function LuxuryRoomManagement() {
                   <Button variant="outline" onClick={resetForm} className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800">
                     Cancel
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleSubmit}
                     className="bg-amber-500 hover:bg-amber-600 text-white"
                   >
-                    {editingRoom ? 'Update Room' : 'Create Room'}
+                    {editingRoom ? 'Update' : 'Create'}
                   </Button>
                 </div>
               </div>
@@ -346,15 +344,15 @@ export function LuxuryRoomManagement() {
             placeholder="Search Rooms..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 bg-white border-none text-slate-900 placeholder:text-slate-500 h-12 rounded-xl"
+            className="pl-12 bg-slate-900 border-slate-800 text-white placeholder:text-slate-500 h-11 md:h-12 rounded-xl"
           />
         </div>
-        <div className="flex gap-4">
+        <div className="grid grid-cols-2 gap-3 md:flex md:gap-4">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px] bg-slate-900/50 border-slate-700 text-white h-12 rounded-xl">
-              <SelectValue placeholder="All Status" />
+            <SelectTrigger className="bg-slate-900 border-slate-800 text-white h-11 md:h-12 rounded-xl">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-900 border-slate-700 text-white">
+            <SelectContent className="bg-slate-900 border-slate-800 text-white">
               <SelectItem value="All">All Status</SelectItem>
               <SelectItem value="Tersedia">Tersedia</SelectItem>
               <SelectItem value="Penuh">Penuh</SelectItem>
@@ -362,10 +360,10 @@ export function LuxuryRoomManagement() {
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[180px] bg-slate-900/50 border-slate-700 text-white h-12 rounded-xl">
-              <SelectValue placeholder="All Types" />
+            <SelectTrigger className="bg-slate-900 border-slate-800 text-white h-11 md:h-12 rounded-xl">
+              <SelectValue placeholder="Types" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-900 border-slate-700 text-white">
+            <SelectContent className="bg-slate-900 border-slate-800 text-white">
               <SelectItem value="All">All Types</SelectItem>
               <SelectItem value="Single">Single</SelectItem>
               <SelectItem value="Double">Double</SelectItem>
@@ -377,18 +375,18 @@ export function LuxuryRoomManagement() {
       </div>
 
       {/* Table Container */}
-      <div className="bg-slate-900/20 border border-slate-800 rounded-[2rem] p-8 backdrop-blur-sm shadow-xl">
-        {/* Table Header Row */}
-        <div className="grid grid-cols-[120px_1.5fr_1fr_1.5fr_0.8fr_1.2fr_120px] gap-6 px-6 mb-8 text-slate-400 text-sm font-medium">
+      <div className="bg-slate-900/20 md:border md:border-slate-800 rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-8 backdrop-blur-sm shadow-xl">
+        {/* Table Header Row - Desktop Only */}
+        <div className="hidden md:grid grid-cols-[100px_1fr_1fr_1.2fr_0.6fr_1.2fr_100px] gap-4 px-6 mb-8 text-slate-400 text-xs font-bold uppercase tracking-widest">
           <div>Thumbnail</div>
           <div className="flex items-center cursor-pointer hover:text-white" onClick={() => toggleSort('name')}>
-            Room <ChevronUp className="size-4 ml-1" />
+            Room <ChevronUp className="size-3 ml-1" />
           </div>
           <div>Type</div>
           <div className="flex items-center cursor-pointer hover:text-white" onClick={() => toggleSort('price')}>
-            Price <ChevronDown className="size-4 ml-1" />
+            Price <ChevronDown className="size-3 ml-1" />
           </div>
-          <div>Floor</div>
+          <div className="text-center">Floor</div>
           <div>Status</div>
           <div className="text-center">Actions</div>
         </div>
@@ -397,143 +395,151 @@ export function LuxuryRoomManagement() {
         <div className="space-y-4">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
-               <div className="size-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-               <p className="text-slate-500 italic">Syncing with database...</p>
+              <div className="size-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+              <p className="text-slate-500 italic">Syncing with database...</p>
             </div>
           ) : filteredRooms.length === 0 ? (
             <div className="text-center py-20 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
-               <Search className="size-12 text-slate-700 mx-auto mb-4" />
-               <h3 className="text-xl font-semibold text-slate-400">No matching rooms found</h3>
-               <p className="text-slate-600 mt-2 text-sm italic">Try adjusting your filters or adding a new room</p>
+              <Search className="size-12 text-slate-700 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-slate-400">No matching rooms found</h3>
+              <p className="text-slate-600 mt-2 text-sm italic">Try adjusting your filters or adding a new room</p>
             </div>
-          ) : filteredRooms.map((room) => (
-            <div key={room.id} className="grid grid-cols-[120px_1.5fr_1fr_1.5fr_0.8fr_1.2fr_120px] gap-6 px-6 py-5 items-center hover:bg-slate-800/20 rounded-2xl transition-all border border-transparent hover:border-slate-800 group">
-              {/* Thumbnail */}
-              <div className="relative size-20 rounded-2xl overflow-hidden border-2 border-amber-500/40 group-hover:border-amber-500 transition-colors shadow-lg shadow-amber-500/10">
-                <ImageWithFallback
-                  src={room.image}
-                  alt={room.name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-              </div>
+          ) : (
+            filteredRooms.map((room) => (
+              <div key={room.id}>
+                {/* Desktop Row */}
+                <div className="hidden md:grid grid-cols-[100px_1fr_1fr_1.2fr_0.6fr_1.2fr_100px] gap-4 px-6 py-4 items-center bg-slate-800/20 hover:bg-slate-800/40 rounded-2xl transition-all border border-transparent hover:border-slate-800 group">
+                  <div className="relative size-16 rounded-xl overflow-hidden border border-slate-700">
+                    <ImageWithFallback
+                      src={room.image}
+                      alt={room.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold">{room.name}</h3>
+                    <p className="text-slate-500 text-[10px] font-mono">ID: R{String(room.id).padStart(3, '0')}</p>
+                  </div>
+                  <div>
+                    <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-bold rounded-lg border border-blue-500/20 uppercase">
+                      {room.type}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-white font-bold">{formatPrice(room.price)}</p>
+                    <p className="text-slate-500 text-[10px]">per month</p>
+                  </div>
+                  <div className="text-center text-white font-medium">{room.floor}</div>
+                  <div>
+                    <span className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${statusColors[room.status] || ''}`}>
+                      {room.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => setViewingRoom(room)} className="size-8 text-slate-400 hover:text-white"><Eye className="size-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(room)} className="size-8 text-slate-400 hover:text-amber-500"><Edit className="size-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(room.id)} className="size-8 text-slate-400 hover:text-red-500"><Trash2 className="size-4" /></Button>
+                  </div>
+                </div>
 
-              {/* Room Name & ID */}
-              <div>
-                <h3 className="text-white font-bold text-lg mb-0.5">{room.name}</h3>
-                <p className="text-slate-500 text-xs font-mono">ID: R{String(room.id).padStart(3, '0')}</p>
+                {/* Mobile Card */}
+                <div className="md:hidden flex flex-col p-4 bg-slate-900/40 border border-slate-800 rounded-2xl gap-4">
+                  <div className="flex gap-4">
+                    <div className="relative size-20 rounded-xl overflow-hidden border border-slate-700 flex-shrink-0">
+                      <ImageWithFallback
+                        src={room.image}
+                        alt={room.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="text-white font-bold truncate">{room.name}</h3>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${statusColors[room.status] || ''}`}>
+                          {room.status}
+                        </span>
+                      </div>
+                      <p className="text-amber-500 font-bold text-sm mb-1">{formatPrice(room.price)}</p>
+                      <div className="flex gap-2 items-center">
+                        <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-bold rounded border border-blue-500/20 uppercase">
+                          {room.type}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium">Floor {room.floor}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2 border-t border-slate-800">
+                    <Button variant="ghost" className="flex-1 text-slate-400 h-9" onClick={() => setViewingRoom(room)}>
+                      <Eye className="size-4 mr-2" /> Detail
+                    </Button>
+                    <Button variant="ghost" className="flex-1 text-slate-400 h-9" onClick={() => handleEdit(room)}>
+                      <Edit className="size-4 mr-2" /> Edit
+                    </Button>
+                    <Button variant="ghost" className="size-9 p-0 text-slate-500 hover:text-red-500" onClick={() => handleDelete(room.id)}>
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                </div>
               </div>
-
-              {/* Type Badge */}
-              <div>
-                <span className="px-5 py-1.5 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-lg border border-blue-500/20 uppercase tracking-wider">
-                  {room.type}
-                </span>
-              </div>
-
-              {/* Price */}
-              <div>
-                <p className="text-white font-bold text-lg mb-0.5">{formatPrice(room.price)}</p>
-                <p className="text-slate-500 text-xs italic">per month</p>
-              </div>
-
-              {/* Floor */}
-              <div className="text-white font-bold text-lg">
-                {room.floor}
-              </div>
-
-              {/* Status */}
-              <div>
-                <span className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border shadow-inner ${statusColors[room.status] || 'bg-slate-500/10 text-slate-400 border-slate-700'}`}>
-                  {room.status}
-                </span>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setViewingRoom(room)}
-                  className="text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl"
-                >
-                  <Eye className="size-5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleEdit(room)}
-                  className="text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 rounded-xl"
-                >
-                  <Edit className="size-5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(room.id)}
-                  className="text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl"
-                >
-                  <Trash2 className="size-5" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
-      {/* View Dialog */}
+      {/* View Dialog - Responsive */}
       <Dialog open={!!viewingRoom} onOpenChange={() => setViewingRoom(null)}>
-        <DialogContent className="max-w-2xl bg-slate-900 border-slate-800 text-white p-0 overflow-hidden rounded-[2rem]">
+        <DialogContent className="w-[95vw] max-w-2xl bg-slate-900 border-slate-800 text-white p-0 overflow-hidden rounded-2xl md:rounded-[2rem]">
           {viewingRoom && (
             <div className="space-y-0">
-               <div className="aspect-video relative">
-                 <ImageWithFallback
-                   src={viewingRoom.image}
-                   alt={viewingRoom.name}
-                   className="w-full h-full object-cover"
-                 />
-                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
-                 <div className="absolute bottom-6 left-8">
-                    <h2 className="text-3xl font-black text-white">{viewingRoom.name}</h2>
-                    <p className="text-amber-500 font-bold uppercase tracking-tighter mt-1">{viewingRoom.type} • ID: R{String(viewingRoom.id).padStart(3, '0')}</p>
-                 </div>
-               </div>
-               
-               <div className="p-8 space-y-8">
-                  <div className="grid grid-cols-4 gap-6">
-                    <div className="p-4 bg-slate-800/40 rounded-2xl border border-slate-700/50">
-                       <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Status</p>
-                       <p className={`font-black text-sm uppercase ${viewingRoom.status === 'Tersedia' ? 'text-green-400' : 'text-red-400'}`}>{viewingRoom.status}</p>
-                    </div>
-                    <div className="p-4 bg-slate-800/40 rounded-2xl border border-slate-700/50">
-                       <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Price</p>
-                       <p className="font-black text-sm text-amber-500">{formatPrice(viewingRoom.price)}</p>
-                    </div>
-                    <div className="p-4 bg-slate-800/40 rounded-2xl border border-slate-700/50">
-                       <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Floor</p>
-                       <p className="font-black text-sm text-white">{viewingRoom.floor}</p>
-                    </div>
-                    <div className="p-4 bg-slate-800/40 rounded-2xl border border-slate-700/50">
-                       <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Capacity</p>
-                       <p className="font-black text-sm text-white">{viewingRoom.capacity} Person</p>
-                    </div>
-                  </div>
+              <div className="aspect-video relative">
+                <ImageWithFallback
+                  src={viewingRoom.image}
+                  alt={viewingRoom.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
+                <div className="absolute bottom-4 md:bottom-6 left-4 md:left-8">
+                  <h2 className="text-2xl md:text-3xl font-black text-white">{viewingRoom.name}</h2>
+                  <p className="text-amber-500 text-xs md:text-sm font-bold uppercase tracking-tight mt-1">{viewingRoom.type} • Floor {viewingRoom.floor}</p>
+                </div>
+              </div>
 
-                  <div>
-                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Room Facilities</p>
-                     <div className="flex flex-wrap gap-2">
-                       {viewingRoom.facilities.map((f, i) => (
-                         <span key={i} className="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-xl text-xs font-medium">{f}</span>
-                       ))}
-                     </div>
+              <div className="p-4 md:p-8 space-y-6 md:space-y-8">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                  <div className="p-3 md:p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
+                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Status</p>
+                    <p className={`font-black text-xs md:text-sm uppercase ${viewingRoom.status === 'Tersedia' ? 'text-green-400' : 'text-red-400'}`}>{viewingRoom.status}</p>
                   </div>
+                  <div className="p-3 md:p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
+                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Price</p>
+                    <p className="font-black text-xs md:text-sm text-amber-500">{formatPrice(viewingRoom.price)}</p>
+                  </div>
+                  <div className="p-3 md:p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
+                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Floor</p>
+                    <p className="font-black text-xs md:text-sm text-white">{viewingRoom.floor}</p>
+                  </div>
+                  <div className="p-3 md:p-4 bg-slate-800/40 rounded-xl border border-slate-700/50">
+                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Capacity</p>
+                    <p className="font-black text-xs md:text-sm text-white">{viewingRoom.capacity} People</p>
+                  </div>
+                </div>
 
-                  <div>
-                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Description</p>
-                     <p className="text-slate-300 leading-relaxed italic">
-                       &quot;{viewingRoom.description || 'No detailed description provided for this room.'}&quot;
-                     </p>
+                <div>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-3 md:mb-4">Room Facilities</p>
+                  <div className="flex flex-wrap gap-1.5 md:gap-2">
+                    {viewingRoom.facilities.length > 0 ? viewingRoom.facilities.map((f, i) => (
+                      <span key={i} className="px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-[10px] font-medium">{f}</span>
+                    )) : <span className="text-slate-500 text-[10px] italic">No facilities listed</span>}
                   </div>
-               </div>
+                </div>
+
+                <div>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1 md:mb-2">Description</p>
+                  <p className="text-slate-300 text-xs md:text-sm leading-relaxed italic">
+                    &quot;{viewingRoom.description || 'No detailed description provided for this room.'}&quot;
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>

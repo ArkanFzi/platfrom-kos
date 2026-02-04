@@ -8,9 +8,9 @@ import { BookingHistory } from './booking-history';
 import { BookingStatsDetail } from './booking-stats-detail';
 import { ContactUs } from './contact-us';
 import { Gallery } from './Gallery';
-import { motion } from 'framer-motion';
-import { Home, History, User, Menu, LogOut, Mail, Phone, MapPin, CreditCard, X, XCircle, MessageCircle, Image } from 'lucide-react';
-import { toast } from 'sonner';
+import { SmartCalendar } from './SmartCalendar';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Home, History, User, Menu, LogOut, Mail, Phone, MapPin, CreditCard, X, XCircle, MessageCircle, Star, ImageIcon, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
@@ -31,13 +31,17 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
   const [activeView, setActiveView] = useState('home');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [wishlist, setWishlist] = useState<string[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  
+
   // Change Password state
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -47,6 +51,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
   });
   const [passwordError, setPasswordError] = useState('');
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
   useEffect(() => {
     const init = () => {
@@ -63,25 +68,11 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
       const storedEditing = localStorage.getItem('user_platform_is_editing_profile');
       if (storedEditing) setIsEditingProfile(storedEditing === 'true');
 
-      const storedWishlist = localStorage.getItem('user_platform_wishlist');
-      if (storedWishlist) {
-          try {
-              const parsed = JSON.parse(storedWishlist);
-              if (Array.isArray(parsed)) {
-                setWishlist(parsed);
-              }
-          } catch (e) {
-              console.warn("Corrupted wishlist found, clearing...", e);
-              localStorage.removeItem('user_platform_wishlist');
-          }
-      }
-
       const token = localStorage.getItem('token');
       setIsLoggedIn(!!token);
     };
-    
-    const timer = setTimeout(init, 0);
-    return () => clearTimeout(timer);
+
+    setTimeout(init, 0);
   }, []);
 
   // Save state to localStorage whenever it changes, only on client
@@ -111,48 +102,80 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
 
   useEffect(() => {
     if (!isClient) return;
-    localStorage.setItem('user_platform_wishlist', JSON.stringify(wishlist));
-  }, [wishlist, isClient]);
+    localStorage.setItem('user_platform_is_editing_profile', isEditingProfile.toString());
+  }, [isEditingProfile, isClient]);
 
-  // --- SWR Data Fetching ---
-  const { data: profileData, isLoading: isLoadingProfile } = useSWR(
-    isClient && isLoggedIn && activeView === 'profile' ? 'api/profile' : null,
-    api.getProfile
-  );
-
-  const { data: bookingsData } = useSWR(
-    isClient && isLoggedIn && activeView === 'profile' ? 'api/my-bookings' : null,
-    api.getMyBookings
-  );
-
-  const userData = useMemo(() => {
-    if (!profileData) {
-      return {
-        name: 'Guest', email: 'N/A', phone: 'N/A', address: 'N/A', nik: '', jenisKelamin: '',
-        joinDate: 'N/A', status: 'Inactive', totalBookings: 0, totalSpent: 0,
-        profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400',
-      };
+  // Fetch real profile data
+  useEffect(() => {
+    if (isClient && isLoggedIn && activeView === 'profile') {
+      fetchProfile();
     }
+  }, [isClient, isLoggedIn, activeView]);
 
-    const bCount = bookingsData?.length || 0;
-    const bSpent = bookingsData?.reduce((sum: number, b: { total_bayar?: number }) => sum + (b.total_bayar || 0), 0) || 0;
+  const fetchProfile = async () => {
+    setIsLoadingProfile(true);
+    try {
+      const data = await api.getProfile();
+      let bookingsCount = 0;
+      let totalSpent = 0;
 
-    return {
-      name: profileData.penyewa?.nama_lengkap || profileData.user?.username || 'Guest',
-      email: profileData.user?.email || 'N/A', 
-      phone: profileData.penyewa?.nomor_hp || 'N/A',
-      address: profileData.penyewa?.alamat_asal || 'N/A',
-      nik: profileData.penyewa?.nik || '',
-      jenisKelamin: profileData.penyewa?.jenis_kelamin || '',
-      joinDate: profileData.user?.created_at ? new Date(profileData.user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'N/A',
-      status: 'Active',
-      totalBookings: bCount,
-      totalSpent: bSpent,
-      profileImage: profileData.penyewa?.foto_profil 
-          ? (profileData.penyewa.foto_profil.startsWith('http') ? profileData.penyewa.foto_profil : `http://localhost:8080${profileData.penyewa.foto_profil}`)
-          : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400',
-    };
-  }, [profileData, bookingsData]);
+      try {
+        const bookingsData = await api.getMyBookings();
+        bookingsCount = bookingsData.length;
+        totalSpent = bookingsData.reduce((sum: number, b: { total_bayar: number }) => sum + b.total_bayar, 0);
+      } catch (err) {
+        console.error("Failed to fetch bookings count for profile", err);
+      }
+
+      setUserData({
+        name: data.penyewa?.nama_lengkap || data.user?.username || 'Guest',
+        email: data.user?.email || 'N/A',
+        phone: data.penyewa?.nomor_hp || 'N/A',
+        address: data.penyewa?.alamat_asal || 'N/A',
+        nik: data.penyewa?.nik || '',
+        jenisKelamin: data.penyewa?.jenis_kelamin || '',
+        joinDate: data.user?.created_at ? new Date(data.user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'N/A',
+        status: 'Active',
+        totalBookings: bookingsCount,
+        totalSpent: totalSpent,
+        profileImage: data.penyewa?.foto_profil
+          ? (data.penyewa.foto_profil.startsWith('http') ? data.penyewa.foto_profil : `http://localhost:8080${data.penyewa.foto_profil}`)
+          : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NzIyNDZ8MHwxfHNlYXJjaHwxfHx1c2VyJTIwYXZhdGFyfGVufDB8fHx8fDE3MDAwMDAwMDB|&ixlib=rb-4.0.3&q=80&w=400',
+      });
+      setEditData({
+        name: data.penyewa?.nama_lengkap || data.user?.username || '',
+        email: data.user?.email || '',
+        phone: data.penyewa?.nomor_hp || '',
+        address: data.penyewa?.alamat_asal || '',
+        nik: data.penyewa?.nik || '',
+        jenisKelamin: data.penyewa?.jenis_kelamin || '',
+        joinDate: '',
+        status: '',
+        totalBookings: bookingsCount,
+        totalSpent: totalSpent,
+        profileImage: '',
+      });
+    } catch (e) {
+      console.error("Failed to fetch profile", e);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
+  // Editable user data
+  const [userData, setUserData] = useState({
+    name: 'Loading...',
+    email: '',
+    phone: '',
+    address: '',
+    nik: '',
+    jenisKelamin: '',
+    joinDate: '',
+    status: '',
+    totalBookings: 0,
+    totalSpent: 0,
+    profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NzIyNDZ8MHwxfHNlYXJjaHwxfHx1c2VyJTIwYXZhdGFyfGVufDB8fHx8fDE3MDAwMDAwMDB|&ixlib=rb-4.0.3&q=80&w=400',
+  });
 
   const [editData, setEditData] = useState(userData);
 
@@ -163,13 +186,6 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
     }
   }, [userData, isEditingProfile]);
 
-  const toggleWishlist = (roomId: string) => {
-    setWishlist(prev => 
-      prev.includes(roomId)
-        ? prev.filter(id => id !== roomId)
-        : [...prev, roomId]
-    );
-  };
   const navigateToRoomDetail = (roomId: string) => {
     setSelectedRoomId(roomId);
     setActiveView('room-detail');
@@ -188,14 +204,19 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
       formData.append('alamat_asal', editData.address);
       formData.append('nik', editData.nik);
       formData.append('jenis_kelamin', editData.jenisKelamin);
-      
+
       if (selectedFile) {
         formData.append('foto_profil', selectedFile);
       }
 
-      await api.updateProfile(formData);
-      mutate('api/profile');
-      
+      const res = await api.updateProfile(formData);
+
+      setUserData({
+        ...editData,
+        profileImage: res.penyewa?.foto_profil
+          ? (res.penyewa.foto_profil.startsWith('http') ? res.penyewa.foto_profil : `http://localhost:8080${res.penyewa.foto_profil}`)
+          : editData.profileImage
+      });
       setIsEditingProfile(false);
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -260,10 +281,13 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'gallery', label: 'Galery Koskosan', icon: Image },
+    { id: 'gallery', label: 'Gallery Koskosan', icon: ImageIcon },
+    { id: 'calendar', label: 'Smart Calendar', icon: CalendarIcon, hidden: !isLoggedIn },
     { id: 'history', label: 'My Bookings', icon: History, hidden: !isLoggedIn },
     { id: 'profile', label: 'Profile', icon: User, hidden: !isLoggedIn },
   ];
+
+  if (!isMounted) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-stone-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 font-['Poppins']">
@@ -290,18 +314,17 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                   <button
                     key={item.id}
                     onClick={() => setActiveView(item.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-                      activeView === item.id
-                        ? 'bg-gradient-to-r from-stone-700 to-stone-900 text-white shadow-lg'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${activeView === item.id
+                      ? 'bg-gradient-to-r from-stone-700 to-stone-900 text-white shadow-lg'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                      }`}
                   >
                     <Icon className="w-4 h-4" />
                     <span>{item.label}</span>
                   </button>
                 );
               })}
-              
+
               {!isLoggedIn && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -313,7 +336,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                   <span>Login</span>
                 </motion.button>
               )}
-              
+
               {/* Contact Button */}
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -342,13 +365,54 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
               </Button>
             </div>
           </div>
+        </div>
+      </header>
 
-          {/* Mobile Navigation */}
-          {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
-              <nav className="space-y-2">
+      {/* Mobile Sidebar - Side Drawer Style (like previous admin sidebar) */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="md:hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[60]"
+            />
+
+            {/* Sidebar Drawer */}
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="md:hidden fixed top-0 bottom-0 left-0 w-[280px] bg-white dark:bg-slate-900 z-[70] shadow-2xl flex flex-col"
+            >
+              {/* Sidebar Header */}
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-br from-stone-900 to-slate-900">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-md">
+                    <Home className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-sm font-bold text-white uppercase tracking-tighter leading-none">Rahmat ZAW</h1>
+                    <p className="text-[8px] text-slate-300 uppercase font-black mt-1">Prime Stay</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Sidebar Menu */}
+              <nav className="flex-1 overflow-y-auto p-4 space-y-2 mt-4">
                 {menuItems.filter(item => !item.hidden).map((item) => {
                   const Icon = item.icon;
+                  const isActive = activeView === item.id;
                   return (
                     <button
                       key={item.id}
@@ -356,500 +420,558 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                         setActiveView(item.id);
                         setMobileMenuOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                        activeView === item.id
-                          ? 'bg-gradient-to-r from-stone-700 to-stone-900 text-white'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
+                      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-all duration-200 ${isActive
+                        ? 'bg-gradient-to-r from-stone-800 to-stone-900 text-white shadow-xl shadow-stone-900/20'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                        }`}
                     >
-                      <Icon className="w-4 h-4" />
+                      <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                       <span className="text-sm">{item.label}</span>
+                      {isActive && <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full" />}
                     </button>
                   );
                 })}
-                
-                {!isLoggedIn && (
+
+                <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
                   <button
-                    onClick={() => router.push('/login')}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm bg-stone-900 text-white hover:bg-stone-800 transition-all shadow-lg"
+                    onClick={() => {
+                      setActiveView('contact');
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-all duration-200 ${activeView === 'contact'
+                      ? 'bg-blue-600 text-white shadow-xl shadow-blue-500/20'
+                      : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40'
+                      }`}
                   >
-                    <LogIn className="w-4 h-4" />
-                    <span>Login</span>
+                    <MessageCircle className="w-5 h-5" />
+                    <span className="text-sm">Contact Us</span>
                   </button>
-                )}
-                
-                {/* Contact Button - Mobile */}
-                <button
-                  onClick={() => {
-                    setActiveView('contact');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-all"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Contact Us</span>
-                </button>
-              </nav>
-            </div>
-          )}
-        </div>
-      </header>
 
-      <main>
-        {activeView === 'home' && (
-          <Homepage 
-            onRoomClick={navigateToRoomDetail} 
-            wishlist={wishlist} 
-            onToggleWishlist={toggleWishlist}
-            isLoggedIn={isLoggedIn}
-            onLoginPrompt={() => router.push('/login')}
-          />
-        )}
-        {activeView === 'gallery' && <Gallery />}
-        {activeView === 'contact' && <ContactUs />}
-        
-        {/* Protected Views with Guest Teasers */}
-        {activeView === 'room-detail' && selectedRoomId && (
-          <RoomDetail 
-            roomId={selectedRoomId} 
-            onBookNow={navigateToBooking} 
-            onBack={() => setActiveView('home')} 
-            isLoggedIn={isLoggedIn}
-            onLoginPrompt={() => router.push('/login')}
-          />
-        )}
-        
-        {activeView === 'booking' && selectedRoomId && (
-          !isLoggedIn ? (
-            <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-              <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
-                <CreditCard className="w-20 h-20 text-blue-500 mx-auto mb-6 opacity-20" />
-                <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Ready to Move In?</h2>
-                <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-md mx-auto">Silakan login terlebih dahulu untuk melakukan pemesanan kamar premium ini secara aman.</p>
-                <Button onClick={() => router.push('/login')} className="bg-stone-900 hover:bg-stone-800 text-white px-10 py-6 text-lg rounded-xl font-bold shadow-xl shadow-stone-900/20">Login to Book</Button>
-              </div>
-            </div>
-          ) : (
-            <BookingFlow roomId={selectedRoomId} onBack={() => setActiveView('room-detail')} />
-          )
-        )}
-
-        {activeView === 'history' && (
-          !isLoggedIn ? (
-             <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-              <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
-                <History className="w-20 h-20 text-indigo-500 mx-auto mb-6 opacity-20" />
-                <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Riwayat Pemesanan</h2>
-                <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-md mx-auto">Pantau status transaksi dan riwayat sewa kamar kamu dengan login ke akun personal.</p>
-                <Button onClick={() => router.push('/login')} className="bg-stone-900 hover:bg-stone-800 text-white px-10 py-6 text-lg rounded-xl font-bold shadow-xl shadow-stone-900/20">Login Sekarang</Button>
-              </div>
-            </div>
-          ) : (
-            <BookingHistory onViewRoom={navigateToRoomDetail} />
-          )
-        )}
-
-        {activeView === 'booking-stats' && isLoggedIn && (
-          <BookingStatsDetail 
-            bookings={bookingsData} 
-            onBack={() => setActiveView('history')} 
-          />
-        )}
-
-        {activeView === 'profile' && isLoggedIn && isLoadingProfile && (
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-stone-900"></div>
-          </div>
-        )}
-        {activeView === 'profile' && !isLoadingProfile && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            {/* Profile Header */}
-            <Card className="mb-10 p-8 bg-gradient-to-r from-stone-900 via-stone-800 to-slate-900 text-white border-0 shadow-2xl">
-              <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
-                {/* Avatar */}
-                <div className="relative">
-                  <ImageWithFallback
-                    src={userData.profileImage}
-                    alt={userData.name}
-                    className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-xl"
-                  />
-                  <div className="absolute bottom-0 right-0 bg-emerald-400 w-8 h-8 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-                    <span className="text-sm">✓</span>
-                  </div>
-                </div>
-
-                {/* User Info */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <h1 className="text-4xl font-bold text-white">{userData.name}</h1>
-                    <Badge className="bg-emerald-400 text-emerald-900 font-bold px-4 py-1">{userData.status}</Badge>
-                  </div>
-                  <p className="text-stone-200 mb-6 text-lg">{userData.email}</p>
-                  
-                  <div className="grid grid-cols-3 gap-6">
-                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
-                      <p className="text-stone-200 text-sm font-semibold mb-2">Number Room</p>
-                      <p className="text-3xl font-bold text-white">{userData.totalBookings}</p>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
-                      <p className="text-stone-200 text-sm font-semibold mb-2">Total</p>
-                      <p className="text-3xl font-bold text-white">Rp {userData.totalSpent.toLocaleString()}</p>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
-                      <p className="text-stone-200 text-sm font-semibold mb-2">Member Since</p>
-                      <p className="text-xl font-bold text-white">{userData.joinDate}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Edit Button */}
-                {!isEditingProfile && (
-                  <Button 
-                    onClick={() => setIsEditingProfile(true)}
-                    className="bg-white text-stone-900 hover:bg-stone-100 font-bold px-6 py-2 shadow-lg"
-                  >
-                    Edit Profile
-                  </Button>
-                )}
-              </div>
-            </Card>
-
-            {/* Edit Profile Modal */}
-            {isEditingProfile && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
-                  <div className="p-8">
-                    <div className="flex items-center justify-between mb-8">
-                      <div>
-                        <h2 className="text-3xl font-bold text-slate-900">Edit Profile</h2>
-                        <p className="text-slate-600 mt-1">Update your personal information</p>
-                      </div>
-                      <button 
-                        onClick={handleCancelEdit}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition duration-200"
-                      >
-                        <X className="w-6 h-6 text-slate-600 hover:text-slate-900" />
-                      </button>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="flex flex-col items-center mb-6">
-                        <div className="relative group">
-                           <ImageWithFallback
-                            src={previewUrl || editData.profileImage}
-                            alt="Preview"
-                            className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-md group-hover:opacity-75 transition-opacity"
-                          />
-                          <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                            <span className="text-white text-xs font-bold">Change</span>
-                            <input 
-                              type="file" 
-                              className="hidden" 
-                              accept="image/*"
-                              onChange={handleFileChange}
-                            />
-                          </label>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-2">Click image to change photo</p>
-                      </div>
-
-                      <div>
-                        <Label className="text-slate-900 font-semibold mb-3 block">Full Name</Label>
-                        <Input
-                          value={editData.name}
-                          onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                          className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
-                          placeholder="Enter your full name"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-slate-900 font-semibold mb-3 block">NIK</Label>
-                          <Input
-                            value={editData.nik}
-                            onChange={(e) => setEditData({ ...editData, nik: e.target.value })}
-                            className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
-                            placeholder="NIK"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-slate-900 font-semibold mb-3 block">Gender</Label>
-                          <select
-                            value={editData.jenisKelamin}
-                            onChange={(e) => setEditData({ ...editData, jenisKelamin: e.target.value })}
-                            className="w-full border border-slate-300 rounded-md bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2 px-3"
-                          >
-                            <option value="">Select Gender</option>
-                            <option value="Laki-laki">Laki-laki</option>
-                            <option value="Perempuan">Perempuan</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label className="text-slate-900 font-semibold mb-3 block">Phone Number</Label>
-                        <Input
-                          value={editData.phone}
-                          onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                          className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
-                          placeholder="+1 (555) 123-4567"
-                        />
-                      </div>
-
-                      <div>
-                        <Label className="text-slate-900 font-semibold mb-3 block">Address</Label>
-                        <Input
-                          value={editData.address}
-                          onChange={(e) => setEditData({ ...editData, address: e.target.value })}
-                          className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
-                          placeholder="123 Main Street, City, State"
-                        />
-                      </div>
-
-                      <div className="flex gap-4 pt-6 border-t border-slate-200">
-                        <Button 
-                          onClick={handleSaveProfile}
-                          className="flex-1 bg-stone-900 hover:bg-stone-800 text-white font-bold py-3 shadow-lg hover:shadow-xl transition-all"
-                        >
-                          Save Changes
-                        </Button>
-                        <Button 
-                          onClick={handleCancelEdit}
-                          variant="outline"
-                          className="flex-1 border-2 border-slate-300 hover:bg-slate-50 font-bold py-3"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* Change Password Modal */}
-            {isChangingPassword && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                <Card className="w-full max-w-md bg-white shadow-2xl border-0 overflow-hidden rounded-2xl">
-                  <div className="p-8">
-                    <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <h2 className="text-2xl font-bold text-slate-900">Change Password</h2>
-                        <p className="text-slate-500 text-sm mt-1">Ensure your account stays secure</p>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          setIsChangingPassword(false);
-                          setPasswordError('');
-                          setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
-                        }}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition"
-                      >
-                        <X className="w-5 h-5 text-slate-400" />
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleChangePassword} className="space-y-4">
-                      {passwordError && (
-                        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs font-medium border border-red-100 flex items-center gap-2">
-                          <XCircle className="w-4 h-4" />
-                          {passwordError}
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-slate-700">Current Password</Label>
-                        <Input
-                          type="password"
-                          required
-                          value={passwordData.oldPassword}
-                          onChange={(e) => setPasswordData({ ...passwordData, oldPassword: e.target.value })}
-                          className="border-slate-200 bg-slate-50 focus:bg-white focus:ring-stone-900"
-                          placeholder="••••••••"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-slate-700">New Password</Label>
-                        <Input
-                          type="password"
-                          required
-                          value={passwordData.newPassword}
-                          onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                          className="border-slate-200 bg-slate-50 focus:bg-white focus:ring-stone-900"
-                          placeholder="••••••••"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-slate-700">Confirm New Password</Label>
-                        <Input
-                          type="password"
-                          required
-                          value={passwordData.confirmPassword}
-                          onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                          className="border-slate-200 bg-slate-50 focus:bg-white focus:ring-stone-900"
-                          placeholder="••••••••"
-                        />
-                      </div>
-
-                      <div className="flex gap-3 pt-4">
-                        <Button 
-                          type="submit"
-                          disabled={isPasswordLoading}
-                          className="flex-1 bg-stone-900 hover:bg-stone-800 text-white font-bold py-2 rounded-xl shadow-lg"
-                        >
-                          {isPasswordLoading ? 'Updating...' : 'Update Password'}
-                        </Button>
-                        <Button 
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            setIsChangingPassword(false);
-                            setPasswordError('');
-                          }}
-                          className="flex-1 border-slate-200"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* Profile Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Personal Information */}
-              <Card className="p-8 bg-white/80 backdrop-blur-sm border-slate-200/60 hover:shadow-lg transition-all">
-                <div className="flex items-center gap-3 mb-7">
-                  <div className="w-10 h-10 bg-gradient-to-br from-stone-700 to-stone-900 rounded-lg flex items-center justify-center">
-                    <Mail className="w-5 h-5 text-white" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-slate-900">Personal Information</h2>
-                </div>
-                
-                <div className="space-y-6">
-                  <div className="pb-4 border-b border-slate-200">
-                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Full Name</label>
-                    <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.name}</p>
-                  </div>
-                  
-                  <div className="pb-4 border-b border-slate-200">
-                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-stone-700" />
-                      Email Address
-                    </label>
-                    <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.email}</p>
-                  </div>
-
-                  <div className="pb-4 border-b border-slate-200">
-                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-stone-700" />
-                      Phone Number
-                    </label>
-                    <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.phone}</p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-stone-700" />
-                      Address
-                    </label>
-                    <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.address}</p>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Account & Preferences */}
-              <Card className="p-8 bg-white/80 backdrop-blur-sm border-slate-200/60 hover:shadow-lg transition-all">
-                <div className="flex items-center gap-3 mb-7">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-                    <CreditCard className="w-5 h-5 text-white" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-slate-900">Account & Settings</h2>
-                </div>
-                
-                <div className="space-y-6">
-                  <div className="pb-4 border-b border-slate-200">
-                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Member Since</label>
-                    <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.joinDate}</p>
-                  </div>
-
-                  <div className="pb-4 border-b border-slate-200">
-                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Account Status</label>
-                    <div className="mt-2 flex items-center gap-3">
-                      <div className="w-3 h-3 bg-emerald-400 rounded-full shadow-md" />
-                      <p className="text-slate-900 text-lg font-semibold">{userData.status}</p>
-                    </div>
-                  </div>
-
-                  <div className="pb-4 border-b border-slate-200">
-                    <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Verification</label>
-                    <Badge className="mt-2 bg-emerald-100 text-emerald-800 font-bold px-3 py-1">✓ Email Verified</Badge>
-                  </div>
-
-                  <div className="pt-2">
-                    <Button 
-                      onClick={() => setIsChangingPassword(true)}
-                      variant="outline" 
-                      className="w-full font-semibold border-2 border-slate-300 hover:bg-slate-50 py-2"
+                  {!isLoggedIn && (
+                    <button
+                      onClick={() => {
+                        onLogout?.();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium text-white bg-stone-900 hover:bg-stone-800 shadow-lg shadow-stone-900/20"
                     >
-                      Change Password
-                    </Button>
+                      <LogIn className="w-5 h-5" />
+                      <span className="text-sm">Login</span>
+                    </button>
+                  )}
+                </div>
+              </nav>
+
+              {/* Sidebar Footer */}
+              <div className="p-6 border-t border-slate-100 dark:border-slate-800">
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center uppercase tracking-widest font-bold">
+                  &copy; 2026 Rahmat ZAW
+                </p>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      <main className="relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeView + (selectedRoomId || '')}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          >
+            {activeView === 'home' && (
+              <Homepage
+                onRoomClick={navigateToRoomDetail}
+                isLoggedIn={isLoggedIn}
+                onLoginPrompt={onLogout}
+              />
+            )}
+            {activeView === 'gallery' && <Gallery />}
+            {activeView === 'calendar' && isLoggedIn && <SmartCalendar />}
+            {activeView === 'contact' && <ContactUs />}
+
+            {/* Protected Views with Guest Teasers */}
+            {/* Wishlist section removed */}
+
+            {activeView === 'room-detail' && selectedRoomId && (
+              <RoomDetail
+                roomId={selectedRoomId}
+                onBookNow={navigateToBooking}
+                onBack={() => setActiveView('home')}
+                isLoggedIn={isLoggedIn}
+                onLoginPrompt={onLogout}
+              />
+            )}
+
+            {activeView === 'booking' && selectedRoomId && (
+              !isLoggedIn ? (
+                <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+                  <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
+                    <CreditCard className="w-20 h-20 text-blue-500 mx-auto mb-6 opacity-20" />
+                    <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Ready to Move In?</h2>
+                    <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-md mx-auto">Silakan login terlebih dahulu untuk melakukan pemesanan kamar premium ini secara aman.</p>
+                    <Button onClick={onLogout} className="bg-stone-900 hover:bg-stone-800 text-white px-10 py-6 text-lg rounded-xl font-bold shadow-xl shadow-stone-900/20">Login to Book</Button>
                   </div>
                 </div>
-              </Card>
-            </div>
+              ) : (
+                <BookingFlow roomId={selectedRoomId} onBack={() => setActiveView('room-detail')} />
+              )
+            )}
 
-            {/* Danger Zone */}
-            <Card className="mt-10 p-8 border-red-200 bg-gradient-to-br from-red-50 to-rose-50 hover:shadow-lg transition-all">
-              <div className="flex items-center gap-3 mb-4">
-                <XCircle className="w-6 h-6 text-red-600" />
-                <h2 className="text-2xl font-bold text-red-900">Danger Zone</h2>
-              </div>
-              <p className="text-sm text-red-700 mb-8 leading-relaxed">
-                These actions are irreversible. Please carefully review before proceeding.
-              </p>
-              <div className="space-y-4">
-                <div className="flex gap-4 flex-col sm:flex-row">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-100 font-semibold py-2"
-                  >
-                    Deactivate
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-100 font-semibold py-2"
-                  >
-                    Delete Account
-                  </Button>
+            {activeView === 'history' && (
+              !isLoggedIn ? (
+                <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+                  <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
+                    <History className="w-20 h-20 text-indigo-500 mx-auto mb-6 opacity-20" />
+                    <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Riwayat Pemesanan</h2>
+                    <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-md mx-auto">Pantau status transaksi dan riwayat sewa kamar kamu dengan login ke akun personal.</p>
+                    <Button onClick={onLogout} className="bg-stone-900 hover:bg-stone-800 text-white px-10 py-6 text-lg rounded-xl font-bold shadow-xl shadow-stone-900/20">Login Sekarang</Button>
+                  </div>
                 </div>
-                
-                {/* Logout Button */}
-                <Button
-                  onClick={() => {
-                    // Clear UserPlatform specific state
-                    localStorage.removeItem('user_platform_active_view');
-                    localStorage.removeItem('user_platform_selected_room_id');
-                    localStorage.removeItem('user_platform_mobile_menu_open');
-                    localStorage.removeItem('user_platform_is_editing_profile');
-                    localStorage.removeItem('user_platform_wishlist');
-                    // Call parent logout
-                    onLogout?.();
-                  }}
-                  className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 shadow-lg hover:shadow-xl transition-all"
-                >
-                  <LogOut className="w-5 h-5 mr-2" />
-                  Logout
-                </Button>
-              </div>
-            </Card>
-          </div>
-        )}
+              ) : (
+                <BookingHistory onViewRoom={navigateToRoomDetail} />
+              )
+            )}
+
+            {activeView === 'profile' && isLoggedIn && (
+              <AnimatePresence mode="wait">
+                {isLoadingProfile ? (
+                  <motion.div
+                    key="profile-loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
+                  >
+                    <div className="animate-pulse space-y-8">
+                      <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-3xl" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="h-96 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+                        <div className="h-96 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-center justify-center mt-12 gap-3 text-slate-400">
+                      <Loader2 className="w-8 h-8 animate-spin" />
+                      <p className="text-sm font-medium">Loading your profile data...</p>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="profile-content"
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                    variants={{
+                      hidden: { opacity: 0 },
+                      visible: {
+                        opacity: 1,
+                        transition: { staggerChildren: 0.1 }
+                      }
+                    }}
+                    className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
+                  >
+                    {/* Profile Header */}
+                    <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+                      <Card className="mb-10 p-8 bg-gradient-to-r from-stone-900 via-stone-800 to-slate-900 text-white border-0 shadow-2xl">
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
+                          {/* Avatar */}
+                          <div className="relative">
+                            <ImageWithFallback
+                              src={userData.profileImage}
+                              alt={userData.name}
+                              className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-xl"
+                            />
+                            <div className="absolute bottom-0 right-0 bg-emerald-400 w-8 h-8 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+                              <span className="text-sm">✓</span>
+                            </div>
+                          </div>
+
+                          {/* User Info */}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-3">
+                              <h1 className="text-4xl font-bold text-white">{userData.name}</h1>
+                              <Badge className="bg-emerald-400 text-emerald-900 font-bold px-4 py-1">{userData.status}</Badge>
+                            </div>
+                            <p className="text-stone-200 mb-6 text-lg">{userData.email}</p>
+
+                            <div className="grid grid-cols-3 gap-6">
+                              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+                                <p className="text-stone-200 text-sm font-semibold mb-2">Number Room</p>
+                                <p className="text-3xl font-bold text-white">{userData.totalBookings}</p>
+                              </div>
+                              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+                                <p className="text-stone-200 text-sm font-semibold mb-2">Total</p>
+                                <p className="text-3xl font-bold text-white">Rp {userData.totalSpent.toLocaleString()}</p>
+                              </div>
+                              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
+                                <p className="text-stone-200 text-sm font-semibold mb-2">Member Since</p>
+                                <p className="text-xl font-bold text-white">{userData.joinDate}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Edit Button */}
+                          {!isEditingProfile && (
+                            <Button
+                              onClick={() => setIsEditingProfile(true)}
+                              className="bg-white text-stone-900 hover:bg-stone-100 font-bold px-6 py-2 shadow-lg"
+                            >
+                              Edit Profile
+                            </Button>
+                          )}
+                        </div>
+                      </Card>
+                    </motion.div>
+
+                    {/* Edit Profile Modal */}
+                    {isEditingProfile && (
+                      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
+                          <div className="p-8">
+                            <div className="flex items-center justify-between mb-8">
+                              <div>
+                                <h2 className="text-3xl font-bold text-slate-900">Edit Profile</h2>
+                                <p className="text-slate-600 mt-1">Update your personal information</p>
+                              </div>
+                              <button
+                                onClick={handleCancelEdit}
+                                className="p-2 hover:bg-slate-100 rounded-lg transition duration-200"
+                              >
+                                <X className="w-6 h-6 text-slate-600 hover:text-slate-900" />
+                              </button>
+                            </div>
+
+                            <div className="space-y-6">
+                              <div className="flex flex-col items-center mb-6">
+                                <div className="relative group">
+                                  <ImageWithFallback
+                                    src={previewUrl || editData.profileImage}
+                                    alt="Preview"
+                                    className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-md group-hover:opacity-75 transition-opacity"
+                                  />
+                                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                                    <span className="text-white text-xs font-bold">Change</span>
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      accept="image/*"
+                                      onChange={handleFileChange}
+                                    />
+                                  </label>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">Click image to change photo</p>
+                              </div>
+
+                              <div>
+                                <Label className="text-slate-900 font-semibold mb-3 block">Full Name</Label>
+                                <Input
+                                  value={editData.name}
+                                  onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                                  className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
+                                  placeholder="Enter your full name"
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label className="text-slate-900 font-semibold mb-3 block">NIK</Label>
+                                  <Input
+                                    value={editData.nik}
+                                    onChange={(e) => setEditData({ ...editData, nik: e.target.value })}
+                                    className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
+                                    placeholder="NIK"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-slate-900 font-semibold mb-3 block">Gender</Label>
+                                  <select
+                                    value={editData.jenisKelamin}
+                                    onChange={(e) => setEditData({ ...editData, jenisKelamin: e.target.value })}
+                                    className="w-full border border-slate-300 rounded-md bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2 px-3"
+                                  >
+                                    <option value="">Select Gender</option>
+                                    <option value="Laki-laki">Laki-laki</option>
+                                    <option value="Perempuan">Perempuan</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div>
+                                <Label className="text-slate-900 font-semibold mb-3 block">Phone Number</Label>
+                                <Input
+                                  value={editData.phone}
+                                  onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                                  className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
+                                  placeholder="+1 (555) 123-4567"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-slate-900 font-semibold mb-3 block">Address</Label>
+                                <Input
+                                  value={editData.address}
+                                  onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                                  className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
+                                  placeholder="123 Main Street, City, State"
+                                />
+                              </div>
+
+                              <div className="flex gap-4 pt-6 border-t border-slate-200">
+                                <Button
+                                  onClick={handleSaveProfile}
+                                  className="flex-1 bg-stone-900 hover:bg-stone-800 text-white font-bold py-3 shadow-lg hover:shadow-xl transition-all"
+                                >
+                                  Save Changes
+                                </Button>
+                                <Button
+                                  onClick={handleCancelEdit}
+                                  variant="outline"
+                                  className="flex-1 border-2 border-slate-300 hover:bg-slate-50 font-bold py-3"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      </div>
+                    )}
+
+                    {/* Change Password Modal */}
+                    {isChangingPassword && (
+                      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                        <Card className="w-full max-w-md bg-white shadow-2xl border-0 overflow-hidden rounded-2xl">
+                          <div className="p-8">
+                            <div className="flex items-center justify-between mb-6">
+                              <div>
+                                <h2 className="text-2xl font-bold text-slate-900">Change Password</h2>
+                                <p className="text-slate-500 text-sm mt-1">Ensure your account stays secure</p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setIsChangingPassword(false);
+                                  setPasswordError('');
+                                  setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                                }}
+                                className="p-2 hover:bg-slate-100 rounded-lg transition"
+                              >
+                                <X className="w-5 h-5 text-slate-400" />
+                              </button>
+                            </div>
+
+                            <form onSubmit={handleChangePassword} className="space-y-4">
+                              {passwordError && (
+                                <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs font-medium border border-red-100 flex items-center gap-2">
+                                  <XCircle className="w-4 h-4" />
+                                  {passwordError}
+                                </div>
+                              )}
+
+                              <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-slate-700">Current Password</Label>
+                                <Input
+                                  type="password"
+                                  required
+                                  value={passwordData.oldPassword}
+                                  onChange={(e) => setPasswordData({ ...passwordData, oldPassword: e.target.value })}
+                                  className="border-slate-200 bg-slate-50 focus:bg-white focus:ring-stone-900"
+                                  placeholder="••••••••"
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-slate-700">New Password</Label>
+                                <Input
+                                  type="password"
+                                  required
+                                  value={passwordData.newPassword}
+                                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                                  className="border-slate-200 bg-slate-50 focus:bg-white focus:ring-stone-900"
+                                  placeholder="••••••••"
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-slate-700">Confirm New Password</Label>
+                                <Input
+                                  type="password"
+                                  required
+                                  value={passwordData.confirmPassword}
+                                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                                  className="border-slate-200 bg-slate-50 focus:bg-white focus:ring-stone-900"
+                                  placeholder="••••••••"
+                                />
+                              </div>
+
+                              <div className="flex gap-3 pt-4">
+                                <Button
+                                  type="submit"
+                                  disabled={isPasswordLoading}
+                                  className="flex-1 bg-stone-900 hover:bg-stone-800 text-white font-bold py-2 rounded-xl shadow-lg"
+                                >
+                                  {isPasswordLoading ? 'Updating...' : 'Update Password'}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setIsChangingPassword(false);
+                                    setPasswordError('');
+                                  }}
+                                  className="flex-1 border-slate-200"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </form>
+                          </div>
+                        </Card>
+                      </div>
+                    )}
+
+                    {/* Profile Details */}
+                    <motion.div
+                      variants={{
+                        hidden: { opacity: 0 },
+                        visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } }
+                      }}
+                      className="grid grid-cols-1 md:grid-cols-2 gap-8"
+                    >
+                      {/* Personal Information */}
+                      <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+                        <Card className="p-8 bg-white/80 backdrop-blur-sm border-slate-200/60 hover:shadow-lg transition-all text-slate-900 font-semibold">
+                          <div className="flex items-center gap-3 mb-7">
+                            <div className="w-10 h-10 bg-gradient-to-br from-stone-700 to-stone-900 rounded-lg flex items-center justify-center">
+                              <Mail className="w-5 h-5 text-white" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-slate-900">Personal Information</h2>
+                          </div>
+
+                          <div className="space-y-6">
+                            <div className="pb-4 border-b border-slate-200">
+                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Full Name</label>
+                              <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.name}</p>
+                            </div>
+
+                            <div className="pb-4 border-b border-slate-200">
+                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
+                                <Mail className="w-4 h-4 text-stone-700" />
+                                Email Address
+                              </label>
+                              <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.email}</p>
+                            </div>
+
+                            <div className="pb-4 border-b border-slate-200">
+                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
+                                <Phone className="w-4 h-4 text-stone-700" />
+                                Phone Number
+                              </label>
+                              <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.phone}</p>
+                            </div>
+
+                            <div>
+                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-stone-700" />
+                                Address
+                              </label>
+                              <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.address}</p>
+                            </div>
+                          </div>
+                        </Card>
+                      </motion.div>
+
+                      {/* Account & Preferences */}
+                      <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+                        <Card className="p-8 bg-white/80 backdrop-blur-sm border-slate-200/60 hover:shadow-lg transition-all text-slate-900 font-semibold">
+                          <div className="flex items-center gap-3 mb-7">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+                              <CreditCard className="w-5 h-5 text-white" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-slate-900">Account & Settings</h2>
+                          </div>
+
+                          <div className="space-y-6">
+                            <div className="pb-4 border-b border-slate-200">
+                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Member Since</label>
+                              <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.joinDate}</p>
+                            </div>
+
+                            <div className="pb-4 border-b border-slate-200">
+                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Account Status</label>
+                              <div className="mt-2 flex items-center gap-3">
+                                <div className="w-3 h-3 bg-emerald-400 rounded-full shadow-md" />
+                                <p className="text-slate-900 text-lg font-semibold">{userData.status}</p>
+                              </div>
+                            </div>
+
+                            <div className="pb-4 border-b border-slate-200">
+                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Verification</label>
+                              <Badge className="mt-2 bg-emerald-100 text-emerald-800 font-bold px-3 py-1">✓ Email Verified</Badge>
+                            </div>
+
+                            <div className="pt-2">
+                              <Button
+                                onClick={() => setIsChangingPassword(true)}
+                                variant="outline"
+                                className="w-full font-semibold border-2 border-slate-300 hover:bg-slate-50 py-2"
+                              >
+                                Change Password
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    </motion.div>
+
+                    {/* Danger Zone */}
+                    <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
+                      <Card className="mt-10 p-8 border-red-200 bg-gradient-to-br from-red-50 to-rose-50 hover:shadow-lg transition-all">
+                        <div className="flex items-center gap-3 mb-4">
+                          <XCircle className="w-6 h-6 text-red-600" />
+                          <h2 className="text-2xl font-bold text-red-900">Danger Zone</h2>
+                        </div>
+                        <p className="text-sm text-red-700 mb-8 leading-relaxed">
+                          These actions are irreversible. Please carefully review before proceeding.
+                        </p>
+                        <div className="space-y-4">
+                          <div className="flex gap-4 flex-col sm:flex-row">
+                            <Button
+                              onClick={() => {
+                                // Clear UserPlatform specific state
+                                localStorage.removeItem('user_platform_active_view');
+                                localStorage.removeItem('user_platform_selected_room_id');
+                                localStorage.removeItem('user_platform_mobile_menu_open');
+                                localStorage.removeItem('user_platform_is_editing_profile');
+                                localStorage.removeItem('user_platform_wishlist');
+                                // Call parent logout
+                                onLogout?.();
+                              }}
+                              className="flex-1 bg-stone-900 hover:bg-stone-800 text-white font-bold py-3 shadow-lg hover:shadow-xl transition-all"
+                            >
+                              <LogOut className="w-5 h-5 mr-2" />
+                              Logout
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-100 font-semibold py-3"
+                            >
+                              Delete Account
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Footer */}
@@ -867,24 +989,27 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
               <p className="text-slate-400 text-sm leading-relaxed">Hunian kost putra premium di kawasan Sigura-gura, Malang. Nyaman, aman, dan strategis.</p>
             </div>
 
-            {/* Quick Links */}
-            <div>
-              <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Quick Links</h4>
-              <ul className="space-y-3 text-sm">
-                <li><button onClick={() => setActiveView('home')} className="text-slate-400 hover:text-white transition-colors">Home</button></li>
-                <li><button onClick={() => setActiveView('gallery')} className="text-slate-400 hover:text-white transition-colors">Gallery</button></li>
-                <li><button onClick={() => setActiveView('contact')} className="text-slate-400 hover:text-white transition-colors">Contact</button></li>
-                <li><a href="#" className="text-slate-400 hover:text-white transition-colors">FAQ</a></li>
-              </ul>
-            </div>
+            {/* Mobile Grid for Links */}
+            <div className="grid grid-cols-2 gap-8 md:contents">
+              {/* Quick Links */}
+              <div>
+                <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Quick Links</h4>
+                <ul className="space-y-3 text-sm">
+                  <li><button onClick={() => setActiveView('home')} className="text-slate-400 hover:text-white transition-colors">Home</button></li>
+                  <li><button onClick={() => setActiveView('gallery')} className="text-slate-400 hover:text-white transition-colors">Gallery</button></li>
+                  <li><button onClick={() => setActiveView('contact')} className="text-slate-400 hover:text-white transition-colors">Contact</button></li>
+                  <li><a href="#" className="text-slate-400 hover:text-white transition-colors">FAQ</a></li>
+                </ul>
+              </div>
 
-            {/* Legal */}
-            <div>
-              <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Legal</h4>
-              <ul className="space-y-3 text-sm">
-                <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Terms of Service</a></li>
-              </ul>
+              {/* Legal */}
+              <div>
+                <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Legal</h4>
+                <ul className="space-y-3 text-sm">
+                  <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Privacy Policy</a></li>
+                  <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Terms of Service</a></li>
+                </ul>
+              </div>
             </div>
 
             {/* Contact Info */}

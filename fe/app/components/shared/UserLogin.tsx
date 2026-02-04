@@ -10,14 +10,14 @@ import { api } from '@/app/services/api';
 import { ImageWithFallback } from './ImageWithFallback';
 
 interface UserLoginProps {
-// ... existing props ...
+  // ... existing props ...
   onLoginSuccess: () => void;
   onBack: () => void;
   onRegisterClick: () => void;
 }
 
 export function UserLogin({ onLoginSuccess, onBack, onRegisterClick }: UserLoginProps) {
-// ... existing state ...
+  // ... existing state ...
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -42,11 +42,11 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick }: UserLogin
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <div className="hidden md:flex md:w-1/2 bg-stone-900 items-center justify-center relative overflow-hidden">
+    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50 overflow-auto md:overflow-hidden">
+      <div className="flex-shrink-0 md:w-1/2 bg-stone-900 border-b md:border-b-0 md:border-r border-slate-200/10 flex items-center justify-center relative overflow-hidden min-h-[300px] md:min-h-0">
         {/* Full-bleed background image */}
         <div className="absolute inset-0">
-          <ImageWithFallback 
+          <ImageWithFallback
             src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2000"
             alt="Premium Interior"
             className="w-full h-full object-cover opacity-60"
@@ -56,23 +56,23 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick }: UserLogin
           <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-transparent to-stone-900/30" />
         </div>
 
-        <div className="relative z-10 text-center max-w-md p-12">
+        <div className="relative z-10 text-center max-w-md p-6 md:p-12">
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <Home className="w-20 h-20 mx-auto mb-8 text-amber-500 shadow-sm" />
+            <Home className="w-12 h-12 md:w-20 md:h-20 mx-auto mb-4 md:mb-8 text-amber-500 shadow-sm" />
           </motion.div>
-          <h1 className="text-5xl font-black mb-4 text-white tracking-tight">Welcome <span className="text-amber-500">Tenant</span></h1>
-          <p className="text-xl text-stone-200 font-medium leading-relaxed">
+          <h1 className="text-3xl md:text-5xl font-black mb-2 md:mb-4 text-white tracking-tight">Welcome <span className="text-amber-500">Tenant</span></h1>
+          <p className="text-sm md:text-xl text-stone-200 font-medium leading-relaxed">
             Log in to manage your bookings and experience world-class comfort.
           </p>
         </div>
       </div>
 
       <div className="flex w-full md:w-1/2 items-center justify-center p-8">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm"
@@ -126,7 +126,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick }: UserLogin
 
           <p className="mt-8 text-center text-slate-600">
             Don&apos;t have an account?{' '}
-            <button 
+            <button
               onClick={onRegisterClick}
               className="text-amber-600 font-semibold hover:underline"
             >

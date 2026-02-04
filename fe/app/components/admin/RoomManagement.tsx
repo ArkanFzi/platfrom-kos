@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import Image from 'next/image';
@@ -107,7 +109,7 @@ export function RoomManagement() {
     data.append('description', formData.description || '');
     data.append('fasilitas', (formData.facilities || []).join(', '));
     if (imageFile) {
-        data.append('image', imageFile);
+      data.append('image', imageFile);
     }
 
     try {
@@ -172,7 +174,7 @@ export function RoomManagement() {
           <h2 className="text-3xl font-semibold">Room Management</h2>
           <p className="text-slate-600 mt-1">Manage all rooms and their details</p>
         </div>
-        
+
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => { setEditingRoom(null); setFormData({ name: '', type: 'Single', price: 0, status: 'Tersedia', capacity: 1, facilities: [], floor: 1, description: '' }); }}>
@@ -314,20 +316,20 @@ export function RoomManagement() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-               <TableRow>
-                 <TableCell colSpan={8} className="text-center py-10">
-                   <div className="flex flex-col items-center gap-2">
-                     <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-                     <p className="text-slate-500">Loading rooms...</p>
-                   </div>
-                 </TableCell>
-               </TableRow>
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-10">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                    <p className="text-slate-500">Loading rooms...</p>
+                  </div>
+                </TableCell>
+              </TableRow>
             ) : filteredRooms.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-slate-500">
-                    No rooms found.
-                  </TableCell>
-                </TableRow>
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-10 text-slate-500">
+                  No rooms found.
+                </TableCell>
+              </TableRow>
             ) : filteredRooms.map((room) => (
               <TableRow key={room.id}>
                 <TableCell className="font-medium">{room.id}</TableCell>
@@ -337,13 +339,12 @@ export function RoomManagement() {
                 <TableCell>{room.floor}</TableCell>
                 <TableCell>{room.capacity}</TableCell>
                 <TableCell>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    room.status === 'Tersedia'
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${room.status === 'Tersedia'
                       ? 'bg-green-100 text-green-700'
                       : room.status === 'Penuh'
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-orange-100 text-orange-700'
-                  }`}>
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-orange-100 text-orange-700'
+                    }`}>
                     {room.status}
                   </span>
                 </TableCell>
@@ -387,12 +388,12 @@ export function RoomManagement() {
           {viewingRoom && (
             <div className="space-y-4">
               <div className="relative w-full h-48">
-                 <Image
-                   src={viewingRoom.image}
-                   alt={viewingRoom.name}
-                   fill
-                   className="object-cover rounded-lg"
-                 />
+                <Image
+                  src={viewingRoom.image}
+                  alt={viewingRoom.name}
+                  fill
+                  className="object-cover rounded-lg"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -409,13 +410,12 @@ export function RoomManagement() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-600">Status</p>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    viewingRoom.status === 'Tersedia'
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${viewingRoom.status === 'Tersedia'
                       ? 'bg-green-100 text-green-700'
                       : viewingRoom.status === 'Penuh'
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-orange-100 text-orange-700'
-                  }`}>
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-orange-100 text-orange-700'
+                    }`}>
                     {viewingRoom.status}
                   </span>
                 </div>

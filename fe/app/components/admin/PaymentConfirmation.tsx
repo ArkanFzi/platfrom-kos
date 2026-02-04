@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+"use client";
+
+import { useEffect, useState } from 'react';
 import { Check, X, Eye, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/app/services/api';
@@ -78,7 +81,7 @@ export function PaymentConfirmation() {
   };
 
   const handleReject = (id: string) => {
-    setPayments(payments.map(p => 
+    setPayments(payments.map(p =>
       p.id === id ? { ...p, status: 'Rejected' as const } : p
     ));
   };
@@ -135,20 +138,20 @@ export function PaymentConfirmation() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10">
-                    <div className="flex flex-col items-center gap-2">
-                       <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-                       <p className="text-slate-500">Loading payments...</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-10">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                    <p className="text-slate-500">Loading payments...</p>
+                  </div>
+                </TableCell>
+              </TableRow>
             ) : payments.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-slate-500">
-                    No payments found.
-                  </TableCell>
-                </TableRow>
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-10 text-slate-500">
+                  No payments found.
+                </TableCell>
+              </TableRow>
             ) : payments.map((payment) => (
               <TableRow key={payment.id}>
                 <TableCell className="font-medium">{payment.id}</TableCell>
@@ -158,13 +161,12 @@ export function PaymentConfirmation() {
                 <TableCell>{payment.date}</TableCell>
                 <TableCell>{payment.method}</TableCell>
                 <TableCell>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    payment.status === 'Confirmed'
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${payment.status === 'Confirmed'
                       ? 'bg-green-100 text-green-700'
                       : payment.status === 'Pending'
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'bg-red-100 text-red-700'
-                  }`}>
+                        ? 'bg-orange-100 text-orange-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}>
                     {payment.status}
                   </span>
                 </TableCell>
@@ -240,16 +242,16 @@ export function PaymentConfirmation() {
                 <p className="text-sm text-slate-600 mb-2">Receipt</p>
                 <div className="overflow-hidden rounded-lg border bg-slate-50">
                   {viewingPayment.receiptUrl ? (
-                      <img src={viewingPayment.receiptUrl} alt="Receipt" className="w-full h-auto max-h-96 object-contain" />
+                    <img src={viewingPayment.receiptUrl} alt="Receipt" className="w-full h-auto max-h-96 object-contain" />
                   ) : (
-                      <div className="p-8 text-center text-slate-500">No receipt image provided</div>
+                    <div className="p-8 text-center text-slate-500">No receipt image provided</div>
                   )}
                 </div>
               </div>
               {viewingPayment.status === 'Pending' && (
                 <div className="flex gap-2 pt-4">
-                  <Button 
-                    className="flex-1" 
+                  <Button
+                    className="flex-1"
                     onClick={() => {
                       void handleConfirm(viewingPayment.id);
                       setViewingPayment(null);
@@ -258,8 +260,8 @@ export function PaymentConfirmation() {
                     <Check className="size-4 mr-2" />
                     Confirm
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="flex-1"
                     onClick={() => {
                       handleReject(viewingPayment.id);

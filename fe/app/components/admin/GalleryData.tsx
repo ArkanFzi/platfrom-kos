@@ -22,7 +22,7 @@ export function GalleryData() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
+
   // Form State
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
@@ -54,7 +54,7 @@ export function GalleryData() {
 
     try {
       await api.createGallery(formData);
-      fetchGalleries();
+      void fetchGalleries();
       setIsDialogOpen(false);
       // Reset form
       setTitle('');
@@ -66,10 +66,10 @@ export function GalleryData() {
   };
 
   const handleDelete = async (id: number) => {
-    if(!confirm("Are you sure?")) return;
+    if (!confirm("Are you sure?")) return;
     try {
-      await api.deleteGallery(String(id));
-      fetchGalleries();
+      await api.deleteGallery(id);
+      void fetchGalleries();
     } catch (error) {
       console.error("Failed to delete gallery:", error);
     }
@@ -81,84 +81,91 @@ export function GalleryData() {
     return matchesSearch && matchesCategory;
   });
 
-
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 bg-slate-950 min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-semibold text-white">Gallery Data</h2>
-          <p className="text-slate-400 mt-1">Manage property images and media</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-amber-500">Gallery Data</h2>
+          <p className="text-slate-400 text-xs md:text-sm">Manage property images and media assets</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-             <Button className="bg-amber-500 hover:bg-amber-600 text-white"><Plus className="size-4 mr-2"/> Add Image</Button>
+            <Button className="w-full md:w-auto bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/20">
+              <Plus className="size-4 mr-2" /> Add New Image
+            </Button>
           </DialogTrigger>
-          <DialogContent className="bg-slate-900 border-slate-800 text-white">
+          <DialogContent className="w-[95vw] max-w-md bg-slate-900 border-slate-800 text-white p-4 md:p-6">
             <DialogHeader>
-              <DialogTitle>Add New Image</DialogTitle>
+              <DialogTitle className="text-xl font-bold text-amber-500">Add New Image</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Title</Label>
-                <Input value={title} onChange={e => setTitle(e.target.value)} className="bg-slate-800 border-slate-700"/>
+            <div className="space-y-4 md:space-y-5 mt-4">
+              <div className="space-y-2">
+                <Label className="text-slate-300">Image Title</Label>
+                <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Deluxe Room Interior" className="bg-slate-800 border-slate-700 text-white" />
               </div>
-              <div>
-                <Label>Category</Label>
-                <Input value={category} onChange={e => setCategory(e.target.value)} className="bg-slate-800 border-slate-700"/>
+              <div className="space-y-2">
+                <Label className="text-slate-300">Category</Label>
+                <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g., Interior, Facilities" className="bg-slate-800 border-slate-700 text-white" />
               </div>
-              <div>
-                <Label>Image</Label>
-                <div className="border-2 border-dashed border-slate-700 rounded-lg p-4 cursor-pointer hover:border-amber-500">
-                    <input type="file" onChange={e => setImageFile(e.target.files?.[0] || null)} className="w-full bg-transparent"/>
+              <div className="space-y-2">
+                <Label className="text-slate-300">Image File</Label>
+                <div className="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-amber-500/50 transition-colors bg-slate-800/20">
+                  <input type="file" onChange={e => setImageFile(e.target.files?.[0] || null)} className="w-full text-xs text-slate-400" />
                 </div>
               </div>
-              <Button onClick={handleCreate} className="w-full bg-amber-500">Upload</Button>
+              <Button onClick={handleCreate} className="w-full bg-amber-500 hover:bg-amber-600 text-white py-6">Upload Asset</Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        {/* ... Search and Filter Inputs ... */}
-        <div className="relative flex-1 max-w-md">
-           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-           <Input
-             placeholder="Search images..."
-             value={searchQuery}
-             onChange={(e) => setSearchQuery(e.target.value)}
-             className="pl-10 bg-slate-800 border-slate-700 text-white"
-           />
+      <div className="flex flex-col sm:flex-row items-center gap-4">
+        <div className="relative flex-1 w-full max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+          <Input
+            placeholder="Search in gallery..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-12 bg-slate-900 border-slate-800 text-white placeholder:text-slate-500 h-10 md:h-12 rounded-xl"
+          />
         </div>
       </div>
 
       {/* Gallery Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredImages.map((image) => (
-          <div key={image.id} className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden hover:shadow-lg transition-shadow relative group">
-            <div className="aspect-video overflow-hidden relative">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6 pb-20 md:pb-0">
+        {filteredImages.length === 0 ? (
+          <div className="col-span-full py-20 text-center bg-slate-900/40 rounded-3xl border border-dashed border-slate-800">
+            <Search className="size-12 text-slate-700 mx-auto mb-4" />
+            <p className="text-slate-500">No images found in gallery</p>
+          </div>
+        ) : filteredImages.map((image) => (
+          <div key={image.id} className="bg-slate-900/40 rounded-2xl border border-slate-800 overflow-hidden hover:border-amber-500/30 transition-all duration-300 group">
+            <div className="aspect-[4/3] overflow-hidden relative">
               <Image
                 src={image.image_url.startsWith('http') ? image.image_url : `http://localhost:8080${image.image_url}`}
                 alt={image.title}
                 width={400}
-                height={225}
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                height={300}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />
-              <button 
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60" />
+              <button
                 onClick={() => handleDelete(image.id)}
-                className="absolute top-2 right-2 p-2 bg-red-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-white"
+                className="absolute top-3 right-3 p-2.5 bg-red-500/90 text-white rounded-xl shadow-lg hover:bg-red-600 hover:scale-110 transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm"
               >
                 <Trash2 className="size-4" />
               </button>
             </div>
             <div className="p-4">
-              <h3 className="font-medium text-white">{image.title}</h3>
-              <div className="flex items-center justify-between mt-2">
-                <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs border border-blue-500/30">
+              <h3 className="font-bold text-white text-sm md:text-base truncate">{image.title}</h3>
+              <div className="flex items-center justify-between mt-3">
+                <span className="px-2.5 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-lg border border-amber-500/20 uppercase tracking-wider">
                   {image.category}
                 </span>
-                <span className="text-xs text-slate-400">{new Date(image.created_at).toLocaleDateString()}</span>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  {new Date(image.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                </span>
               </div>
             </div>
           </div>
@@ -167,3 +174,4 @@ export function GalleryData() {
     </div>
   );
 }
+

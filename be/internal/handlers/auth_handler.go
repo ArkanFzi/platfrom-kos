@@ -26,16 +26,18 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, user, err := h.service.Login(input.Username, input.Password)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
+	       token, user, err := h.service.Login(input.Username, input.Password)
+	       if err != nil {
+		       c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		       return
+	       }
 
-	c.JSON(http.StatusOK, gin.H{
-		"token": token,
-		"user":  user,
-	})
+	       // Set token as httpOnly cookie
+		c.SetCookie("token", token, 3600, "/", "", false, true)
+
+	       c.JSON(http.StatusOK, gin.H{
+		       "user":  user,
+	       })
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
