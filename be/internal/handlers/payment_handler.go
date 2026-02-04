@@ -122,3 +122,21 @@ func (h *PaymentHandler) ConfirmCashPayment(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Cash payment confirmed successfully"})
 }
+
+func (h *PaymentHandler) VerifyPayment(c *gin.Context) {
+	var input struct {
+		OrderID string `json:"order_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.VerifyPayment(input.OrderID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Payment verified successfully"})
+}

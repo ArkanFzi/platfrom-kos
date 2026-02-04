@@ -48,24 +48,6 @@ func LoggingMiddleware() gin.HandlerFunc {
 	}
 }
 
-// CORSMiddleware setup CORS dengan strict policy
-func CORSMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", getAllowedOrigins())
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Max-Age", "3600")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	}
-}
-
 // SecurityHeadersMiddleware menambahkan security headers
 func SecurityHeadersMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -75,10 +57,4 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 		c.Writer.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		c.Next()
 	}
-}
-
-// getAllowedOrigins mengembalikan list origin yang diizinkan
-func getAllowedOrigins() string {
-	// TODO: Setup di environment variables
-	return "http://localhost:3000,http://localhost:8080"
 }

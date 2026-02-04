@@ -22,6 +22,9 @@ export function UserRegister({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,7 +41,7 @@ export function UserRegister({
 
     setIsLoading(true);
     try {
-      await api.register({ username, password, role: "tenant" });
+      await api.register({ username, password, email, phone, address, role: "tenant" });
       toast.success("Account created successfully!", {
         description: "Please login with your new credentials to continue.",
         duration: 5000,
@@ -57,7 +60,6 @@ export function UserRegister({
       setIsLoading(false);
     }
   };
-
   if (isSuccess) {
     return (
       <div className="flex h-screen bg-slate-50 items-center justify-center p-8">
@@ -197,6 +199,45 @@ export function UserRegister({
                 required
               />
             </div>
+            
+            <div>
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@email.com"
+                className="mt-1"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="08123456789"
+                className="mt-1"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="address">Home Address</Label>
+              <Input
+                id="address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Jl. Example No. 123, City"
+                className="mt-1"
+                required
+              />
+            </div>
+
             <div>
               <Label htmlFor="password">Password</Label>
               <Input

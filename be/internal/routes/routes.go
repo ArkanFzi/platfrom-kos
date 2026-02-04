@@ -61,7 +61,7 @@ func (r *Routes) Register(router *gin.Engine, cfg *config.Config) {
 
 		// Protected routes - perlu auth (dari cookie)
 		protected := api.Group("")
-		protected.Use(middleware.AuthMiddleware())
+		protected.Use(middleware.AuthMiddleware(cfg))
 		{
 			r.registerProtectedRoutes(protected)
 		}

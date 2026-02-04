@@ -36,7 +36,6 @@ export function GoogleButton({ onSuccess, isLoading }: GoogleButtonProps) {
                         onError={() => {
                             toast.error('Google Sign In Error');
                         }}
-                        useOneTap
                         theme="outline"
                         size="large"
                         width="100%"

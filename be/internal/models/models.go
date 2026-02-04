@@ -59,6 +59,7 @@ type Penyewa struct {
 	UserID       uint           `json:"user_id"`
 	User         User           `gorm:"foreignKey:UserID" json:"user"`
 	NamaLengkap  string         `json:"nama_lengkap"`
+	Email        string         `json:"email"`
 	NIK          string         `json:"nik"`
 	NomorHP      string         `json:"nomor_hp"`
 	AlamatAsal   string         `json:"alamat_asal"`
@@ -70,17 +71,18 @@ type Penyewa struct {
 }
 
 type Pemesanan struct {
-	ID              uint           `gorm:"primaryKey" json:"id"`
-	PenyewaID       uint           `json:"penyewa_id"`
-	Penyewa         Penyewa        `gorm:"foreignKey:PenyewaID" json:"-"`
-	KamarID         uint           `json:"kamar_id"`
-	Kamar           Kamar          `gorm:"foreignKey:KamarID" json:"-"`
-	TanggalMulai    time.Time      `json:"tanggal_mulai"`
-	DurasiSewa      int            `json:"durasi_sewa"`
-	StatusPemesanan string         `json:"status_pemesanan"` // enum
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
+	ID              uint             `gorm:"primaryKey" json:"id"`
+	PenyewaID       uint             `json:"penyewa_id"`
+	Penyewa         Penyewa          `gorm:"foreignKey:PenyewaID" json:"-"`
+	KamarID         uint             `json:"kamar_id"`
+	Kamar           Kamar            `gorm:"foreignKey:KamarID" json:"-"`
+	TanggalMulai    time.Time        `json:"tanggal_mulai"`
+	DurasiSewa      int              `json:"durasi_sewa"`
+	StatusPemesanan string           `json:"status_pemesanan"` // enum
+	Pembayaran      []Pembayaran     `gorm:"foreignKey:PemesananID" json:"-"` // Relation for eager loading
+	CreatedAt       time.Time        `json:"created_at"`
+	UpdatedAt       time.Time        `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt   `gorm:"index" json:"-"`
 }
 
 type Pembayaran struct {

@@ -59,11 +59,37 @@ export default function App() {
   useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     setIsClient(true);
-    const storedViewMode = localStorage.getItem(
-      STORAGE_KEYS.VIEW_MODE,
-    ) as ViewMode;
-    // Default to 'home' if no stored mode
-    setViewMode(storedViewMode || "home");
+    
+    // FETCH STORED DATA FIRST
+    const storedToken = localStorage.getItem('token');
+    const storedViewMode = localStorage.getItem(STORAGE_KEYS.VIEW_MODE) as ViewMode;
+    const storedUserCheckRole = localStorage.getItem(STORAGE_KEYS.USER_ROLE) as "admin" | "tenant" | "guest";
+    
+    // If user has token, force them to their dashboard unless they are explicitly admin
+    if (storedToken) {
+        if (storedUserCheckRole === 'admin') {
+           // Admin logic
+           if (storedViewMode === 'login' || storedViewMode === 'register') {
+               setViewMode('admin');
+           } else {
+               setViewMode(storedViewMode || 'admin');
+           }
+        } else {
+           // For tenant/users
+           if (storedViewMode === 'login' || storedViewMode === 'register' || !storedViewMode) {
+               setViewMode('tenant');
+               setUserRole('tenant');
+           } else {
+               setViewMode(storedViewMode);
+               if (storedUserCheckRole) setUserRole(storedUserCheckRole);
+           }
+        }
+    } else {
+        // No token, respect stored view or default to home
+        setViewMode(storedViewMode || "home");
+        // Also restore user role if checking logic falls through but we have one stored (edge case)
+        if (storedUserCheckRole) setUserRole(storedUserCheckRole);
+    }
 
     const storedAdminPage = localStorage.getItem(
       STORAGE_KEYS.ADMIN_PAGE,
@@ -90,11 +116,7 @@ export default function App() {
       }
     }
 
-    const storedUserRole = localStorage.getItem(STORAGE_KEYS.USER_ROLE) as
-      | "admin"
-      | "tenant"
-      | "guest";
-    if (storedUserRole) setUserRole(storedUserRole);
+    // Role is handled above with token check slightly, but let's keep this for non-token cases or consistency
   }, []);
 
   // Save state to localStorage whenever it changes
@@ -148,6 +170,8 @@ export default function App() {
     Object.values(STORAGE_KEYS).forEach((key) => {
       localStorage.removeItem(key);
     });
+    localStorage.removeItem('token'); // Also clear token
+    localStorage.removeItem('user');
   };
 
   // 0. Loading/Splash Screen - PREVENTS FLICKER
@@ -195,12 +219,8 @@ export default function App() {
     );
   }
 
-  // Home Selection Screen
-  if (viewMode === "home") {
-    // ...existing code...
-    // Tampilan home kosong atau bisa diganti dengan konten lain sesuai kebutuhan
-    return null;
-  }
+  // Home Selection Screen - REMOVED NULL RETURN
+  // Falls through to default return
 
   // Admin Portal
   if (viewMode === "admin" || userRole === "admin") {

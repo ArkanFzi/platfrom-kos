@@ -5,7 +5,7 @@ import { Mail, Phone, MapPin, Send, MessageSquare, Clock, Facebook, Instagram, T
 
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 import { api } from '@/app/services/api';
 
 
@@ -98,9 +98,7 @@ export function ContactUs() {
 
 
   return (
-    <>
-      <Toaster position="top-center" />
-      <section className="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors overflow-x-hidden py-16">
+    <section className="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors overflow-x-hidden py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Header Section */}
@@ -309,6 +307,5 @@ export function ContactUs() {
 
         </div>
       </section>
-    </>
   );
 }

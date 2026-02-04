@@ -5,6 +5,7 @@ import (
 	"koskosan-be/internal/config"
 	"koskosan-be/internal/models"
 	"log"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -20,6 +21,26 @@ func InitDB(cfg *config.Config) {
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
+
+	// PERFORMANCE OPTIMIZATION: Configure connection pool settings
+	sqlDB, err := DB.DB()
+	if err != nil {
+		log.Fatal("Failed to get database instance:", err)
+	}
+
+	// SetMaxIdleConns sets the maximum number of connections in the idle connection pool
+	// Reusing idle connections prevents overhead of creating new connections
+	sqlDB.SetMaxIdleConns(10)
+
+	// SetMaxOpenConns sets the maximum number of open connections to the database
+	// Prevents "too many connections" errors under heavy load
+	sqlDB.SetMaxOpenConns(100)
+
+	// SetConnMaxLifetime sets the maximum amount of time a connection may be reused
+	// Prevents issues with stale connections
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	log.Println("Database connection pool configured: MaxIdle=10, MaxOpen=100, MaxLifetime=1h")
 
 	// Auto Migration
 	err = DB.AutoMigrate(

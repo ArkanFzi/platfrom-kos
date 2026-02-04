@@ -26,6 +26,8 @@ func (h *BookingHandler) GetMyBookings(c *gin.Context) {
 	switch v := userIDRaw.(type) {
 	case float64:
 		userID = uint(v)
+	case int:
+		userID = uint(v)
 	case uint:
 		userID = v
 	default:
@@ -44,7 +46,18 @@ func (h *BookingHandler) GetMyBookings(c *gin.Context) {
 
 func (h *BookingHandler) CreateBooking(c *gin.Context) {
 	userIDRaw, _ := c.Get("user_id")
-	userID := uint(userIDRaw.(float64)) // Assuming middleware works correctly
+	var userID uint
+	switch v := userIDRaw.(type) {
+	case float64:
+		userID = uint(v)
+	case int:
+		userID = uint(v)
+	case uint:
+		userID = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id type"})
+		return
+	}
 
 	var req struct {
 		KamarID      uint   `json:"kamar_id" binding:"required"`

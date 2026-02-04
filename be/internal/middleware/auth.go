@@ -1,14 +1,14 @@
 package middleware
 
 import (
+	"koskosan-be/internal/config"
 	"koskosan-be/internal/utils"
-	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
 // AuthMiddleware verify JWT token dari cookie
-func AuthMiddleware() gin.HandlerFunc {
+func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get token dari cookie
 		token, err := utils.GetAuthToken(c)
@@ -18,13 +18,8 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Validate token
-		jwtSecret := os.Getenv("JWT_SECRET")
-		if jwtSecret == "" {
-			jwtSecret = "your-secret-key" // fallback untuk development
-		}
-
-		claims, err := utils.ValidateToken(token, jwtSecret)
+		// Validate token - use config (already validated on startup)
+		claims, err := utils.ValidateToken(token, cfg.JWTSecret)
 		if err != nil {
 			utils.UnauthorizedError(c, "Invalid or expired token")
 			c.Abort()
@@ -72,7 +67,7 @@ func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 }
 
 // OptionalAuthMiddleware verify token tapi tidak mandatory
-func OptionalAuthMiddleware() gin.HandlerFunc {
+func OptionalAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token, err := utils.GetAuthToken(c)
 		if err != nil {
@@ -81,12 +76,7 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		jwtSecret := os.Getenv("JWT_SECRET")
-		if jwtSecret == "" {
-			jwtSecret = "your-secret-key"
-		}
-
-		claims, err := utils.ValidateToken(token, jwtSecret)
+		claims, err := utils.ValidateToken(token, cfg.JWTSecret)
 		if err != nil {
 			// Token invalid, tapi allowed - skip validation
 			c.Next()

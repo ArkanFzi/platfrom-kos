@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -16,6 +17,7 @@ type Config struct {
 	JWTSecret      string
 	Port           string
 	AllowedOrigins string
+	IsProduction   bool
 	
 	// Google OAuth
 	GoogleClientID     string
@@ -29,20 +31,42 @@ func LoadConfig() *Config {
 		log.Println("Warning: .env file not found, relying on system environment variables")
 	}
 
-	return &Config{
+	cfg := &Config{
 		DBHost:         getEnv("DB_HOST", "localhost"),
 		DBUser:         getEnv("DB_USER", "postgres"),
-		DBPassword:     getEnv("DB_PASSWORD", "postgres"),
+		DBPassword:     getEnv("DB_PASSWORD", ""),
 		DBName:         getEnv("DB_NAME", "koskosan"),
 		DBPort:         getEnv("DB_PORT", "5432"),
-		JWTSecret:      getEnv("JWT_SECRET", "secret"),
+		JWTSecret:      os.Getenv("JWT_SECRET"), // NO FALLBACK - must be set!
 		Port:           getEnv("PORT", "8080"),
 		AllowedOrigins: getEnv("ALLOWED_ORIGINS", "http://localhost:3000"),
+		IsProduction:   getEnv("GIN_MODE", "debug") == "release",
 		
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
 	}
+
+	// Validate required environment variables
+	if err := cfg.ValidateRequired(); err != nil {
+		log.Fatalf("Configuration error: %v", err)
+	}
+
+	return cfg
+}
+
+// ValidateRequired checks that critical environment variables are set
+func (c *Config) ValidateRequired() error {
+	if c.JWTSecret == "" {
+		return fmt.Errorf("JWT_SECRET environment variable is required")
+	}
+	if len(c.JWTSecret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 characters long for security")
+	}
+	if c.DBPassword == "" {
+		log.Println("WARNING: DB_PASSWORD is empty. This is insecure for production!")
+	}
+	return nil
 }
 
 func getEnv(key, fallback string) string {

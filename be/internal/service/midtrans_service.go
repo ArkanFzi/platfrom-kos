@@ -5,16 +5,19 @@ import (
 	"os"
 
 	"github.com/midtrans/midtrans-go"
+	"github.com/midtrans/midtrans-go/coreapi"
 	"github.com/midtrans/midtrans-go/snap"
 )
 
 type MidtransService interface {
 	CreateTransaction(booking *models.Pemesanan, amount float64) (*snap.Response, string, error)
 	VerifyNotification(payload map[string]interface{}) (string, string, error)
+	CheckTransaction(orderID string) (*coreapi.TransactionStatusResponse, error)
 }
 
 type midtransService struct {
-	snapClient snap.Client
+	snapClient    snap.Client
+	coreApiClient coreapi.Client
 }
 
 func NewMidtransService() MidtransService {
@@ -23,18 +26,23 @@ func NewMidtransService() MidtransService {
 	
 	s := snap.Client{}
 	s.New(serverKey, midtrans.Sandbox)
+	
+	c := coreapi.Client{}
+	c.New(serverKey, midtrans.Sandbox)
+
 	if isProd {
 		s.New(serverKey, midtrans.Production)
+		c.New(serverKey, midtrans.Production)
 	}
 
 	return &midtransService{
-		snapClient: s,
+		snapClient:    s,
+		coreApiClient: c,
 	}
 }
 
 func (s *midtransService) CreateTransaction(booking *models.Pemesanan, amount float64) (*snap.Response, string, error) {
-	orderID := "ORDER-" + booking.Penyewa.NamaLengkap + "-" + string(rune(booking.ID)) // Simple order ID generation
-	// In production, use a more robust unique ID generator like UUID
+	orderID := "ORDER-" + booking.Penyewa.NamaLengkap + "-" + string(rune(booking.ID)) 
 	
 	req := &snap.Request{
 		TransactionDetails: midtrans.TransactionDetails{
@@ -43,7 +51,7 @@ func (s *midtransService) CreateTransaction(booking *models.Pemesanan, amount fl
 		},
 		CustomerDetail: &midtrans.CustomerDetails{
 			FName: booking.Penyewa.NamaLengkap,
-			Email: "customer@example.com", // Should be available in Penyewa or User models
+			Email: "customer@example.com", 
 		},
 	}
 
@@ -60,4 +68,8 @@ func (s *midtransService) VerifyNotification(payload map[string]interface{}) (st
 	transactionStatus, _ := payload["transaction_status"].(string)
 	
 	return orderID, transactionStatus, nil
+}
+
+func (s *midtransService) CheckTransaction(orderID string) (*coreapi.TransactionStatusResponse, error) {
+	return s.coreApiClient.CheckTransaction(orderID)
 }

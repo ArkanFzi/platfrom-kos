@@ -8,7 +8,7 @@ import { BookingHistory } from './booking-history';
 import { BookingStatsDetail } from './booking-stats-detail';
 import { ContactUs } from './contact-us';
 import { Gallery } from './Gallery';
-import { SmartCalendar } from './SmartCalendar';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, History, User, Menu, LogOut, Mail, Phone, MapPin, CreditCard, X, XCircle, MessageCircle, Star, ImageIcon, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
@@ -130,7 +130,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
 
       setUserData({
         name: data.penyewa?.nama_lengkap || data.user?.username || 'Guest',
-        email: data.user?.email || 'N/A',
+        email: data.user?.email || data.user?.username || 'N/A',
         phone: data.penyewa?.nomor_hp || 'N/A',
         address: data.penyewa?.alamat_asal || 'N/A',
         nik: data.penyewa?.nik || '',
@@ -139,13 +139,14 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
         status: 'Active',
         totalBookings: bookingsCount,
         totalSpent: totalSpent,
+        isGoogleUser: data.is_google_user,
         profileImage: data.penyewa?.foto_profil
           ? (data.penyewa.foto_profil.startsWith('http') ? data.penyewa.foto_profil : `http://localhost:8080${data.penyewa.foto_profil}`)
           : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NzIyNDZ8MHwxfHNlYXJjaHwxfHx1c2VyJTIwYXZhdGFyfGVufDB8fHx8fDE3MDAwMDAwMDB|&ixlib=rb-4.0.3&q=80&w=400',
       });
       setEditData({
         name: data.penyewa?.nama_lengkap || data.user?.username || '',
-        email: data.user?.email || '',
+        email: data.user?.email || data.user?.username || '',
         phone: data.penyewa?.nomor_hp || '',
         address: data.penyewa?.alamat_asal || '',
         nik: data.penyewa?.nik || '',
@@ -154,6 +155,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
         status: '',
         totalBookings: bookingsCount,
         totalSpent: totalSpent,
+        isGoogleUser: data.is_google_user,
         profileImage: '',
       });
     } catch (e) {
@@ -175,6 +177,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
     status: '',
     totalBookings: 0,
     totalSpent: 0,
+    isGoogleUser: false,
     profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NzIyNDZ8MHwxfHNlYXJjaHwxfHx1c2VyJTIwYXZhdGFyfGVufDB8fHx8fDE3MDAwMDAwMDB|&ixlib=rb-4.0.3&q=80&w=400',
   });
 
@@ -283,7 +286,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'gallery', label: 'Gallery Koskosan', icon: ImageIcon },
-    { id: 'calendar', label: 'Smart Calendar', icon: CalendarIcon, hidden: !isLoggedIn },
+
     { id: 'history', label: 'My Bookings', icon: History, hidden: !isLoggedIn },
     { id: 'profile', label: 'Profile', icon: User, hidden: !isLoggedIn },
   ];
@@ -491,7 +494,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
               />
             )}
             {activeView === 'gallery' && <Gallery />}
-            {activeView === 'calendar' && isLoggedIn && <SmartCalendar />}
+
             {activeView === 'contact' && <ContactUs />}
 
             {/* Protected Views with Guest Teasers */}
@@ -578,52 +581,57 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                     {/* Profile Header */}
                     <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
                       <Card className="mb-10 p-8 bg-gradient-to-r from-stone-900 via-stone-800 to-slate-900 text-white border-0 shadow-2xl">
-                        <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
+                        {/* Top Row: Avatar, Info, Action */}
+                        <div className="flex flex-col md:flex-row items-center gap-6 mb-8">
                           {/* Avatar */}
-                          <div className="relative">
+                          <div className="relative flex-shrink-0">
                             <ImageWithFallback
                               src={userData.profileImage}
                               alt={userData.name}
-                              className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-xl"
+                              className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-white/20 shadow-xl"
                             />
-                            <div className="absolute bottom-0 right-0 bg-emerald-400 w-8 h-8 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-                              <span className="text-sm">✓</span>
+                            <div className="absolute bottom-1 right-1 bg-emerald-500 w-7 h-7 rounded-full border-2 border-stone-800 shadow-lg flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">✓</span>
                             </div>
                           </div>
 
                           {/* User Info */}
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              <h1 className="text-4xl font-bold text-white">{userData.name}</h1>
-                              <Badge className="bg-emerald-400 text-emerald-900 font-bold px-4 py-1">{userData.status}</Badge>
+                          <div className="flex-1 text-center md:text-left">
+                            <div className="flex flex-col md:flex-row items-center gap-3 mb-2">
+                              <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">{userData.name}</h1>
+                              <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-0.5 text-xs font-semibold tracking-wide uppercase">{userData.status}</Badge>
                             </div>
-                            <p className="text-stone-200 mb-6 text-lg">{userData.email}</p>
-
-                            <div className="grid grid-cols-3 gap-6">
-                              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
-                                <p className="text-stone-200 text-sm font-semibold mb-2">Number Room</p>
-                                <p className="text-3xl font-bold text-white">{userData.totalBookings}</p>
-                              </div>
-                              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
-                                <p className="text-stone-200 text-sm font-semibold mb-2">Total</p>
-                                <p className="text-3xl font-bold text-white">Rp {userData.totalSpent.toLocaleString()}</p>
-                              </div>
-                              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/20">
-                                <p className="text-stone-200 text-sm font-semibold mb-2">Member Since</p>
-                                <p className="text-xl font-bold text-white">{userData.joinDate}</p>
-                              </div>
-                            </div>
+                            <p className="text-stone-300 text-sm md:text-base font-medium opacity-90">{userData.email}</p>
                           </div>
 
-                          {/* Edit Button */}
+                          {/* Edit Button - Pushed to right on desktop */}
                           {!isEditingProfile && (
-                            <Button
-                              onClick={() => setIsEditingProfile(true)}
-                              className="bg-white text-stone-900 hover:bg-stone-100 font-bold px-6 py-2 shadow-lg"
-                            >
-                              Edit Profile
-                            </Button>
+                            <div className="mt-4 md:mt-0 md:ml-auto">
+                              <Button
+                                onClick={() => setIsEditingProfile(true)}
+                                size="sm"
+                                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold px-6 shadow-lg backdrop-blur-sm transition-all"
+                              >
+                                Edit Profile
+                              </Button>
+                            </div>
                           )}
+                        </div>
+
+                        {/* Bottom Row: Stats Grid - Separated for cleaner layout */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/10 pt-6">
+                            <div className="bg-white/5 p-4 rounded-xl border border-white/5 backdrop-blur-sm flex flex-col items-center md:items-start transition-colors hover:bg-white/10">
+                              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Room Number</p>
+                              <p className="text-2xl font-bold text-white tracking-tight leading-none">{userData.totalBookings > 0 ? '#' + userData.totalBookings : '-'}</p>
+                            </div>
+                            <div className="bg-white/5 p-4 rounded-xl border border-white/5 backdrop-blur-sm flex flex-col items-center md:items-start transition-colors hover:bg-white/10">
+                              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Total Spent</p>
+                              <p className="text-2xl font-bold text-white tracking-tight leading-none">Rp {userData.totalSpent.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white/5 p-4 rounded-xl border border-white/5 backdrop-blur-sm flex flex-col items-center md:items-start transition-colors hover:bg-white/10">
+                              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Member Since</p>
+                              <p className="text-xl font-bold text-white tracking-tight leading-none">{userData.joinDate}</p>
+                            </div>
                         </div>
                       </Card>
                     </motion.div>
@@ -843,8 +851,8 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                       className="grid grid-cols-1 md:grid-cols-2 gap-8"
                     >
                       {/* Personal Information */}
-                      <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
-                        <Card className="p-8 bg-white/80 backdrop-blur-sm border-slate-200/60 hover:shadow-lg transition-all text-slate-900 font-semibold">
+                      <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }} className="h-full">
+                        <Card className="h-full p-8 bg-white/80 backdrop-blur-sm border-slate-200/60 hover:shadow-lg transition-all text-slate-900 font-semibold">
                           <div className="flex items-center gap-3 mb-7">
                             <div className="w-10 h-10 bg-gradient-to-br from-stone-700 to-stone-900 rounded-lg flex items-center justify-center">
                               <Mail className="w-5 h-5 text-white" />
@@ -886,8 +894,8 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                       </motion.div>
 
                       {/* Account & Preferences */}
-                      <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}>
-                        <Card className="p-8 bg-white/80 backdrop-blur-sm border-slate-200/60 hover:shadow-lg transition-all text-slate-900 font-semibold">
+                      <motion.div variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }} className="h-full">
+                        <Card className="h-full p-8 bg-white/80 backdrop-blur-sm border-slate-200/60 hover:shadow-lg transition-all text-slate-900 font-semibold">
                           <div className="flex items-center gap-3 mb-7">
                             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
                               <CreditCard className="w-5 h-5 text-white" />
@@ -914,15 +922,17 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                               <Badge className="mt-2 bg-emerald-100 text-emerald-800 font-bold px-3 py-1">✓ Email Verified</Badge>
                             </div>
 
-                            <div className="pt-2">
-                              <Button
-                                onClick={() => setIsChangingPassword(true)}
-                                variant="outline"
-                                className="w-full font-semibold border-2 border-slate-300 hover:bg-slate-50 py-2"
-                              >
-                                Change Password
-                              </Button>
-                            </div>
+                            {!userData?.isGoogleUser && (
+                              <div className="pt-2">
+                                <Button
+                                  onClick={() => setIsChangingPassword(true)}
+                                  variant="outline"
+                                  className="w-full font-semibold border-2 border-slate-300 hover:bg-slate-50 py-2"
+                                >
+                                  Change Password
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </Card>
                       </motion.div>

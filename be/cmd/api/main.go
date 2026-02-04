@@ -47,7 +47,7 @@ func main() {
 
 
 	// 5. Initialize Handlers
-	authHandler := handlers.NewAuthHandler(authService)
+	authHandler := handlers.NewAuthHandler(authService, cfg)
 	kamarHandler := handlers.NewKamarHandler(kamarService)
 	galleryHandler := handlers.NewGalleryHandler(galleryService)
 	dashboardHandler := handlers.NewDashboardHandler(dashboardService)
@@ -103,7 +103,7 @@ func main() {
 
 		// Protected Routes
 		protected := api.Group("/")
-		protected.Use(middleware.AuthMiddleware())
+		protected.Use(middleware.AuthMiddleware(cfg))
 		{
 			// Admin Only Routes
 			admin := protected.Group("/")
@@ -126,7 +126,10 @@ func main() {
 			protected.PUT("/profile", profileHandler.UpdateProfile)
 			protected.PUT("/profile/change-password", profileHandler.ChangePassword)
 			protected.GET("/my-bookings", bookingHandler.GetMyBookings)
-			// Add other protected routes here
+			protected.POST("/bookings", bookingHandler.CreateBooking)
+			protected.POST("/payments/snap-token", paymentHandler.CreateSnapToken)
+			protected.POST("/payments/verify", paymentHandler.VerifyPayment)
+			protected.POST("/payments/confirm-cash/:id", paymentHandler.ConfirmCashPayment)
 		}
 	}
 

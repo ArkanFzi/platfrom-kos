@@ -29,6 +29,8 @@ func (h *ProfileHandler) GetProfile(c *gin.Context) {
 	switch v := userIDRaw.(type) {
 	case float64:
 		userID = uint(v)
+	case int:
+		userID = uint(v)
 	case uint:
 		userID = v
 	default:
@@ -42,9 +44,12 @@ func (h *ProfileHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
+	isGoogleUser := strings.HasPrefix(user.Password, "google-auth-placeholder-")
+
 	c.JSON(http.StatusOK, gin.H{
-		"user":    user,
-		"penyewa": penyewa,
+		"user":           user,
+		"penyewa":        penyewa,
+		"is_google_user": isGoogleUser,
 	})
 }
 
@@ -58,6 +63,8 @@ func (h *ProfileHandler) UpdateProfile(c *gin.Context) {
 	var userID uint
 	switch v := userIDRaw.(type) {
 	case float64:
+		userID = uint(v)
+	case int:
 		userID = uint(v)
 	case uint:
 		userID = v
@@ -122,6 +129,8 @@ func (h *ProfileHandler) ChangePassword(c *gin.Context) {
 	var userID uint
 	switch v := userIDRaw.(type) {
 	case float64:
+		userID = uint(v)
+	case int:
 		userID = uint(v)
 	case uint:
 		userID = v

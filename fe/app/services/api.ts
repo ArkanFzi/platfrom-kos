@@ -82,7 +82,7 @@ const apiCall = async <T>(method: string, endpoint: string, body?: any): Promise
 export const api = {
   // --- AUTH ---
   login: async (credentials: { username: string; password: string }) => {
-    const data = await apiCall<ApiResponse>('POST', '/auth/login', credentials);
+    const data = await apiCall<ApiResponse>('POST', '/login', credentials);
     if (data.token) {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
@@ -101,7 +101,7 @@ export const api = {
   },
 
   register: async (userData: any) => {
-    return apiCall('POST', '/auth/register', userData);
+    return apiCall('POST', '/register', userData);
   },
 
   logout: () => {
@@ -194,10 +194,18 @@ export const api = {
   confirmPayment: async (paymentId: string) => {
     return apiCall('POST', `/admin/payments/${paymentId}/confirm`);
   },
+  
+  verifyPayment: async (orderId: string) => {
+    return apiCall('POST', '/payments/verify', { order_id: orderId });
+  },
 
   // --- OTHERS ---
   sendContactForm: async (data: any) => {
     return apiCall('POST', '/contact', data);
+  },
+
+  getDashboardStats: async () => {
+    return apiCall('GET', '/admin/dashboard');
   },
 
   healthCheck: async () => {

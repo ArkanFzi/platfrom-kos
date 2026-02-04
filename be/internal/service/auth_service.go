@@ -13,7 +13,7 @@ import (
 
 type AuthService interface {
 	Login(username, password string) (string, *models.User, error)
-	Register(username, password, role string) (*models.User, error)
+	Register(username, password, role, email, phone, address string) (*models.User, error)
 	GoogleLogin(email, username, picture string) (string, *models.User, error)
 }
 
@@ -52,7 +52,7 @@ func (s *authService) Login(username, password string) (string, *models.User, er
 	return tokenString, user, nil
 }
 
-func (s *authService) Register(username, password, role string) (*models.User, error) {
+func (s *authService) Register(username, password, role, email, phone, address string) (*models.User, error) {
 	// Check if user already exists
 	_, err := s.repo.FindByUsername(username)
 	if err == nil {
@@ -77,7 +77,10 @@ func (s *authService) Register(username, password, role string) (*models.User, e
 	// Create blank Penyewa record for tenants
 	if role == "tenant" {
 		penyewa := &models.Penyewa{
-			UserID: user.ID,
+			UserID:     user.ID,
+			Email:      email,
+			NomorHP:    phone,
+			AlamatAsal: address,
 		}
 		if err := s.penyewaRepo.Create(penyewa); err != nil {
 			// Note: We might want to handle this failure, maybe delete the user or just log it

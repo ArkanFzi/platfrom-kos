@@ -2,11 +2,33 @@ package utils
 
 import (
 	"errors"
+	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
 )
+
+// ... existing code ...
+
+// GetAuthToken mendapatkan token dari header Authorization atau cookie
+func GetAuthToken(c *gin.Context) (string, error) {
+	// 1. Check Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" {
+		parts := strings.Split(authHeader, " ")
+		if len(parts) == 2 && parts[0] == "Bearer" {
+			return parts[1], nil
+		}
+	}
+
+	// 2. Check Cookie
+	token, err := c.Cookie("auth_token")
+	if err != nil {
+		return "", errors.New("auth token not found")
+	}
+	return token, nil
+}
 
 // TokenClaims struktur untuk JWT claims
 type TokenClaims struct {
@@ -41,14 +63,6 @@ func SetAuthCookie(c *gin.Context, token string, expiresIn time.Duration) {
 	)
 }
 
-// GetAuthToken mendapatkan token dari cookie
-func GetAuthToken(c *gin.Context) (string, error) {
-	token, err := c.Cookie("auth_token")
-	if err != nil {
-		return "", errors.New("auth token not found in cookies")
-	}
-	return token, nil
-}
 
 // ClearAuthCookie menghapus auth cookie (logout)
 func ClearAuthCookie(c *gin.Context) {

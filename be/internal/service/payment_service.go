@@ -14,6 +14,7 @@ type PaymentService interface {
 	ConfirmCashPayment(paymentID uint, buktiTransfer string) error
 	GetPaymentReminders() ([]models.PaymentReminder, error)
 	CreatePaymentReminder(pembayaranID uint, jumlahBayar float64, daysUntilDue int) error
+	VerifyPayment(orderID string) error
 }
 
 type paymentService struct {
@@ -218,8 +219,49 @@ func (s *paymentService) CreatePaymentReminder(pembayaranID uint, jumlahBayar fl
 	}
 
 	// Note: Implementasi repository method CreateReminder sesuai kebutuhan
-	// Untuk sekarang, hanya struktur yang didefinisikan
 	_ = reminder
+
+	return nil
+}
+
+func (s *paymentService) VerifyPayment(orderID string) error {
+	// 1. Check status real-time ke Midtrans
+	statusResp, err := s.midtransService.CheckTransaction(orderID)
+	if err != nil {
+		return err
+	}
+
+	// 2. Cari pembayaran di DB
+	payment, err := s.repo.FindByOrderID(orderID)
+	if err != nil {
+		return err
+	}
+
+	status := statusResp.TransactionStatus
+
+	// 3. Update status jika settled/capture
+	switch status {
+	case "settlement", "capture":
+		payment.StatusPembayaran = "Settled"
+		s.repo.Update(payment)
+
+		// Update booking status
+		booking, err := s.bookingRepo.FindByID(payment.PemesananID)
+		if err == nil {
+			booking.StatusPemesanan = "Confirmed"
+			s.bookingRepo.Update(booking)
+
+			// Update room status
+			kamar, err := s.kamarRepo.FindByID(booking.KamarID)
+			if err == nil {
+				kamar.Status = "Penuh"
+				s.kamarRepo.Update(kamar)
+			}
+		}
+	case "expire", "cancel", "deny":
+		payment.StatusPembayaran = "Failed"
+		s.repo.Update(payment)
+	}
 
 	return nil
 }
