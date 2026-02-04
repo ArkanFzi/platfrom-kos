@@ -79,6 +79,7 @@ func main() {
 	{
 		// Public Routes
 		api.POST("/login", authHandler.Login)
+		api.POST("/google-login", authHandler.GoogleLogin)
 		api.POST("/register", authHandler.Register)
 		api.GET("/kamar", kamarHandler.GetKamars)
 		api.GET("/kamar/:id", kamarHandler.GetKamarByID)

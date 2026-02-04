@@ -2,12 +2,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
 const safeJson = async (res: Response) => {
   const contentType = res.headers.get("content-type");
-  
+
   if (!res.ok) {
-    // If not OK and not JSON, it might be a 404/500 HTML page
     if (!contentType || !contentType.includes("application/json")) {
-        if (res.status === 404) throw new Error(`API Endpoint not found (404). Please ensure the backend is running and up to date.`);
-        throw new Error(`Server returned error ${res.status}: ${res.statusText}`);
+      if (res.status === 404) throw new Error(`API Endpoint not found (404). Please ensure the backend is running and up to date.`);
+      throw new Error(`Server returned error ${res.status}: ${res.statusText}`);
     }
   }
 
@@ -21,7 +20,6 @@ const safeJson = async (res: Response) => {
     return JSON.parse(text);
   } catch (e) {
     console.error("Failed to parse JSON response:", text, e);
-    // If it's a 404 string like "404 page not found", handle it gracefully
     if (text.includes("404")) throw new Error("API Route not registered in backend (404)");
     throw new Error('Invalid server response format');
   }
@@ -31,7 +29,6 @@ const getHeaders = () => {
   const token = localStorage.getItem('token');
   return {
     'Authorization': `Bearer ${token}`,
-    // 'Content-Type': 'application/json' - Automatic for FormData, needed for JSON
   };
 };
 
@@ -51,7 +48,7 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch rooms');
     return safeJson(res);
   },
-  
+
   getRoomById: async (id: string) => {
     const res = await fetch(`${API_URL}/kamar/${id}`);
     if (!res.ok) throw new Error('Failed to fetch room detail');
@@ -61,7 +58,7 @@ export const api = {
   createRoom: async (formData: FormData) => {
     const res = await fetch(`${API_URL}/kamar`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, // No Content-Type for FormData
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
       body: formData,
     });
     if (!res.ok) throw new Error('Failed to create room');
@@ -146,8 +143,23 @@ export const api = {
     const data = await safeJson(res);
     if (!res.ok) throw new Error(data.error || 'Failed to login');
     if (data.token) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+    }
+    return data;
+  },
+
+  googleLogin: async (credential: string) => {
+    const res = await fetch(`${API_URL}/google-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    });
+    const data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Google login failed');
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
     }
     return data;
   },
@@ -182,7 +194,7 @@ export const api = {
     const isFormData = profileData instanceof FormData;
     const res = await fetch(`${API_URL}/profile`, {
       method: 'PUT',
-      headers: isFormData 
+      headers: isFormData
         ? { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         : { ...getHeaders(), 'Content-Type': 'application/json' },
       body: isFormData ? profileData : JSON.stringify(profileData),
@@ -207,12 +219,7 @@ export const api = {
     const res = await fetch(`${API_URL}/my-bookings`, {
       headers: { ...getHeaders(), 'Content-Type': 'application/json' },
     });
-    if (!res.ok) {
-        if (res.status === 401) {
-            console.error("Auth failed for my-bookings. Token:", localStorage.getItem('token'));
-        }
-        throw new Error(`Failed to fetch user bookings (Status: ${res.status})`);
-    }
+    if (!res.ok) throw new Error(`Failed to fetch user bookings (Status: ${res.status})`);
     return safeJson(res);
   },
 

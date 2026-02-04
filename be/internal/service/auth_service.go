@@ -14,6 +14,7 @@ import (
 type AuthService interface {
 	Login(username, password string) (string, *models.User, error)
 	Register(username, password, role string) (*models.User, error)
+	GoogleLogin(email, username, picture string) (string, *models.User, error)
 }
 
 type authService struct {
@@ -85,4 +86,42 @@ func (s *authService) Register(username, password, role string) (*models.User, e
 	}
 
 	return user, nil
+}
+
+func (s *authService) GoogleLogin(email, username, picture string) (string, *models.User, error) {
+	// Try to find user by email/username
+	user, err := s.repo.FindByUsername(email) // Using email as username for google users
+	if err != nil {
+		// Create new user if not exists
+		user = &models.User{
+			Username: email,
+			Password: "google-auth-user", // PlaceHolder
+			Role:     "tenant",
+		}
+		if err := s.repo.Create(user); err != nil {
+			return "", nil, err
+		}
+
+		// Create penyewa profile
+		penyewa := &models.Penyewa{
+			UserID: user.ID,
+			Nama:   username,
+		}
+		s.penyewaRepo.Create(penyewa)
+	}
+
+	// Generate JWT
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id":  user.ID,
+		"username": user.Username,
+		"role":     user.Role,
+		"exp":      time.Now().Add(time.Hour * 24).Unix(),
+	})
+
+	tokenString, err := token.SignedString([]byte(s.config.JWTSecret))
+	if err != nil {
+		return "", nil, err
+	}
+
+	return tokenString, user, nil
 }
