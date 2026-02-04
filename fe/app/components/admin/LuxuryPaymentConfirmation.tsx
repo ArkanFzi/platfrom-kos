@@ -1,23 +1,78 @@
 "use client";
 
-import { useState } from 'react';
-import { Check, X, Eye, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
-import { payments as initialPayments } from '@/app/data/mockData';
+import { useState, useEffect } from 'react';
+import { Check, X, Eye, Clock, CheckCircle2, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { api } from '@/app/services/api';
 import { Button } from '@/app/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
 
-export function LuxuryPaymentConfirmation() {
-  const [payments, setPayments] = useState(initialPayments);
-  const [viewingPayment, setViewingPayment] = useState<typeof payments[0] | null>(null);
+interface Payment {
+  id: number;
+  tenantName: string;
+  roomName: string;
+  amount: number;
+  date: string;
+  method: string;
+  status: 'Pending' | 'Confirmed' | 'Rejected';
+  receiptUrl: string;
+}
 
-  const handleConfirm = (id: string) => {
-    setPayments(payments.map(p => 
-      p.id === id ? { ...p, status: 'Confirmed' as const } : p
-    ));
+interface BackendPayment {
+  id: number;
+  jumlah_bayar: number;
+  tanggal_bayar: string;
+  status_pembayaran: string;
+  bukti_transfer: string;
+  pemesanan?: {
+    penyewa?: { nama_lengkap: string };
+    kamar?: { nomor_kamar: string };
+  };
+}
+
+export function LuxuryPaymentConfirmation() {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
+
+  const fetchPayments = async () => {
+    setIsLoading(true);
+    try {
+      const data = await api.getPayments();
+      const mapped = data.map((p: BackendPayment) => ({
+        id: p.id,
+        tenantName: p.pemesanan?.penyewa?.nama_lengkap || 'Guest',
+        roomName: p.pemesanan?.kamar?.nomor_kamar || 'Kamar',
+        amount: p.jumlah_bayar,
+        date: new Date(p.tanggal_bayar).toLocaleDateString('id-ID'),
+        method: 'Transfer Bank',
+        status: p.status_pembayaran as Payment['status'],
+        receiptUrl: p.bukti_transfer ? (p.bukti_transfer.startsWith('http') ? p.bukti_transfer : `http://localhost:8080${p.bukti_transfer}`) : '',
+      }));
+      setPayments(mapped);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleReject = (id: string) => {
-    setPayments(payments.map(p => 
+  useEffect(() => {
+    fetchPayments();
+  }, []);
+
+  const handleConfirm = async (id: number) => {
+    try {
+      await api.confirmPayment(id);
+      fetchPayments();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to confirm payment");
+    }
+  };
+
+  const handleReject = (id: number) => {
+    // Backend Reject not yet implemented, keeping local update for demo or skipping
+    setPayments(payments.map(p =>
       p.id === id ? { ...p, status: 'Rejected' as const } : p
     ));
   };
@@ -58,29 +113,29 @@ export function LuxuryPaymentConfirmation() {
         <p className="text-slate-400 text-sm md:text-base">Review and confirm tenant payments</p>
       </div>
 
-      {/* Stats Cards - Grid responsif (1 kolom mobile, 3 kolom desktop) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+      {/* Stats Cards - 2x2 Grid on Mobile */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
         {[
           { label: 'Pending Confirmation', status: 'Pending', icon: Clock, color: 'orange' },
           { label: 'Confirmed Payments', status: 'Confirmed', icon: CheckCircle2, color: 'green' },
           { label: 'Rejected Payments', status: 'Rejected', icon: XCircle, color: 'red' }
         ].map((stat) => (
-          <div key={stat.status} className={`group relative overflow-hidden bg-gradient-to-br from-${stat.color}-500/10 to-${stat.color}-600/10 border border-${stat.color}-500/20 rounded-2xl p-5 md:p-6 transition-all`}>
+          <div key={stat.status} className={`group relative overflow-hidden bg-gradient-to-br from-${stat.color}-500/10 to-${stat.color}-600/10 border border-${stat.color}-500/20 rounded-2xl p-4 md:p-6 transition-all`}>
             <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-${stat.color}-500/20 to-transparent rounded-full blur-2xl`} />
             <div className="relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-2.5 bg-${stat.color}-500/20 rounded-xl`}>
-                  <stat.icon className={`size-5 md:size-6 text-${stat.color}-400`} />
+              <div className="flex items-center justify-between mb-2 md:mb-4">
+                <div className={`p-2 bg-${stat.color}-500/20 rounded-xl`}>
+                  <stat.icon className={`size-4 md:size-6 text-${stat.color}-400`} />
                 </div>
-                <p className="text-2xl md:text-3xl font-bold text-white">
+                <p className="text-xl md:text-3xl font-bold text-white">
                   {payments.filter(p => p.status === stat.status).length}
                 </p>
               </div>
-              <p className="text-slate-400 text-xs md:text-sm">{stat.label}</p>
+              <p className="text-slate-400 text-[10px] md:text-sm">{stat.label}</p>
               <div className="mt-2 h-1 bg-slate-800 rounded-full overflow-hidden">
-                <div 
+                <div
                   className={`h-full bg-gradient-to-r from-${stat.color}-500 to-${stat.color}-600`}
-                  style={{ width: `${(payments.filter(p => p.status === stat.status).length / payments.length) * 100}%` }}
+                  style={{ width: `${payments.length > 0 ? (payments.filter(p => p.status === stat.status).length / payments.length) * 100 : 0}%` }}
                 />
               </div>
             </div>
@@ -91,85 +146,96 @@ export function LuxuryPaymentConfirmation() {
       {/* Timeline Activity Feed */}
       <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 border border-slate-800 rounded-2xl p-4 md:p-6">
         <h2 className="text-xl md:text-2xl font-semibold text-white mb-6">Payment Timeline</h2>
-        
-        <div className="space-y-4">
-          {payments.map((payment, index) => (
-            <div key={payment.id} className="group relative">
-              {/* Timeline Line (Desktop Only) */}
-              {index !== payments.length - 1 && (
-                <div className="hidden sm:block absolute left-6 top-14 bottom-0 w-0.5 bg-gradient-to-b from-slate-700 to-transparent" />
-              )}
-              
-              {/* Payment Card */}
-              <div className="relative flex flex-col sm:flex-row gap-4 p-4 md:p-5 bg-slate-800/30 border border-slate-700/50 rounded-xl hover:bg-slate-800/50 transition-all duration-300">
-                {/* Status Icon */}
-                <div className={`flex-shrink-0 size-10 md:size-12 rounded-xl bg-gradient-to-br ${getStatusColor(payment.status)} border flex items-center justify-center z-10 mx-auto sm:mx-0`}>
-                  {getStatusIcon(payment.status)}
-                </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-2 md:gap-4 mb-3">
-                    <div className="text-center sm:text-left">
-                      <h3 className="text-base md:text-lg font-semibold text-white truncate">
-                        {payment.tenantName}
-                      </h3>
-                      <p className="text-xs md:text-sm text-slate-400">
-                        {payment.roomName} • {payment.method}
-                      </p>
-                    </div>
-                    <div className="text-center sm:text-right">
-                      <p className="text-lg md:text-xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
-                        {formatPrice(payment.amount)}
-                      </p>
-                      <p className="text-[10px] md:text-xs text-slate-500">{payment.date}</p>
-                    </div>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
+            <p className="text-slate-400 font-medium italic">Loading payments...</p>
+          </div>
+        ) : payments.length === 0 ? (
+          <div className="text-center py-20 bg-slate-800/10 rounded-xl border border-dashed border-slate-800">
+            <p className="text-slate-500">No payments found in the records.</p>
+          </div>
+        ) : (
+          <div className="flex sm:flex-col overflow-x-auto sm:overflow-x-visible gap-4 pb-4 sm:pb-0 snap-x">
+            {payments.map((payment, index) => (
+              <div key={payment.id} className="group relative">
+                {/* Timeline Line (Desktop Only) */}
+                {index !== payments.length - 1 && (
+                  <div className="hidden sm:block absolute left-6 top-14 bottom-0 w-0.5 bg-gradient-to-b from-slate-700 to-transparent" />
+                )}
+
+                {/* Payment Card */}
+                <div className="relative flex flex-col sm:flex-row gap-4 p-4 md:p-5 bg-slate-800/30 border border-slate-700/50 rounded-xl hover:bg-slate-800/50 transition-all duration-300 min-w-[280px] sm:min-w-0 snap-start">
+                  {/* Status Icon */}
+                  <div className={`flex-shrink-0 size-10 md:size-12 rounded-xl bg-gradient-to-br ${getStatusColor(payment.status)} border flex items-center justify-center z-10 mx-auto sm:mx-0`}>
+                    {getStatusIcon(payment.status)}
                   </div>
 
-                  {/* Actions - Scrollable di mobile jika terlalu banyak tombol */}
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                    <span className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-xs font-medium border ${getStatusColor(payment.status)}`}>
-                      {payment.status}
-                    </span>
-                    
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setViewingPayment(payment)}
-                      className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 h-8 md:h-9 text-xs"
-                    >
-                      <Eye className="size-3.5 md:size-4 mr-1.5" />
-                      Receipt
-                    </Button>
-
-                    {payment.status === 'Pending' && (
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleConfirm(payment.id)}
-                          className="text-green-400 hover:text-green-300 hover:bg-green-500/10 h-8 md:h-9 text-xs"
-                        >
-                          <Check className="size-3.5 md:size-4 mr-1.5" />
-                          Confirm
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleReject(payment.id)}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 md:h-9 text-xs"
-                        >
-                          <X className="size-3.5 md:size-4 mr-1.5" />
-                          Reject
-                        </Button>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-2 md:gap-4 mb-3">
+                      <div className="text-center sm:text-left">
+                        <h3 className="text-base md:text-lg font-semibold text-white truncate">
+                          {payment.tenantName}
+                        </h3>
+                        <p className="text-xs md:text-sm text-slate-400">
+                          {payment.roomName} • {payment.method}
+                        </p>
                       </div>
-                    )}
+                      <div className="text-center sm:text-right">
+                        <p className="text-lg md:text-xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
+                          {formatPrice(payment.amount)}
+                        </p>
+                        <p className="text-[10px] md:text-xs text-slate-500">{payment.date}</p>
+                      </div>
+                    </div>
+
+                    {/* Actions - Scrollable di mobile jika terlalu banyak tombol */}
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                      <span className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-xs font-medium border ${getStatusColor(payment.status)}`}>
+                        {payment.status}
+                      </span>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setViewingPayment(payment)}
+                        className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 h-8 md:h-9 text-xs"
+                      >
+                        <Eye className="size-3.5 md:size-4 mr-1.5" />
+                        Receipt
+                      </Button>
+
+                      {payment.status === 'Pending' && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleConfirm(payment.id)}
+                            className="text-green-400 hover:text-green-300 hover:bg-green-500/10 h-8 md:h-9 text-xs"
+                          >
+                            <Check className="size-3.5 md:size-4 mr-1.5" />
+                            Confirm
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleReject(payment.id)}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 md:h-9 text-xs"
+                          >
+                            <X className="size-3.5 md:size-4 mr-1.5" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Responsive Receipt Dialog */}
@@ -180,7 +246,7 @@ export function LuxuryPaymentConfirmation() {
               Payment Details
             </DialogTitle>
           </DialogHeader>
-          
+
           {viewingPayment && (
             <div className="space-y-6 mt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -215,14 +281,14 @@ export function LuxuryPaymentConfirmation() {
 
               {viewingPayment.status === 'Pending' && (
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                  <Button 
-                    className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 text-white" 
+                  <Button
+                    className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 text-white"
                     onClick={() => { handleConfirm(viewingPayment.id); setViewingPayment(null); }}
                   >
                     <Check className="size-4 mr-2" /> Confirm
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full bg-red-500/10 border-red-500/30 text-red-400"
                     onClick={() => { handleReject(viewingPayment.id); setViewingPayment(null); }}
                   >

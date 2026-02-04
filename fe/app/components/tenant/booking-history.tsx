@@ -6,9 +6,9 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { ExtendBooking } from './extend-booking';
 import { CancelBooking } from './cancel-booking';
-import { 
-  Calendar, 
-  MapPin, 
+import {
+  Calendar,
+  MapPin,
   Eye,
   Clock,
   Search,
@@ -123,14 +123,14 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
     <div className="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors overflow-x-hidden min-h-screen py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="mb-12"
         >
           <div className="flex items-center gap-3 mb-4">
-            <motion.div 
+            <motion.div
               className="w-12 h-12 bg-gradient-to-br from-stone-700 to-stone-900 rounded-lg flex items-center justify-center shadow-lg"
               whileHover={{ scale: 1.1, rotate: 5 }}
             >
@@ -143,9 +143,9 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
           </div>
         </motion.div>
 
-        {/* Summary Cards */}
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12"
+        {/* Summary Cards - 2x2 on Mobile */}
+        <motion.div
+          className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-12"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ staggerChildren: 0.1, delayChildren: 0.2 }}
@@ -163,19 +163,19 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
               transition={{ duration: 0.5, delay: index * 0.1 }}
               whileHover={{ y: -5 }}
             >
-              <Card className={`p-6 bg-gradient-to-br ${stat.bgColor} border-0 dark:border dark:border-slate-800 shadow-lg hover:shadow-xl transition-all duration-300`}>
-                <div className={`w-14 h-14 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center mb-4 shadow-lg`}>
-                  <span className="text-2xl">{stat.icon}</span>
+              <Card className={`p-4 md:p-6 bg-gradient-to-br ${stat.bgColor} border-0 dark:border dark:border-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 h-full`}>
+                <div className={`w-10 h-10 md:w-14 md:h-14 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center mb-3 md:mb-4 shadow-lg`}>
+                  <span className="text-xl md:text-2xl">{stat.icon}</span>
                 </div>
-                <p className="text-sm text-slate-600 dark:text-slate-400 font-semibold mb-2 uppercase tracking-wide">{stat.label}</p>
-                <p className="text-3xl font-bold text-slate-900 dark:text-white">{stat.value}</p>
+                <p className="text-[10px] md:text-sm text-slate-600 dark:text-slate-400 font-semibold mb-1 md:mb-2 uppercase tracking-wide">{stat.label}</p>
+                <p className="text-lg md:text-3xl font-bold text-slate-900 dark:text-white line-clamp-1">{stat.value}</p>
               </Card>
             </motion.div>
           ))}
         </motion.div>
 
         {/* Bookings List */}
-        <motion.div 
+        <motion.div
           className="space-y-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -197,7 +197,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
               <Card className="overflow-hidden hover:shadow-2xl transition-all duration-300 border-0 dark:border dark:border-slate-800 shadow-lg bg-white dark:bg-slate-900">
                 <div className="flex flex-col md:flex-row">
                   {/* Room Image with Overlay */}
-                  <motion.div 
+                  <motion.div
                     className="md:w-80 h-56 md:h-auto flex-shrink-0 relative overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-800 dark:to-slate-900"
                     whileHover={{ scale: 1.05 }}
                   >
@@ -229,52 +229,52 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
                       </motion.div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
                       {/* Check-in Card */}
-                      <motion.div 
-                        className="p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-800/80 rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:shadow-md transition-all"
+                      <motion.div
+                        className="p-3 md:p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-800/80 rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:shadow-md transition-all"
                         whileHover={{ y: -2 }}
                       >
-                        <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold mb-2 uppercase tracking-wide">Check-in</p>
-                        <div className="flex items-center gap-2 text-slate-900 dark:text-white">
-                          <Calendar className="w-5 h-5 text-stone-900 dark:text-slate-400" />
-                          <span className="font-semibold">{new Date(booking.moveInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        <p className="text-[10px] md:text-xs text-slate-600 dark:text-slate-400 font-semibold mb-1 md:mb-2 uppercase tracking-wide">Check-in</p>
+                        <div className="flex items-center gap-1.5 md:gap-2 text-slate-900 dark:text-white">
+                          <Calendar className="w-4 h-4 md:w-5 md:h-5 text-stone-900 dark:text-slate-400" />
+                          <span className="font-semibold text-xs md:text-base">{new Date(booking.moveInDate).toLocaleDateString('en-GB')}</span>
                         </div>
                       </motion.div>
 
                       {/* Check-out Card */}
-                      <motion.div 
-                        className="p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-800/80 rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:shadow-md transition-all"
+                      <motion.div
+                        className="p-3 md:p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-800/80 rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:shadow-md transition-all"
                         whileHover={{ y: -2 }}
                       >
-                        <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold mb-2 uppercase tracking-wide">Check-out</p>
-                        <div className="flex items-center gap-2 text-slate-900 dark:text-white">
-                          <Calendar className="w-5 h-5 text-stone-900 dark:text-slate-400" />
-                          <span className="font-semibold">{new Date(booking.moveOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        <p className="text-[10px] md:text-xs text-slate-600 dark:text-slate-400 font-semibold mb-1 md:mb-2 uppercase tracking-wide">Check-out</p>
+                        <div className="flex items-center gap-1.5 md:gap-2 text-slate-900 dark:text-white">
+                          <Calendar className="w-4 h-4 md:w-5 md:h-5 text-stone-900 dark:text-slate-400" />
+                          <span className="font-semibold text-xs md:text-base">{new Date(booking.moveOutDate).toLocaleDateString('en-GB')}</span>
                         </div>
                       </motion.div>
 
                       {/* Duration Card */}
-                      <motion.div 
-                        className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/30 rounded-xl border border-purple-200/50 dark:border-purple-800/50 hover:shadow-md transition-all"
+                      <motion.div
+                        className="p-3 md:p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/30 rounded-xl border border-purple-200/50 dark:border-purple-800/50 hover:shadow-md transition-all"
                         whileHover={{ y: -2 }}
                       >
-                        <p className="text-xs text-purple-700 dark:text-purple-400 font-semibold mb-2 uppercase tracking-wide">Duration</p>
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-5 h-5 text-purple-700 dark:text-purple-400" />
-                          <span className="font-semibold text-purple-900 dark:text-purple-200">{booking.duration}</span>
+                        <p className="text-[10px] md:text-xs text-purple-700 dark:text-purple-400 font-semibold mb-1 md:mb-2 uppercase tracking-wide">Duration</p>
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                          <Clock className="w-4 h-4 md:w-5 md:h-5 text-purple-700 dark:text-purple-400" />
+                          <span className="font-semibold text-xs md:text-base text-purple-900 dark:text-purple-200">{booking.duration}</span>
                         </div>
                       </motion.div>
 
                       {/* Monthly Card */}
-                      <motion.div 
-                        className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-900/30 rounded-xl border border-emerald-200/50 dark:border-emerald-800/50 hover:shadow-md transition-all"
+                      <motion.div
+                        className="p-3 md:p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-900/30 rounded-xl border border-emerald-200/50 dark:border-emerald-800/50 hover:shadow-md transition-all"
                         whileHover={{ y: -2 }}
                       >
-                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold mb-2 uppercase tracking-wide">Monthly</p>
+                        <p className="text-[10px] md:text-xs text-emerald-700 dark:text-emerald-400 font-semibold mb-1 md:mb-2 uppercase tracking-wide">Monthly</p>
                         <div className="flex items-center gap-1">
-                          <span className="font-bold text-emerald-900 dark:text-emerald-200 text-sm">Rp</span>
-                          <span className="font-bold text-emerald-900 dark:text-emerald-200 text-lg">{booking.monthlyRent.toLocaleString()}</span>
+                          <span className="font-bold text-emerald-900 dark:text-emerald-200 text-[10px] md:text-sm">Rp</span>
+                          <span className="font-bold text-emerald-900 dark:text-emerald-200 text-sm md:text-lg">{booking.monthlyRent.toLocaleString()}</span>
                         </div>
                       </motion.div>
                     </div>
@@ -303,7 +303,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
                         {booking.status === 'Confirmed' && (
                           <>
                             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                              <Button 
+                              <Button
                                 onClick={() => handleExtendClick(booking)}
                                 className="bg-gradient-to-r from-stone-700 to-stone-900 dark:from-stone-600 dark:to-stone-800 hover:from-stone-600 hover:to-stone-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
                               >
@@ -312,7 +312,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
                               </Button>
                             </motion.div>
                             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                              <Button 
+                              <Button
                                 onClick={() => handleCancelClick(booking)}
                                 variant="outline"
                                 className="border-red-300 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 font-semibold shadow-md hover:shadow-lg transition-all"
@@ -340,7 +340,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
             transition={{ duration: 0.6 }}
           >
             <Card className="p-16 text-center bg-gradient-to-br from-slate-50 to-stone-50 dark:from-slate-900 dark:to-slate-950 border-0 dark:border dark:border-slate-800 shadow-lg">
-              <motion.div 
+              <motion.div
                 className="w-20 h-20 bg-gradient-to-br from-stone-700 to-stone-900 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg"
                 whileHover={{ scale: 1.1, rotate: 10 }}
               >
@@ -363,7 +363,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
 
       {/* Modals remain same, they should handle dark mode internally via their components */}
       {selectedBooking && (
-        <ExtendBooking 
+        <ExtendBooking
           isOpen={extendModalOpen}
           onClose={() => setExtendModalOpen(false)}
           bookingData={{
@@ -377,7 +377,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
       )}
 
       {selectedBooking && (
-        <CancelBooking 
+        <CancelBooking
           isOpen={cancelModalOpen}
           onClose={() => setCancelModalOpen(false)}
           bookingData={{

@@ -18,10 +18,15 @@ type MockUserRepository struct {
 type MockPenyewaRepository struct{}
 
 func (m *MockPenyewaRepository) FindByUserID(userID uint) (*models.Penyewa, error) { return nil, nil }
+func (m *MockPenyewaRepository) FindAll() ([]models.Penyewa, error)                { return nil, nil }
 func (m *MockPenyewaRepository) Create(penyewa *models.Penyewa) error              { return nil }
 func (m *MockPenyewaRepository) Update(penyewa *models.Penyewa) error              { return nil }
 
 func (m *MockUserRepository) Create(user *models.User) error {
+	return nil
+}
+
+func (m *MockUserRepository) Update(user *models.User) error {
 	return nil
 }
 

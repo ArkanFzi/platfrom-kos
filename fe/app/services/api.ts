@@ -51,6 +51,12 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch rooms');
     return safeJson(res);
   },
+  
+  getRoomById: async (id: string) => {
+    const res = await fetch(`${API_URL}/kamar/${id}`);
+    if (!res.ok) throw new Error('Failed to fetch room detail');
+    return safeJson(res);
+  },
 
   createRoom: async (formData: FormData) => {
     const res = await fetch(`${API_URL}/kamar`, {
@@ -62,9 +68,23 @@ export const api = {
     return safeJson(res);
   },
 
-  deleteRoom: async () => {
-    console.warn("Delete Room API not implemented in backend");
-    return true; 
+  updateRoom: async (id: string, formData: FormData) => {
+    const res = await fetch(`${API_URL}/kamar/${id}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    });
+    if (!res.ok) throw new Error('Failed to update room');
+    return safeJson(res);
+  },
+
+  deleteRoom: async (id: string) => {
+    const res = await fetch(`${API_URL}/kamar/${id}`, {
+      method: 'DELETE',
+      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) throw new Error('Failed to delete room');
+    return safeJson(res);
   },
 
   // Gallery
@@ -172,6 +192,17 @@ export const api = {
     return data;
   },
 
+  changePassword: async (data: { old_password: string; new_password: string }) => {
+    const res = await fetch(`${API_URL}/profile/change-password`, {
+      method: 'PUT',
+      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const resData = await safeJson(res);
+    if (!res.ok) throw new Error(resData.error || 'Failed to change password');
+    return resData;
+  },
+
   getMyBookings: async () => {
     const res = await fetch(`${API_URL}/my-bookings`, {
       headers: { ...getHeaders(), 'Content-Type': 'application/json' },
@@ -182,6 +213,32 @@ export const api = {
         }
         throw new Error(`Failed to fetch user bookings (Status: ${res.status})`);
     }
+    return safeJson(res);
+  },
+
+  // Admin
+  getPayments: async () => {
+    const res = await fetch(`${API_URL}/payments`, {
+      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) throw new Error('Failed to fetch payments');
+    return safeJson(res);
+  },
+
+  confirmPayment: async (id: number) => {
+    const res = await fetch(`${API_URL}/payments/${id}/confirm`, {
+      method: 'PUT',
+      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) throw new Error('Failed to confirm payment');
+    return safeJson(res);
+  },
+
+  getTenants: async () => {
+    const res = await fetch(`${API_URL}/tenants`, {
+      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) throw new Error('Failed to fetch tenants');
     return safeJson(res);
   }
 };

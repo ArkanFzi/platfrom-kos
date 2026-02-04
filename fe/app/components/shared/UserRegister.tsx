@@ -52,7 +52,7 @@ export function UserRegister({ onRegisterSuccess, onBackToLogin }: UserRegisterP
   if (isSuccess) {
     return (
       <div className="flex h-screen bg-slate-50 items-center justify-center p-8">
-        <motion.div 
+        <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           className="bg-white p-12 rounded-3xl shadow-2xl text-center max-w-sm w-full border border-slate-100"
@@ -68,33 +68,89 @@ export function UserRegister({ onRegisterSuccess, onBackToLogin }: UserRegisterP
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <div className="hidden md:flex md:w-1/2 bg-stone-800 items-center justify-center p-12 text-white relative">
-        <ImageWithFallback 
-          src="https://images.unsplash.com/photo-1554995207-c18c20360a59?q=80&w=1000"
-          alt="Registration Background"
-          className="absolute inset-0 bg-cover bg-center opacity-30 w-full h-full object-cover"
-        />
-        <div className="relative z-10 text-center max-w-md">
-          <UserPlus className="w-16 h-16 mx-auto mb-6 text-amber-400" />
-          <h1 className="text-4xl font-bold mb-4">Start Your Journey</h1>
-          <p className="text-xl text-stone-300">Join our premium community today. Find comfort, style, and convenience.</p>
+    <div className="flex flex-col md:flex-row min-h-screen bg-white overflow-auto md:overflow-hidden">
+      {/* Left Side: Visual Feature Section */}
+      <div className="flex-shrink-0 md:w-1/2 lg:w-[55%] relative overflow-hidden bg-stone-900 min-h-[400px] md:min-h-0">
+        {/* Background Image with animated zoom effect */}
+        <motion.div
+          initial={{ scale: 1.1 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 1.5, ease: "easeOut" }}
+          className="absolute inset-0 z-0"
+        >
+          <ImageWithFallback
+            src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=2000"
+            alt="Registration Background"
+            className="w-full h-full object-cover opacity-50"
+          />
+          {/* Elegant Gradient Overlays */}
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-stone-900/80 to-transparent" />
+        </motion.div>
+
+        {/* Content Container - Perfectly Centered */}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full h-full p-8 md:p-16 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.8 }}
+            className="max-w-xl"
+          >
+            <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 mb-6 md:mb-10 rounded-2xl md:rounded-3xl bg-amber-400/20 backdrop-blur-md border border-amber-400/30 shadow-2xl shadow-amber-400/20">
+              <UserPlus className="w-8 h-8 md:w-10 md:h-10 text-amber-400" />
+            </div>
+
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 md:mb-6 leading-tight tracking-tight">
+              Start Your <span className="text-amber-400">Journey</span>
+            </h1>
+
+            <p className="text-lg md:text-xl text-stone-300 font-medium leading-relaxed max-w-lg mx-auto mb-6 md:mb-10 opacity-90">
+              Join our premium community today. Discover the perfect balance of comfort, style, and modern convenience.
+            </p>
+
+            <div className="flex items-center justify-center gap-6 pt-6 border-t border-white/10">
+              <div className="text-center">
+                <p className="text-xl md:text-2xl font-bold text-white">500+</p>
+                <p className="text-stone-400 text-[10px] md:text-sm uppercase tracking-wider font-semibold">Active Tenants</p>
+              </div>
+              <div className="w-px h-8 md:h-10 bg-white/20" />
+              <div className="text-center">
+                <p className="text-xl md:text-2xl font-bold text-white">4.9/5</p>
+                <p className="text-stone-400 text-[10px] md:text-sm uppercase tracking-wider font-semibold">User Rating</p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Branding/Logo floating at top left */}
+        <div className="absolute top-6 left-6 md:top-12 md:left-12 z-20 flex items-center gap-3">
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-lg md:rounded-xl flex items-center justify-center shadow-lg">
+            <span className="font-bold text-stone-900 text-lg md:text-xl">R</span>
+          </div>
+          <span className="text-white font-bold text-base md:text-lg tracking-tight">Rahmat ZAW</span>
         </div>
       </div>
 
-      <div className="flex w-full md:w-1/2 items-center justify-center p-8">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+      <div className="flex w-full md:w-1/2 lg:w-[45%] items-center justify-center p-12 bg-white">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5, duration: 0.8 }}
           className="w-full max-w-sm"
         >
-          <Button variant="ghost" onClick={onBackToLogin} className="mb-8 p-0 hover:bg-transparent text-slate-500">
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Login
+          <Button
+            variant="ghost"
+            onClick={onBackToLogin}
+            className="mb-10 p-0 hover:bg-transparent text-slate-500 hover:text-stone-900 transition-colors group"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+            Back to Login
           </Button>
 
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">Register</h2>
-          <p className="text-slate-600 mb-8">Create your tenant account</p>
-
+          <div className="mb-10">
+            <h2 className="text-4xl font-bold text-stone-900 tracking-tight mb-3">Register</h2>
+            <p className="text-slate-500 font-medium leading-relaxed">Join Rahmat ZAW and find your next premium home.</p>
+          </div>
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm font-medium border border-red-100">
               {error}
@@ -149,7 +205,7 @@ export function UserRegister({ onRegisterSuccess, onBackToLogin }: UserRegisterP
 
           <p className="mt-8 text-center text-slate-600">
             Already have an account?{' '}
-            <button 
+            <button
               onClick={onBackToLogin}
               className="text-amber-600 font-semibold hover:underline"
             >

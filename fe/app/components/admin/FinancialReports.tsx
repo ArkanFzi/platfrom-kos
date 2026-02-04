@@ -1,30 +1,78 @@
-import { TrendingUp, DollarSign, Calendar } from 'lucide-react';
+import { TrendingUp, DollarSign, Calendar, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { payments, rooms } from '@/app/data/mockData';
+import { useEffect, useState } from 'react';
+import { api } from '@/app/services/api';
 
-interface Payment {
-  id: string;
-  status: string;
-  amount: number;
+interface DashboardStats {
+  total_revenue: number;
+  pending_revenue: number;
+  rejected_payments: number;
+  potential_revenue: number;
+  occupied_rooms: number;
+  available_rooms: number;
+  monthly_trend?: { month: string; revenue: number }[];
+  type_breakdown?: { type: string; revenue: number; count: number; occupied: number }[];
 }
 
-interface Room {
-  id: string;
-  type: string;
-  status: string;
-  price: number;
+interface Payment {
+  id: string | number;
+  status_pembayaran: string;
+  jumlah_bayar: number;
 }
 
 export function FinancialReports() {
-  const confirmedPayments = (payments as Payment[]).filter(p => p.status === 'Confirmed');
-  const totalRevenue = confirmedPayments.reduce((sum: number, p: Payment) => sum + p.amount, 0);
-  const pendingRevenue = (payments as Payment[])
-    .filter(p => p.status === 'Pending')
-    .reduce((sum: number, p: Payment) => sum + p.amount, 0);
-  
-  const occupiedRooms = (rooms as Room[]).filter(r => r.status === 'Penuh');
-  const potentialRevenue = (rooms as Room[]).reduce((sum: number, r: Room) => sum + r.price, 0);
-  const occupancyRate = (occupiedRooms.length / rooms.length) * 100;
+  const [stats, setStats] = useState<DashboardStats>({
+    total_revenue: 0,
+    pending_revenue: 0,
+    rejected_payments: 0,
+    potential_revenue: 0,
+    occupied_rooms: 0,
+    available_rooms: 0,
+    monthly_trend: [],
+    type_breakdown: []
+  });
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [dashStats, p] = await Promise.all([
+          api.getDashboardStats(),
+          api.getPayments()
+        ]);
+        setStats(dashStats);
+        setPayments(p);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void fetchData();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 gap-4">
+        <Loader2 className="w-10 h-10 animate-spin text-amber-500" />
+        <p className="text-slate-400">Preparing financial reports...</p>
+      </div>
+    );
+  }
+
+  // Use backend-calculated values
+  const totalRevenue = stats.total_revenue;
+  const pendingRevenue = stats.pending_revenue;
+  const potentialRevenue = stats.potential_revenue;
+  const occupiedRooms = stats.occupied_rooms;
+  const availableRooms = stats.available_rooms;
+  const totalRooms = occupiedRooms + availableRooms;
+  const occupancyRate = totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0;
+
+  const confirmedPayments = payments.filter(p => p.status_pembayaran === 'Confirmed');
+  const pendingPayments = payments.filter(p => p.status_pembayaran === 'Pending');
+  const rejectedPayments = payments.filter(p => p.status_pembayaran === 'Rejected');
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -34,14 +82,17 @@ export function FinancialReports() {
     }).format(price);
   };
 
-  const monthlyData = [
-    { month: 'Jan', revenue: 4200000 },
-    { month: 'Feb', revenue: 5100000 },
-    { month: 'Mar', revenue: 4800000 },
-    { month: 'Apr', revenue: 5400000 },
-    { month: 'May', revenue: 6200000 },
-    { month: 'Jun', revenue: 5900000 }
-  ];
+  // Use backend monthly trend or fallback to mock data
+  const monthlyData = (stats.monthly_trend && stats.monthly_trend.length > 0)
+    ? stats.monthly_trend
+    : [
+        { month: 'Jan', revenue: 4200000 },
+        { month: 'Feb', revenue: 5100000 },
+        { month: 'Mar', revenue: 4800000 },
+        { month: 'Apr', revenue: 5400000 },
+        { month: 'May', revenue: 6200000 },
+        { month: 'Jun', revenue: 5900000 }
+      ];
 
   const maxRevenue = Math.max(...monthlyData.map(d => d.revenue));
 
@@ -52,7 +103,6 @@ export function FinancialReports() {
         <p className="text-slate-600 mt-1">View revenue and financial statistics</p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardContent className="p-6">
@@ -90,7 +140,7 @@ export function FinancialReports() {
               <div>
                 <p className="text-sm text-slate-600">Occupancy Rate</p>
                 <p className="text-2xl font-semibold mt-2">{occupancyRate.toFixed(0)}%</p>
-                <p className="text-sm text-blue-600 mt-1">{occupiedRooms.length}/{rooms.length} rooms</p>
+                <p className="text-sm text-blue-600 mt-1">{occupiedRooms}/{totalRooms} rooms</p>
               </div>
               <div className="p-3 rounded-lg bg-blue-100 text-blue-600">
                 <TrendingUp className="size-6" />
@@ -115,7 +165,6 @@ export function FinancialReports() {
         </Card>
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -132,7 +181,7 @@ export function FinancialReports() {
                   <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-blue-600 transition-all"
-                      style={{ width: `${(data.revenue / maxRevenue) * 100}%` }}
+                      style={{ width: `${(data.revenue / (maxRevenue || 1)) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -151,7 +200,7 @@ export function FinancialReports() {
                 <div>
                   <p className="font-medium">Confirmed Payments</p>
                   <p className="text-sm text-slate-600 mt-1">
-                    {(payments as Payment[]).filter(p => p.status === 'Confirmed').length} transactions
+                    {confirmedPayments.length} transactions
                   </p>
                 </div>
                 <div className="text-right">
@@ -165,7 +214,7 @@ export function FinancialReports() {
                 <div>
                   <p className="font-medium">Pending Payments</p>
                   <p className="text-sm text-slate-600 mt-1">
-                    {(payments as Payment[]).filter(p => p.status === 'Pending').length} transactions
+                    {pendingPayments.length} transactions
                   </p>
                 </div>
                 <div className="text-right">
@@ -179,11 +228,11 @@ export function FinancialReports() {
                 <div>
                   <p className="font-medium">Rejected Payments</p>
                   <p className="text-sm text-slate-600 mt-1">
-                    {(payments as Payment[]).filter(p => p.status === 'Rejected').length} transactions
+                    {rejectedPayments.length} transactions
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-semibold text-red-600">0</p>
+                  <p className="text-2xl font-semibold text-red-600">{stats.rejected_payments}</p>
                 </div>
               </div>
             </div>
@@ -191,38 +240,39 @@ export function FinancialReports() {
         </Card>
       </div>
 
-      {/* Revenue by Room Type */}
       <Card>
         <CardHeader>
           <CardTitle>Revenue by Room Type</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Array.from(new Set((rooms as Room[]).map(r => r.type))).map((type: unknown) => {
-              const typeRooms = (rooms as Room[]).filter(r => r.type === type);
-              const occupiedTypeRooms = typeRooms.filter(r => r.status === 'Penuh');
-              const typeRevenue = occupiedTypeRooms.reduce((sum: number, r: Room) => sum + r.price, 0);
-              
-              return (
-                <div key={type as string} className="p-4 border rounded-lg">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="font-medium">{type as string} Rooms</p>
-                      <p className="text-sm text-slate-600">
-                        {occupiedTypeRooms.length}/{typeRooms.length} occupied
-                      </p>
+            {(stats.type_breakdown && stats.type_breakdown.length > 0) ? (
+              stats.type_breakdown.map((typeData) => {
+                const occupancyPercent = typeData.count > 0 ? (typeData.occupied / typeData.count) * 100 : 0;
+                
+                return (
+                  <div key={typeData.type} className="p-4 border rounded-lg">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <p className="font-medium">{typeData.type} Rooms</p>
+                        <p className="text-sm text-slate-600">
+                          {typeData.occupied}/{typeData.count} occupied
+                        </p>
+                      </div>
+                      <p className="font-semibold">{formatPrice(typeData.revenue)}</p>
                     </div>
-                    <p className="font-semibold">{formatPrice(typeRevenue)}</p>
+                    <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-600"
+                        style={{ width: `${occupancyPercent}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-blue-600"
-                      style={{ width: `${(occupiedTypeRooms.length / typeRooms.length) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <p className="text-slate-500 col-span-2 text-center py-4">No room type data available</p>
+            )}
           </div>
         </CardContent>
       </Card>

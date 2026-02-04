@@ -18,6 +18,7 @@ import { LuxuryReports } from '@/app/components/admin/LuxuryReports';
 
 // Tenant Components
 import { UserPlatform } from '@/app/components/tenant/user-platform';
+import { Loader2 } from 'lucide-react';
 
 type ViewMode = 'login' | 'register' | 'home' | 'admin' | 'tenant';
 type AdminPage = 'dashboard' | 'gallery' | 'rooms' | 'tenants' | 'payments' | 'reports';
@@ -34,8 +35,8 @@ const STORAGE_KEYS = {
 };
 
 export default function App() {
-  // Initialize with server-safe defaults to prevent hydration mismatch
-  const [viewMode, setViewMode] = useState<ViewMode>('login');
+  // Initialize with null/placeholder to prevent rendering wrong page before hydration
+  const [viewMode, setViewMode] = useState<ViewMode | null>(null);
   const [adminPage, setAdminPage] = useState<AdminPage>('dashboard');
   const [tenantPage, setTenantPage] = useState<TenantPage>('landing');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
@@ -44,45 +45,39 @@ export default function App() {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    const init = () => {
-      setIsClient(true);
-      const storedViewMode = localStorage.getItem(STORAGE_KEYS.VIEW_MODE) as ViewMode;
-      if (storedViewMode) setViewMode(storedViewMode);
+    setIsClient(true);
+    const storedViewMode = localStorage.getItem(STORAGE_KEYS.VIEW_MODE) as ViewMode;
+    // Default to 'home' if no stored mode
+    setViewMode(storedViewMode || 'home');
 
-      const storedAdminPage = localStorage.getItem(STORAGE_KEYS.ADMIN_PAGE) as AdminPage;
-      if (storedAdminPage) setAdminPage(storedAdminPage);
+    const storedAdminPage = localStorage.getItem(STORAGE_KEYS.ADMIN_PAGE) as AdminPage;
+    if (storedAdminPage) setAdminPage(storedAdminPage);
 
-      const storedTenantPage = localStorage.getItem(STORAGE_KEYS.TENANT_PAGE) as TenantPage;
-      if (storedTenantPage) setTenantPage(storedTenantPage);
+    const storedTenantPage = localStorage.getItem(STORAGE_KEYS.TENANT_PAGE) as TenantPage;
+    if (storedTenantPage) setTenantPage(storedTenantPage);
 
-      const storedRoomId = localStorage.getItem(STORAGE_KEYS.SELECTED_ROOM_ID);
-      if (storedRoomId) setSelectedRoomId(storedRoomId);
+    const storedRoomId = localStorage.getItem(STORAGE_KEYS.SELECTED_ROOM_ID);
+    if (storedRoomId) setSelectedRoomId(storedRoomId);
 
-      const storedBookingData = localStorage.getItem(STORAGE_KEYS.BOOKING_DATA);
-      if (storedBookingData) {
-          try {
-              // Defensive check for line 1 column 5 or other garbage
-              const parsed = JSON.parse(storedBookingData);
-              if (parsed && typeof parsed === 'object') {
-                setBookingData(parsed);
-              }
-          } catch (e) {
-              console.warn("Corrupted booking data found, clearing...", e);
-              localStorage.removeItem(STORAGE_KEYS.BOOKING_DATA);
-          }
+    const storedBookingData = localStorage.getItem(STORAGE_KEYS.BOOKING_DATA);
+    if (storedBookingData) {
+      try {
+        const parsed = JSON.parse(storedBookingData);
+        if (parsed && typeof parsed === 'object') {
+          setBookingData(parsed);
+        }
+      } catch (e) {
+        localStorage.removeItem(STORAGE_KEYS.BOOKING_DATA);
       }
+    }
 
-      const storedUserRole = localStorage.getItem(STORAGE_KEYS.USER_ROLE) as 'admin' | 'tenant' | 'guest';
-      if (storedUserRole) setUserRole(storedUserRole);
-    };
-    
-    setTimeout(init, 0);
+    const storedUserRole = localStorage.getItem(STORAGE_KEYS.USER_ROLE) as 'admin' | 'tenant' | 'guest';
+    if (storedUserRole) setUserRole(storedUserRole);
   }, []);
 
   // Save state to localStorage whenever it changes
-  // We only save if isClient is true to avoid overwriting with initial defaults if effects run weirdly (though unlikely in this structure)
   useEffect(() => {
-    if (!isClient) return;
+    if (!isClient || !viewMode) return;
     localStorage.setItem(STORAGE_KEYS.VIEW_MODE, viewMode);
   }, [viewMode, isClient]);
 
@@ -130,15 +125,34 @@ export default function App() {
     });
   };
 
+  // 0. Loading/Splash Screen - PREVENTS FLICKER
+  // MUST BE AFTER ALL HOOKS
+  if (!isClient || viewMode === null) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-6">
+        <div className="relative">
+          <div className="size-20 bg-amber-500 rounded-2xl rotate-12 absolute blur-2xl opacity-20 animate-pulse" />
+          <div className="size-16 bg-white rounded-2xl flex items-center justify-center relative z-10 shadow-2xl">
+            <span className="text-3xl font-bold text-slate-900">R</span>
+          </div>
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="size-6 text-amber-500 animate-spin" />
+          <p className="text-slate-400 text-sm font-medium tracking-widest uppercase">Rahmat ZAW</p>
+        </div>
+      </div>
+    );
+  }
+
 
 
   // Default Login Screen (User/Tenant)
   if (viewMode === 'login') {
     return (
-      <UserLogin 
+      <UserLogin
         onLoginSuccess={() => {
-            setUserRole('tenant');
-            setViewMode('tenant');
+          setUserRole('tenant');
+          setViewMode('tenant');
         }}
         onBack={() => setViewMode('home')}
         onRegisterClick={() => setViewMode('register')}
@@ -148,12 +162,12 @@ export default function App() {
 
   // User Registration Screen
   if (viewMode === 'register') {
-      return (
-          <UserRegister 
-            onRegisterSuccess={() => setViewMode('login')}
-            onBackToLogin={() => setViewMode('login')}
-          />
-      );
+    return (
+      <UserRegister
+        onRegisterSuccess={() => setViewMode('login')}
+        onBackToLogin={() => setViewMode('login')}
+      />
+    );
   }
 
   // Home Selection Screen
@@ -203,8 +217,8 @@ export default function App() {
                     Rental History
                   </li>
                 </ul>
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   size="lg"
                   variant="outline"
                   onClick={() => setViewMode('tenant')}
@@ -216,15 +230,15 @@ export default function App() {
           </div>
 
           <div className="text-center mt-12">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               className="text-blue-200 hover:text-white hover:bg-blue-600/20 mr-4"
               onClick={() => setViewMode('login')}
             >
               Back to Login
             </Button>
             <p className="text-blue-100 text-sm mt-4">
-              © 2026 Kos-kosan Management System. All rights reserved.
+              &copy; 2026 Kost Putra Rahmat ZAW. All rights reserved.
             </p>
           </div>
         </div>
@@ -236,14 +250,14 @@ export default function App() {
   if (viewMode === 'admin') {
     return (
       <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-        <AdminSidebar 
-          currentPage={adminPage} 
-          onNavigate={(page) => setAdminPage(page as AdminPage)} 
+        <AdminSidebar
+          currentPage={adminPage}
+          onNavigate={(page) => setAdminPage(page as AdminPage)}
         />
         <div className="flex-1 overflow-auto">
           <div className="p-4 bg-slate-900/50 border-b border-slate-800/50 flex items-center justify-between">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setViewMode('home')}
               className="bg-slate-800/50 border-slate-700 text-white hover:bg-slate-800"
             >
@@ -275,7 +289,7 @@ export default function App() {
   // Tenant Portal
   if (viewMode === 'tenant') {
     return (
-      <UserPlatform 
+      <UserPlatform
         onLogout={() => setViewMode('login')}
       />
     );

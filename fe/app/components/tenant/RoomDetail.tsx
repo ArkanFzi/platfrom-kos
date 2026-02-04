@@ -5,12 +5,12 @@ import { Badge } from '@/app/components/ui/badge';
 import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
 import { motion } from 'framer-motion';
 import { Textarea } from '@/app/components/ui/textarea';
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Star, 
-  Wifi, 
-  Wind, 
+import {
+  ArrowLeft,
+  MapPin,
+  Star,
+  Wifi,
+  Wind,
   Bed,
   ChevronLeft,
   ChevronRight,
@@ -19,7 +19,6 @@ import {
   Utensils,
   Monitor,
   Briefcase,
-  Heart,
   Share2
 } from 'lucide-react';
 import { api } from '@/app/services/api';
@@ -116,58 +115,94 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
   const [reviews, setReviews] = useState<Review[]>([]);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  
+
   // Booking State
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [guests, setGuests] = useState("1");
-  const [duration, setDuration] = useState("1"); // Months
-
-  // In a real app we'd fetch room details by ID from API
-  // For now we mock room info but fetch reviews
-  const room = roomDetails[roomId] || roomDetails['1'];
+  const [duration, setDuration] = useState("1");
+  const [realRoom, setRealRoom] = useState<RoomData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchReviews = async () => {
-        try {
-            // Note: Backend endpoint expects numeric ID. Our demo uses string '1'.
-            // In integration we should ensure IDs match. Assuming roomId is numeric string.
-            const kID = parseInt(roomId) || 1; 
-            const data = await api.getReviews(String(kID));
-            setReviews(data);
-        } catch (e) {
-            console.error("Failed to fetch reviews", e);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [roomData, reviewsData] = await Promise.all([
+          api.getRoomById(roomId),
+          api.getReviews(roomId).catch(() => []) // Graceful if no reviews
+        ]);
+
+        if (roomData) {
+          const mapped: RoomData = {
+            name: roomData.nomor_kamar,
+            type: roomData.tipe_kamar,
+            price: roomData.harga_per_bulan,
+            location: 'Kota Malang, Jawa Timur', // Default if missing
+            description: roomData.description || 'No description available.',
+            bedrooms: 1,
+            bathrooms: 1,
+            size: '24m²',
+            facilities: (roomData.fasilitas || "").split(',').map((f: string) => ({
+              name: f.trim(),
+              icon: facilityIcons[f.trim()] || Check
+            })),
+            features: (roomData.fasilitas || "").split(',').map((f: string) => f.trim()),
+            images: [
+              roomData.image_url ? (roomData.image_url.startsWith('http') ? roomData.image_url : `http://localhost:8080${roomData.image_url}`) : 'https://via.placeholder.com/1080',
+              'https://images.unsplash.com/photo-1662454419736-de132ff75638?q=80&w=1080', // Fallback secondary images
+              'https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=1080'
+            ]
+          };
+          setRealRoom(mapped);
         }
+        setReviews(reviewsData);
+      } catch (e) {
+        console.error("Failed to fetch room detail", e);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    fetchReviews();
+    fetchData();
   }, [roomId]);
 
-  const handleSubmitReview = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-          alert("Please login as a tenant to write a review.");
-          return;
-      }
+  const room = realRoom || roomDetails['1'];
 
-      setIsSubmittingReview(true);
-      try {
-          const kID = parseInt(roomId) || 1;
-          await api.createReview({
-              kamar_id: kID,
-              rating: newReview.rating,
-              comment: newReview.comment
-              // user_id is now handled by backend from token
-          });
-          // Refresh reviews
-          const data = await api.getReviews(String(kID));
-          setReviews(data);
-          setNewReview({ rating: 5, comment: '' });
-      } catch (e: unknown) {
-          console.error("Failed to submit review", e);
-          const message = e instanceof Error ? e.message : "Failed to submit review. Please try again.";
-          alert(message);
-      } finally {
-          setIsSubmittingReview(false);
-      }
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="size-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+        <p className="text-slate-500 italic">Fetching room details...</p>
+      </div>
+    );
+  }
+
+  const handleSubmitReview = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert("Please login as a tenant to write a review.");
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      const kID = parseInt(roomId) || 1;
+      await api.createReview({
+        kamar_id: kID,
+        rating: newReview.rating,
+        comment: newReview.comment
+        // user_id is now handled by backend from token
+      });
+      // Refresh reviews
+      const data = await api.getReviews(String(kID));
+      setReviews(data);
+      setNewReview({ rating: 5, comment: '' });
+    } catch (e: unknown) {
+      console.error("Failed to submit review", e);
+      const message = e instanceof Error ? e.message : "Failed to submit review. Please try again.";
+      alert(message);
+    } finally {
+      setIsSubmittingReview(false);
+    }
   };
 
   const nextImage = () => {
@@ -178,8 +213,8 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
     setCurrentImageIndex((prev) => (prev - 1 + room.images.length) % room.images.length);
   };
 
-  const averageRating = reviews.length > 0 
-    ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1) 
+  const averageRating = reviews.length > 0
+    ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
     : "No ratings";
 
   return (
@@ -188,7 +223,7 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
 
         {/* Top Header - Back Button & Title */}
         <motion.div
-// ... existing header code ...
+          // ... existing header code ...
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
@@ -210,9 +245,6 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
           </div>
           <div className="flex items-center gap-3">
             <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-              <Heart className="w-6 h-6 text-slate-600 dark:text-slate-400" />
-            </motion.button>
-            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
               <Share2 className="w-6 h-6 text-slate-600 dark:text-slate-400" />
             </motion.button>
           </div>
@@ -220,15 +252,15 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
 
         {/* Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* Left Column: Image Gallery & Details */}
-          <motion.div 
+          <motion.div
             className="lg:col-span-2 space-y-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
           >
-            
+
             {/* Main Image Gallery */}
             <div className="space-y-4">
               <motion.div
@@ -251,7 +283,7 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
                         className="w-full h-full object-cover"
                       />
                     </motion.div>
-                    
+
                     {/* Navigation Arrows */}
                     {room.images.length > 1 && (
                       <>
@@ -273,7 +305,7 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
                         </motion.button>
                       </>
                     )}
-                    
+
                     {/* Image Counter */}
                     <div className="absolute bottom-4 right-4 bg-black/50 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium">
                       {currentImageIndex + 1} / {room.images.length}
@@ -285,14 +317,13 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
               {/* Thumbnail Gallery */}
               <div className="grid grid-cols-3 gap-3">
                 {room.images.map((img: string, idx: number) => (
-                  <motion.div 
+                  <motion.div
                     key={idx}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setCurrentImageIndex(idx)}
-                    className={`h-24 rounded-lg overflow-hidden cursor-pointer transition-all border-2 ${
-                      idx === currentImageIndex ? 'border-stone-900 dark:border-stone-400 shadow-lg' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                    }`}
+                    className={`h-24 rounded-lg overflow-hidden cursor-pointer transition-all border-2 ${idx === currentImageIndex ? 'border-stone-900 dark:border-stone-400 shadow-lg' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      }`}
                   >
                     <ImageWithFallback src={img} alt="thumbnail" className="w-full h-full object-cover hover:scale-110 transition-transform duration-300" />
                   </motion.div>
@@ -377,76 +408,76 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
             >
               <Card className="p-6 border-0 shadow-lg bg-white dark:bg-slate-800">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Guest Reviews</h2>
-                    <div className="flex items-center gap-1">
-                        <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
-                        <span className="font-bold text-lg">{averageRating}</span>
-                    </div>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Guest Reviews</h2>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+                    <span className="font-bold text-lg">{averageRating}</span>
+                  </div>
                 </div>
 
                 {/* Review Form */}
                 <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-xl mb-8">
-                    <h3 className="font-semibold mb-3">Write a Review</h3>
-                    <div className="space-y-3">
-                        <div className="flex gap-2">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <button
-                                    key={star}
-                                    onClick={() => setNewReview({ ...newReview, rating: star })}
-                                    className="focus:outline-none"
-                                >
-                                    <Star 
-                                        className={`w-6 h-6 ${star <= newReview.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} 
-                                    />
-                                </button>
-                            ))}
-                        </div>
-                        <Textarea 
-                            placeholder="Share your experience..." 
-                            value={newReview.comment}
-                            onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
-                            className="bg-white dark:bg-slate-800"
-                        />
-                        <Button 
-                            onClick={handleSubmitReview} 
-                            disabled={isSubmittingReview || !newReview.comment}
-                            className="bg-stone-800 hover:bg-stone-900 text-white"
+                  <h3 className="font-semibold mb-3">Write a Review</h3>
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setNewReview({ ...newReview, rating: star })}
+                          className="focus:outline-none"
                         >
-                            {isSubmittingReview ? 'Submitting...' : 'Post Review'}
-                        </Button>
+                          <Star
+                            className={`w-6 h-6 ${star <= newReview.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                          />
+                        </button>
+                      ))}
                     </div>
+                    <Textarea
+                      placeholder="Share your experience..."
+                      value={newReview.comment}
+                      onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+                      className="bg-white dark:bg-slate-800"
+                    />
+                    <Button
+                      onClick={handleSubmitReview}
+                      disabled={isSubmittingReview || !newReview.comment}
+                      className="bg-stone-800 hover:bg-stone-900 text-white"
+                    >
+                      {isSubmittingReview ? 'Submitting...' : 'Post Review'}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Reviews List */}
                 <div className="space-y-6">
-                    {reviews.length === 0 ? (
-                        <p className="text-slate-500 text-center py-4">No reviews yet. Be the first to review!</p>
-                    ) : (
-                        reviews.map((review: Review) => (
-                            <div key={review.id} className="border-b border-slate-100 dark:border-slate-700 last:border-0 pb-6 last:pb-0">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex items-center gap-3">
-                                        <div className="size-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                                            {review.user?.username?.charAt(0).toUpperCase() || 'U'}
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-slate-900 dark:text-slate-100">{review.user?.username || 'Anonymous'}</p>
-                                            <p className="text-xs text-slate-500">{new Date(review.created_at).toLocaleDateString()}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-0.5">
-                                        {[...Array(5)].map((_, i) => (
-                                            <Star 
-                                                key={i} 
-                                                className={`w-4 h-4 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200 dark:text-slate-600'}`} 
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                                <p className="text-slate-600 dark:text-slate-300 leading-relaxed mt-2">{review.comment}</p>
+                  {reviews.length === 0 ? (
+                    <p className="text-slate-500 text-center py-4">No reviews yet. Be the first to review!</p>
+                  ) : (
+                    reviews.map((review: Review) => (
+                      <div key={review.id} className="border-b border-slate-100 dark:border-slate-700 last:border-0 pb-6 last:pb-0">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="size-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                              {review.user?.username?.charAt(0).toUpperCase() || 'U'}
                             </div>
-                        ))
-                    )}
+                            <div>
+                              <p className="font-semibold text-slate-900 dark:text-slate-100">{review.user?.username || 'Anonymous'}</p>
+                              <p className="text-xs text-slate-500">{new Date(review.created_at).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-0.5">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-4 h-4 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200 dark:text-slate-600'}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed mt-2">{review.comment}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </Card>
             </motion.div>
@@ -477,7 +508,7 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
           </motion.div>
 
           {/* Right Column: Booking Sidebar */}
-          <motion.div 
+          <motion.div
             className="lg:col-span-1"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -486,8 +517,8 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
             <Card className="p-6 shadow-xl border-0 bg-white dark:bg-slate-800 sticky top-24">
               <div className="flex justify-between items-end mb-6">
                 <div>
-                  <span className="text-3xl font-bold text-slate-900 dark:text-slate-100">${room.price}</span>
-                  <span className="text-slate-500 dark:text-slate-400"> / month</span>
+                  <span className="text-xl lg:text-3xl font-bold text-slate-900 dark:text-slate-100">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(room.price)}</span>
+                  <span className="text-slate-500 dark:text-slate-400 text-sm lg:text-base"> / bulan</span>
                 </div>
                 <div className="flex items-center text-sm text-slate-600 dark:text-slate-400">
                   <Star className="w-4 h-4 fill-amber-400 text-amber-400 mr-1" />
@@ -519,8 +550,8 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
                         <SelectValue placeholder="Months" />
                       </SelectTrigger>
                       <SelectContent>
-                        {[1,3,6,12].map(m => (
-                          <SelectItem key={m} value={String(m)}>{m} Month{m>1?'s':''}</SelectItem>
+                        {[1, 3, 6, 12].map(m => (
+                          <SelectItem key={m} value={String(m)}>{m} Month{m > 1 ? 's' : ''}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -532,8 +563,8 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
                         <SelectValue placeholder="Guests" />
                       </SelectTrigger>
                       <SelectContent>
-                        {[1,2,3].map(g => (
-                          <SelectItem key={g} value={String(g)}>{g} Guest{g>1?'s':''}</SelectItem>
+                        {[1, 2, 3].map(g => (
+                          <SelectItem key={g} value={String(g)}>{g} Guest{g > 1 ? 's' : ''}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -541,29 +572,29 @@ export function RoomDetail({ roomId, onBookNow, onBack, isLoggedIn, onLoginPromp
                 </div>
               </div>
 
-                <Button 
-                    onClick={() => {
-                        if (!isLoggedIn) onLoginPrompt?.();
-                        else onBookNow(roomId);
-                    }}
-                    className="flex-1 bg-stone-900 hover:bg-stone-800 text-white h-14 text-lg font-bold rounded-xl shadow-xl shadow-stone-900/20"
-                >
-                    {isLoggedIn ? 'Rent This Room Now' : 'Login to Rent'}
-                </Button>
+              <Button
+                onClick={() => {
+                  if (!isLoggedIn) onLoginPrompt?.();
+                  else onBookNow(roomId);
+                }}
+                className="w-full bg-slate-900 hover:bg-amber-500 text-white h-12 lg:h-14 text-sm lg:text-lg font-bold rounded-xl shadow-xl shadow-stone-900/20 transition-all active:scale-95"
+              >
+                {isLoggedIn ? 'Pesan Kamar Sekarang' : 'Login untuk Memesan'}
+              </Button>
 
               <div className="space-y-3 text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/30 p-4 rounded-lg">
                 <div className="flex justify-between">
-                  <span>${room.price} x {duration} months</span>
-                  <span>${room.price * parseInt(duration)}</span>
+                  <span>Sewa ({duration} bulan)</span>
+                  <span>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(room.price * parseInt(duration))}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Service fee</span>
-                  <span>$50</span>
+                  <span>Biaya Layanan</span>
+                  <span>Rp 50.000</span>
                 </div>
                 <Separator className="bg-slate-200 dark:bg-slate-700" />
                 <div className="flex justify-between font-bold text-slate-900 dark:text-slate-100 text-base">
-                  <span>Total</span>
-                  <span>${room.price * parseInt(duration) + 50}</span>
+                  <span>Total Bayar</span>
+                  <span>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(room.price * parseInt(duration) + 50000)}</span>
                 </div>
               </div>
             </Card>

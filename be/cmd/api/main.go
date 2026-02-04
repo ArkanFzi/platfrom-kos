@@ -8,6 +8,7 @@ import (
 	"koskosan-be/internal/repository"
 	"koskosan-be/internal/service"
 	"log"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,7 @@ func main() {
 	reviewRepo := repository.NewReviewRepository(db)
 	penyewaRepo := repository.NewPenyewaRepository(db)
 	bookingRepo := repository.NewBookingRepository(db)
+	paymentRepo := repository.NewPaymentRepository(db)
 
 	// 4. Initialize Services
 	authService := service.NewAuthService(userRepo, penyewaRepo, cfg)
@@ -37,6 +39,8 @@ func main() {
 	reviewService := service.NewReviewService(reviewRepo)
 	profileService := service.NewProfileService(userRepo, penyewaRepo)
 	bookingService := service.NewBookingService(bookingRepo, penyewaRepo)
+	paymentService := service.NewPaymentService(paymentRepo, bookingRepo, kamarRepo)
+	tenantService := service.NewTenantService(penyewaRepo)
 
 	// 5. Initialize Handlers
 	authHandler := handlers.NewAuthHandler(authService)
@@ -46,6 +50,8 @@ func main() {
 	reviewHandler := handlers.NewReviewHandler(reviewService)
 	profileHandler := handlers.NewProfileHandler(profileService)
 	bookingHandler := handlers.NewBookingHandler(bookingService)
+	paymentHandler := handlers.NewPaymentHandler(paymentService)
+	tenantHandler := handlers.NewTenantHandler(tenantService)
 
 	// 6. Setup Router
 	if cfg.Port == "" {
@@ -53,10 +59,12 @@ func main() {
 	}
 
 	r := gin.Default()
+	r.SetTrustedProxies(nil)
 
 	// CORS Setup
+	allowedOrigins := strings.Split(cfg.AllowedOrigins, ",")
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"}, // Adjust for production
+		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -82,13 +90,26 @@ func main() {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware(cfg))
 		{
-			protected.POST("/kamar", kamarHandler.CreateKamar)
-			protected.POST("/galleries", galleryHandler.CreateGallery)
-			protected.DELETE("/galleries/:id", galleryHandler.DeleteGallery)
-			protected.GET("/dashboard", dashboardHandler.GetStats)
+			// Admin Only Routes
+			admin := protected.Group("/")
+			admin.Use(middleware.RoleMiddleware("admin"))
+			{
+				admin.POST("/kamar", kamarHandler.CreateKamar)
+				admin.PUT("/kamar/:id", kamarHandler.UpdateKamar)
+				admin.DELETE("/kamar/:id", kamarHandler.DeleteKamar)
+				admin.POST("/galleries", galleryHandler.CreateGallery)
+				admin.DELETE("/galleries/:id", galleryHandler.DeleteGallery)
+				admin.GET("/dashboard", dashboardHandler.GetStats)
+				admin.GET("/payments", paymentHandler.GetAllPayments)
+				admin.PUT("/payments/:id/confirm", paymentHandler.ConfirmPayment)
+				admin.GET("/tenants", tenantHandler.GetAllTenants)
+			}
+
+			// All Authenticated Users
 			protected.POST("/reviews", reviewHandler.CreateReview)
 			protected.GET("/profile", profileHandler.GetProfile)
 			protected.PUT("/profile", profileHandler.UpdateProfile)
+			protected.PUT("/profile/change-password", profileHandler.ChangePassword)
 			protected.GET("/my-bookings", bookingHandler.GetMyBookings)
 			// Add other protected routes here
 		}
