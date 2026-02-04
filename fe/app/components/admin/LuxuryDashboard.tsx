@@ -89,8 +89,8 @@ export function LuxuryDashboard() {
       try {
         const [statsData, tenantsData, paymentsData, roomsData] = await Promise.all([
           api.getDashboardStats(),
-          api.getTenants(),
-          api.getPayments(),
+          api.getAllTenants(),
+          api.getAllPayments(),
           api.getRooms()
         ]);
         setStats(statsData);

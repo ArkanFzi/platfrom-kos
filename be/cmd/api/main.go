@@ -6,7 +6,9 @@ import (
 	"koskosan-be/internal/handlers"
 	"koskosan-be/internal/middleware"
 	"koskosan-be/internal/repository"
+	"koskosan-be/internal/routes"
 	"koskosan-be/internal/service"
+	"koskosan-be/internal/utils"
 	"log"
 	"strings"
 
@@ -57,6 +59,8 @@ func main() {
 	tenantHandler := handlers.NewTenantHandler(tenantService)
 	contactHandler := handlers.NewContactHandler(contactService)
 
+	// Log startup
+	utils.GlobalLogger.Info("All handlers initialized successfully")
 
 	// 6. Setup Router
 	if cfg.Port == "" {
@@ -66,67 +70,36 @@ func main() {
 	r := gin.Default()
 	r.SetTrustedProxies(nil)
 
+	// Global Middleware
+	r.Use(middleware.ErrorHandlingMiddleware())
+	r.Use(middleware.LoggingMiddleware())
+	r.Use(middleware.SecurityHeadersMiddleware())
+
 	// CORS Setup
 	allowedOrigins := strings.Split(cfg.AllowedOrigins, ",")
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Cookie"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
 
-	// API Routes
-	// Serve static files
-	r.Static("/uploads", "./uploads")
+	// Health Check Route
+	r.GET("/health", handlers.HealthCheck)
 
-	api := r.Group("/api")
-	{
-		// Public Routes
-		api.POST("/login", authHandler.Login)
-		api.POST("/register", authHandler.Register)
-		api.GET("/kamar", kamarHandler.GetKamars)
-		api.GET("/kamar/:id", kamarHandler.GetKamarByID)
-		api.GET("/kamar/:id/reviews", reviewHandler.GetReviews)
-		api.GET("/reviews", reviewHandler.GetAllReviews) // New endpoint for homepage
-		api.GET("/galleries", galleryHandler.GetGalleries)
-		api.POST("/contact", contactHandler.HandleContactForm)
-		api.POST("/payments/webhook", paymentHandler.HandleMidtransWebhook)
-
-
-		// Protected Routes
-		protected := api.Group("/")
-		protected.Use(middleware.AuthMiddleware(cfg))
-		{
-			// Admin Only Routes
-			admin := protected.Group("/")
-			admin.Use(middleware.RoleMiddleware("admin"))
-			{
-				admin.POST("/kamar", kamarHandler.CreateKamar)
-				admin.PUT("/kamar/:id", kamarHandler.UpdateKamar)
-				admin.DELETE("/kamar/:id", kamarHandler.DeleteKamar)
-				admin.POST("/galleries", galleryHandler.CreateGallery)
-				admin.DELETE("/galleries/:id", galleryHandler.DeleteGallery)
-				admin.GET("/dashboard", dashboardHandler.GetStats)
-				admin.GET("/payments", paymentHandler.GetAllPayments)
-				admin.PUT("/payments/:id/confirm", paymentHandler.ConfirmPayment)
-				admin.GET("/tenants", tenantHandler.GetAllTenants)
-			}
-
-			// All Authenticated Users
-			protected.POST("/payments/snap-token", paymentHandler.CreateSnapToken)
-			protected.POST("/reviews", reviewHandler.CreateReview)
-			protected.GET("/profile", profileHandler.GetProfile)
-			protected.PUT("/profile", profileHandler.UpdateProfile)
-			protected.PUT("/profile/change-password", profileHandler.ChangePassword)
-			protected.GET("/my-bookings", bookingHandler.GetMyBookings)
-			protected.POST("/bookings", bookingHandler.CreateBooking)
-			// Add other protected routes here
-		}
-	}
+	// 7. Register all routes
+	routeHandler := routes.NewRoutes(
+		authHandler, kamarHandler, galleryHandler, dashboardHandler,
+		reviewHandler, profileHandler, bookingHandler, paymentHandler,
+		tenantHandler, contactHandler,
+	)
+	routeHandler.Register(r, cfg)
 
 	log.Printf("Server running on http://localhost:%s", cfg.Port)
+	utils.GlobalLogger.Info("Server started on port %s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {
+		utils.GlobalLogger.Error("Failed to run server: %v", err)
 		log.Fatal("Failed to run server:", err)
 	}
 }

@@ -39,7 +39,7 @@ export function FinancialReports() {
       try {
         const [dashStats, p] = await Promise.all([
           api.getDashboardStats(),
-          api.getPayments()
+          api.getAllPayments()
         ]);
         setStats(dashStats);
         setPayments(p);

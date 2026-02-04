@@ -3,13 +3,17 @@ package service
 import (
 	"koskosan-be/internal/models"
 	"koskosan-be/internal/repository"
+	"time"
 )
 
 type PaymentService interface {
 	GetAllPayments() ([]models.Pembayaran, error)
 	ConfirmPayment(paymentID uint) error
-	CreatePaymentSession(pemesananID uint) (string, string, error)
+	CreatePaymentSession(pemesananID uint, paymentType string, paymentMethod string) (string, string, error)
 	HandleWebhook(payload map[string]interface{}) error
+	ConfirmCashPayment(paymentID uint, buktiTransfer string) error
+	GetPaymentReminders() ([]models.PaymentReminder, error)
+	CreatePaymentReminder(pembayaranID uint, jumlahBayar float64, daysUntilDue int) error
 }
 
 type paymentService struct {
@@ -54,39 +58,110 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 	return nil
 }
 
-func (s *paymentService) CreatePaymentSession(pemesananID uint) (string, string, error) {
+// CreatePaymentSession mendukung multiple payment types dan methods
+// paymentType: "full" atau "dp" (down payment)
+// paymentMethod: "midtrans" atau "cash"
+func (s *paymentService) CreatePaymentSession(pemesananID uint, paymentType string, paymentMethod string) (string, string, error) {
 	booking, err := s.bookingRepo.FindByID(pemesananID)
 	if err != nil {
 		return "", "", err
 	}
 
-	// Calculate total amount (durasi * harga)
 	kamar, err := s.kamarRepo.FindByID(booking.KamarID)
 	if err != nil {
 		return "", "", err
 	}
-	totalAmount := float64(booking.DurasiSewa) * kamar.HargaPerBulan
 
-	// Create Midtrans Transaction
-	snapResp, orderID, err := s.midtransService.CreateTransaction(booking, totalAmount)
-	if err != nil {
-		return "", "", err
+	// Hitung total amount
+	totalAmount := float64(booking.DurasiSewa) * kamar.HargaPerBulan
+	var dpAmount float64
+	var finalAmount float64
+
+	if paymentType == "dp" {
+		// DP = 30% dari total
+		dpAmount = totalAmount * 0.3
+		finalAmount = dpAmount
+	} else {
+		// Full payment
+		finalAmount = totalAmount
+		dpAmount = 0
+	}
+
+	var token string
+	var redirectURL string
+
+	// Jika cash, tidak perlu create Midtrans transaction
+	if paymentMethod == "cash" {
+		token = "CASH_PAYMENT"
+		redirectURL = ""
+	} else {
+		// Create Midtrans Transaction untuk midtrans payment
+		snapResp, _, err := s.midtransService.CreateTransaction(booking, finalAmount)
+		if err != nil {
+			return "", "", err
+		}
+		token = snapResp.Token
+		redirectURL = snapResp.RedirectURL
 	}
 
 	// Save payment record
 	payment := models.Pembayaran{
 		PemesananID:      pemesananID,
-		JumlahBayar:      totalAmount,
+		JumlahBayar:      finalAmount,
 		StatusPembayaran: "Pending",
-		OrderID:          orderID,
-		SnapToken:        snapResp.Token,
+		MetodePembayaran: paymentMethod,
+		TipePembayaran:   paymentType,
+		JumlahDP:         dpAmount,
+		SnapToken:        token,
+	}
+
+	// Set jatuh tempo untuk pembayaran cicilan
+	if paymentType == "dp" {
+		// Cicilan berikutnya 1 bulan setelah move in
+		payment.TanggalJatuhTempo = booking.TanggalMulai.AddDate(0, 1, 0)
 	}
 
 	if err := s.repo.Create(&payment); err != nil {
 		return "", "", err
 	}
 
-	return snapResp.Token, snapResp.RedirectURL, nil
+	// Create payment reminder untuk dp
+	if paymentType == "dp" {
+		s.CreatePaymentReminder(payment.ID, totalAmount-dpAmount, 30)
+	}
+
+	return token, redirectURL, nil
+}
+
+func (s *paymentService) ConfirmCashPayment(paymentID uint, buktiTransfer string) error {
+	payment, err := s.repo.FindByID(paymentID)
+	if err != nil {
+		return err
+	}
+
+	payment.StatusPembayaran = "Confirmed"
+	payment.BuktiTransfer = buktiTransfer
+	payment.TanggalBayar = time.Now()
+
+	if err := s.repo.Update(payment); err != nil {
+		return err
+	}
+
+	// Update booking status
+	booking, err := s.bookingRepo.FindByID(payment.PemesananID)
+	if err == nil {
+		booking.StatusPemesanan = "Confirmed"
+		s.bookingRepo.Update(booking)
+
+		// Update room status
+		kamar, err := s.kamarRepo.FindByID(booking.KamarID)
+		if err == nil {
+			kamar.Status = "Penuh"
+			s.kamarRepo.Update(kamar)
+		}
+	}
+
+	return nil
 }
 
 func (s *paymentService) HandleWebhook(payload map[string]interface{}) error {
@@ -100,7 +175,8 @@ func (s *paymentService) HandleWebhook(payload map[string]interface{}) error {
 		return err
 	}
 
-	if status == "settlement" || status == "capture" {
+	switch status {
+	case "settlement", "capture":
 		payment.StatusPembayaran = "Settled"
 		s.repo.Update(payment)
 		
@@ -117,10 +193,33 @@ func (s *paymentService) HandleWebhook(payload map[string]interface{}) error {
 				s.kamarRepo.Update(kamar)
 			}
 		}
-	} else if status == "expire" || status == "cancel" || status == "deny" {
+	case "expire", "cancel", "deny":
 		payment.StatusPembayaran = "Failed"
 		s.repo.Update(payment)
 	}
+
+	return nil
+}
+func (s *paymentService) GetPaymentReminders() ([]models.PaymentReminder, error) {
+	// Note: Implementasi repository method GetPaymentReminders() sesuai kebutuhan
+	return []models.PaymentReminder{}, nil
+}
+
+func (s *paymentService) CreatePaymentReminder(pembayaranID uint, jumlahBayar float64, daysUntilDue int) error {
+	// Hitung tanggal jatuh tempo
+	dueDate := time.Now().AddDate(0, 0, daysUntilDue)
+
+	reminder := models.PaymentReminder{
+		PembayaranID:    pembayaranID,
+		JumlahBayar:     jumlahBayar,
+		TanggalReminder: dueDate,
+		StatusReminder:  "Pending",
+		IsSent:          false,
+	}
+
+	// Note: Implementasi repository method CreateReminder sesuai kebutuhan
+	// Untuk sekarang, hanya struktur yang didefinisikan
+	_ = reminder
 
 	return nil
 }

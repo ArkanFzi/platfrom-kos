@@ -1,283 +1,257 @@
+// Standard API Response Format yang dikirim backend
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  errors?: string[];
+}
+
+interface ApiError extends Error {
+  status: number;
+  errors?: string[];
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081/api';
 
-const safeJson = async (res: Response) => {
-  const contentType = res.headers.get("content-type");
+// Create custom error class
+class ApiErrorClass extends Error implements ApiError {
+  status: number;
+  errors?: string[];
+
+  constructor(message: string, status: number, errors?: string[]) {
+    super(message);
+    this.status = status;
+    this.errors = errors;
+    Object.setPrototypeOf(this, ApiErrorClass.prototype);
+  }
+}
+
+// Parse standard API response
+const parseApiResponse = async <T = any>(res: Response): Promise<T> => {
+  const contentType = res.headers.get('content-type');
   
-  if (!res.ok) {
-    // If not OK and not JSON, it might be a 404/500 HTML page
-    if (!contentType || !contentType.includes("application/json")) {
-        if (res.status === 404) throw new Error(`API Endpoint not found (404). Please ensure the backend is running and up to date.`);
-        throw new Error(`Server returned error ${res.status}: ${res.statusText}`);
+  if (!contentType || !contentType.includes('application/json')) {
+    if (res.status === 401) {
+      // Token invalid/expired, clear auth
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+        localStorage.removeItem('app_view_mode');
+      }
+      throw new ApiErrorClass('Unauthorized: Please login again', 401);
     }
+    throw new ApiErrorClass(`Server error ${res.status}: ${res.statusText}`, res.status);
   }
 
-  const text = await res.text();
-  try {
-    const trimmed = text.trim();
-    if (trimmed.includes('}{')) {
-      console.warn("Detected multiple JSON objects in response, attempting to wrap in array");
-      return JSON.parse(`[${trimmed.replace(/}{/g, '},{')}]`);
-    }
-    return JSON.parse(text);
-  } catch (e) {
-    console.error("Failed to parse JSON response:", text, e);
-    // If it's a 404 string like "404 page not found", handle it gracefully
-    if (text.includes("404")) throw new Error("API Route not registered in backend (404)");
-    throw new Error('Invalid server response format');
+  const responseData: ApiResponse<T> = await res.json();
+
+  // Check if response has success flag
+  if (responseData.success === false) {
+    const errorMessage = responseData.message || 'An error occurred';
+    throw new ApiErrorClass(errorMessage, res.status, responseData.errors);
   }
+
+  if (!res.ok && responseData.success !== true) {
+    const errorMessage = responseData.message || `Request failed with status ${res.status}`;
+    throw new ApiErrorClass(errorMessage, res.status, responseData.errors);
+  }
+
+  // Return data dari response
+  return responseData.data || responseData;
 };
 
-const getHeaders = () => {
-  const token = localStorage.getItem('token');
-  return {
-    'Authorization': `Bearer ${token}`,
-    // 'Content-Type': 'application/json' - Automatic for FormData, needed for JSON
+// HTTP methods wrapper dengan proper error handling
+const apiCall = async <T = any>(
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+  endpoint: string,
+  body?: FormData | Record<string, any> | null,
+  customHeaders?: Record<string, string>
+): Promise<T> => {
+  const url = `${API_URL}${endpoint}`;
+  const options: RequestInit = {
+    method,
+    credentials: 'include', // Include cookies in requests
+    headers: {
+      ...customHeaders,
+    },
   };
+
+  // Handle body
+  if (body) {
+    if (body instanceof FormData) {
+      options.body = body;
+      // Don't set Content-Type for FormData, browser will set it with boundary
+    } else {
+      options.body = JSON.stringify(body);
+      if (!options.headers) options.headers = {};
+      (options.headers as Record<string, string>)['Content-Type'] = 'application/json';
+    }
+  }
+
+  try {
+    const res = await fetch(url, options);
+    return await parseApiResponse<T>(res);
+  } catch (error) {
+    if (error instanceof ApiErrorClass) {
+      throw error;
+    }
+    // Network error atau parsing error
+    const message = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new ApiErrorClass(message, 0);
+  }
 };
 
+// API endpoints
 export const api = {
-  // Dashboard
-  getDashboardStats: async () => {
-    const res = await fetch(`${API_URL}/dashboard`, {
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    });
-    if (!res.ok) throw new Error('Failed to fetch stats');
-    return safeJson(res);
-  },
-
-  // Rooms
-  getRooms: async () => {
-    const res = await fetch(`${API_URL}/kamar`);
-    if (!res.ok) throw new Error('Failed to fetch rooms');
-    return safeJson(res);
-  },
-  
-  getRoomById: async (id: string) => {
-    const res = await fetch(`${API_URL}/kamar/${id}`);
-    if (!res.ok) throw new Error('Failed to fetch room detail');
-    return safeJson(res);
-  },
-
-  createRoom: async (formData: FormData) => {
-    const res = await fetch(`${API_URL}/kamar`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, // No Content-Type for FormData
-      body: formData,
-    });
-    if (!res.ok) throw new Error('Failed to create room');
-    return safeJson(res);
-  },
-
-  updateRoom: async (id: string, formData: FormData) => {
-    const res = await fetch(`${API_URL}/kamar/${id}`, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      body: formData,
-    });
-    if (!res.ok) throw new Error('Failed to update room');
-    return safeJson(res);
-  },
-
-  deleteRoom: async (id: string) => {
-    const res = await fetch(`${API_URL}/kamar/${id}`, {
-      method: 'DELETE',
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    });
-    if (!res.ok) throw new Error('Failed to delete room');
-    return safeJson(res);
-  },
-
-  // Gallery
-  getGalleries: async () => {
-    const res = await fetch(`${API_URL}/galleries`);
-    if (!res.ok) throw new Error('Failed to fetch galleries');
-    return safeJson(res);
-  },
-
-  createGallery: async (formData: FormData) => {
-    const res = await fetch(`${API_URL}/galleries`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      body: formData,
-    });
-    if (!res.ok) throw new Error('Failed to create gallery');
-    return safeJson(res);
-  },
-
-  deleteGallery: async (id: number) => {
-    const res = await fetch(`${API_URL}/galleries/${id}`, {
-      method: 'DELETE',
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    });
-    if (!res.ok) throw new Error('Failed to delete gallery');
-    return safeJson(res);
-  },
-
-  // Reviews
-  getReviews: async (roomId: string) => {
-    const res = await fetch(`${API_URL}/kamar/${roomId}/reviews`);
-    if (!res.ok) throw new Error('Failed to fetch reviews');
-    return safeJson(res);
-  },
-
-  getAllReviews: async () => {
-    const res = await fetch(`${API_URL}/reviews`);
-    if (!res.ok) throw new Error('Failed to fetch all reviews');
-    return safeJson(res);
-  },
-
-  createReview: async (review: { kamar_id: number; rating: number; comment: string; user_id?: number }) => {
-    const res = await fetch(`${API_URL}/reviews`, {
-      method: 'POST',
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify(review),
-    });
-    if (!res.ok) throw new Error('Failed to post review');
-    return safeJson(res);
-  },
-
-  // Auth
+  // ============ AUTH ============
   login: async (credentials: { username: string; password: string }) => {
-    const res = await fetch(`${API_URL}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials),
-    });
-    const data = await safeJson(res);
-    if (!res.ok) throw new Error(data.error || 'Failed to login');
-    if (data.token) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+    const response = await apiCall<{
+      access_token: string;
+      user: { id: number; username: string; email: string; role: string };
+    }>('POST', '/auth/login', credentials);
+    
+    // Token sekarang di httpOnly cookie, hanya save user data
+    if (typeof window !== 'undefined' && response.user) {
+      localStorage.setItem('user', JSON.stringify(response.user));
     }
-    return data;
+    return response;
   },
 
-  register: async (userData: { username: string; password: string; role?: string }) => {
-    const res = await fetch(`${API_URL}/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userData),
-    });
-    const data = await safeJson(res);
-    if (!res.ok) throw new Error(data.error || 'Failed to register');
-    return data;
+  register: async (data: {
+    username: string;
+    email: string;
+    password: string;
+    nama_lengkap: string;
+    no_telepon: string;
+  }) => {
+    return apiCall('POST', '/auth/register', data);
   },
 
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  logout: async () => {
+    // Clear local user data
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user');
+      localStorage.removeItem('app_view_mode');
+    }
+    // Backend akan clear cookie automatically
+    return { success: true };
   },
 
-  // Profile
+  // ============ PROFILE ============
   getProfile: async () => {
-    const res = await fetch(`${API_URL}/profile`, {
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    });
-    const data = await safeJson(res);
-    if (!res.ok) throw new Error(data.error || 'Failed to fetch profile');
-    return data;
+    return apiCall('GET', '/profile');
   },
 
-  updateProfile: async (profileData: FormData | Record<string, unknown>) => {
-    const isFormData = profileData instanceof FormData;
-    const res = await fetch(`${API_URL}/profile`, {
-      method: 'PUT',
-      headers: isFormData 
-        ? { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        : { ...getHeaders(), 'Content-Type': 'application/json' },
-      body: isFormData ? profileData : JSON.stringify(profileData),
-    });
-    const data = await safeJson(res);
-    if (!res.ok) throw new Error(data.error || 'Failed to update profile');
-    return data;
+  updateProfile: async (data: Record<string, any>) => {
+    return apiCall('PUT', '/profile', data);
   },
 
   changePassword: async (data: { old_password: string; new_password: string }) => {
-    const res = await fetch(`${API_URL}/profile/change-password`, {
-      method: 'PUT',
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    const resData = await safeJson(res);
-    if (!res.ok) throw new Error(resData.error || 'Failed to change password');
-    return resData;
+    return apiCall('PUT', '/profile/change-password', data);
   },
 
+  // ============ ROOMS ============
+  getRooms: async () => {
+    return apiCall('GET', '/kamar');
+  },
+
+  getRoomById: async (id: string) => {
+    return apiCall('GET', `/kamar/${id}`);
+  },
+
+  createRoom: async (formData: FormData) => {
+    return apiCall('POST', '/kamar', formData);
+  },
+
+  updateRoom: async (id: string, formData: FormData) => {
+    return apiCall('PUT', `/kamar/${id}`, formData);
+  },
+
+  deleteRoom: async (id: string) => {
+    return apiCall('DELETE', `/kamar/${id}`);
+  },
+
+  // ============ GALLERY ============
+  getGalleries: async () => {
+    return apiCall('GET', '/galleries');
+  },
+
+  createGallery: async (formData: FormData) => {
+    return apiCall('POST', '/galleries', formData);
+  },
+
+  deleteGallery: async (id: string) => {
+    return apiCall('DELETE', `/galleries/${id}`);
+  },
+
+  // ============ BOOKINGS ============
   getMyBookings: async () => {
-    const res = await fetch(`${API_URL}/my-bookings`, {
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    });
-    if (!res.ok) {
-        if (res.status === 401) {
-            console.error("Auth failed for my-bookings. Token:", localStorage.getItem('token'));
-        }
-        throw new Error(`Failed to fetch user bookings (Status: ${res.status})`);
-    }
-    return safeJson(res);
+    return apiCall('GET', '/bookings');
   },
 
-  // Admin
-  getPayments: async () => {
-    const res = await fetch(`${API_URL}/payments`, {
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    });
-    if (!res.ok) throw new Error('Failed to fetch payments');
-    return safeJson(res);
+  createBooking: async (data: {
+    kamar_id: number;
+    tanggal_mulai: string;
+    durasi_sewa: number;
+  }) => {
+    return apiCall('POST', '/bookings', data);
   },
 
-  confirmPayment: async (id: number) => {
-    const res = await fetch(`${API_URL}/payments/${id}/confirm`, {
-      method: 'PUT',
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    });
-    if (!res.ok) throw new Error('Failed to confirm payment');
-    return safeJson(res);
-  },
-
-  getTenants: async () => {
-    const res = await fetch(`${API_URL}/tenants`, {
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    });
-    if (!res.ok) throw new Error('Failed to fetch tenants');
-    return safeJson(res);
-  },
-
-  sendContactForm: async (data: { name: string; email: string; message: string }) => {
-    const res = await fetch(`${API_URL}/contact`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-        const errData = await safeJson(res);
-        throw new Error(errData.error || 'Failed to send message');
-    }
-    return safeJson(res);
-  },
-
-  createBooking: async (data: { kamar_id: number; tanggal_mulai: string; durasi_sewa: number }) => {
-    const res = await fetch(`${API_URL}/bookings`, {
-      method: 'POST',
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-        const errData = await safeJson(res);
-        throw new Error(errData.error || 'Failed to create booking');
-    }
-    return safeJson(res);
-  },
-
+  // ============ PAYMENTS ============
   createSnapToken: async (pemesananId: number) => {
-    const res = await fetch(`${API_URL}/payments/snap-token`, {
-      method: 'POST',
-      headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pemesanan_id: pemesananId }),
-    });
-    if (!res.ok) {
-        const errData = await safeJson(res);
-        throw new Error(errData.error || 'Failed to create payment session');
-    }
-    return safeJson(res);
-  }
+    return apiCall('POST', '/payments/snap-token', { pemesanan_id: pemesananId });
+  },
+
+  confirmCashPayment: async (bookingId: number) => {
+    return apiCall('POST', `/payments/confirm-cash/${bookingId}`);
+  },
+
+  // ============ REVIEWS ============
+  getReviews: async (roomId: string) => {
+    return apiCall('GET', `/kamar/${roomId}/reviews`);
+  },
+
+  createReview: async (data: {
+    kamar_id: number;
+    rating: number;
+    comment: string;
+  }) => {
+    return apiCall('POST', '/reviews', data);
+  },
+
+  // ============ DASHBOARD ============
+  getDashboardStats: async () => {
+    return apiCall('GET', '/dashboard');
+  },
+
+  // ============ ADMIN - PAYMENTS ============
+  getAllPayments: async () => {
+    return apiCall('GET', '/payments');
+  },
+
+  confirmPayment: async (paymentId: string) => {
+    return apiCall('PUT', `/payments/${paymentId}/confirm`);
+  },
+
+  // ============ ADMIN - TENANTS ============
+  getAllTenants: async () => {
+    return apiCall('GET', '/tenants');
+  },
+
+  // ============ CONTACT ============
+  submitContactForm: async (data: {
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+  }) => {
+    return apiCall('POST', '/contact', data);
+  },
+
+  // ============ HEALTH CHECK ============
+  healthCheck: async () => {
+    return apiCall('GET', '/health');
+  },
 };
+
+export type { ApiResponse, ApiError };
+export { ApiErrorClass };

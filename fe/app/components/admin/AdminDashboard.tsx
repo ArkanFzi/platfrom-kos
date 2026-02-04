@@ -36,7 +36,7 @@ export function AdminDashboard() {
       try {
         const [s, t, r] = await Promise.all([
           api.getDashboardStats(),
-          api.getTenants(),
+          api.getAllTenants(),
           api.getRooms()
         ]);
         setStatsData(s);

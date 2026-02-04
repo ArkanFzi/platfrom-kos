@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
@@ -18,12 +18,8 @@ import {
   TrendingUp,
   Trash2,
   Loader2,
-  MessageCircle,
-  Bell,
-  ChevronRight,
   Info,
-  ChevronDown,
-  ChevronUp
+  ChevronDown
 } from 'lucide-react';
 import { api } from '@/app/services/api';
 import { useEffect } from 'react';
@@ -62,7 +58,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [calendarExpanded, setCalendarExpanded] = useState(true);
+  const [calendarExpanded, setCalendarExpanded] = useState(false);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -123,11 +119,18 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
     });
   }, [selectedDate, processedBookings]);
 
-  // WhatsApp notification registration
-  const handleRegisterWhatsApp = () => {
-    const message = "Halo Admin Rahmat ZAW, saya ingin mendaftarkan nomor saya untuk notifikasi kalender pintar.";
-    window.open(`https://wa.me/628124911926?text=${encodeURIComponent(message)}`, '_blank');
-  };
+  // Auto-register WhatsApp notification on component mount
+  // TODO: Implement registerWhatsAppNotification in API service
+  // useEffect(() => {
+  //   const registerWhatsAppNotification = async () => {
+  //     try {
+  //       await api.registerWhatsAppNotification?.();
+  //     } catch (error) {
+  //       console.error("Failed to register WhatsApp notification", error);
+  //     }
+  //   };
+  //   registerWhatsAppNotification();
+  // }, []);
 
   const handleExtendClick = (booking: Booking) => {
     setSelectedBooking(booking);
@@ -218,29 +221,26 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="mb-12"
+          transition={{ duration: 0.6, delay: 0.25 }}
+          className="mb-8"
         >
           <Card className="border-0 dark:border dark:border-slate-800 shadow-2xl bg-white dark:bg-slate-900 overflow-hidden">
             <div 
-              className="p-6 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+              className="p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
               onClick={() => setCalendarExpanded(!calendarExpanded)}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-stone-700 to-stone-900 rounded-xl flex items-center justify-center shadow-lg">
-                    <Calendar className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-gradient-to-br from-stone-700 to-stone-900 rounded-lg flex items-center justify-center shadow-lg">
+                    <Calendar className="w-5 h-5 text-white" />
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Smart Calendar</h2>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">View your bookings timeline and upcoming due dates</p>
-                  </div>
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">Your Bookings Calendar</h2>
                 </div>
                 <motion.div
                   animate={{ rotate: calendarExpanded ? 180 : 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <ChevronDown className="w-6 h-6 text-slate-400" />
+                  <ChevronDown className="w-5 h-5 text-slate-400" />
                 </motion.div>
               </div>
             </div>
@@ -254,22 +254,11 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
                   transition={{ duration: 0.3 }}
                   className="overflow-hidden"
                 >
-                  <div className="p-6 pt-0 border-t border-slate-200 dark:border-slate-800">
-                    {/* WhatsApp Alert Button */}
-                    <div className="mb-6 flex justify-end">
-                      <Button 
-                        onClick={handleRegisterWhatsApp}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2"
-                      >
-                        <MessageCircle className="w-5 h-5" />
-                        Enable WhatsApp Alerts
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                       {/* Calendar */}
-                      <div className="lg:col-span-8">
-                        <Card className="border-0 shadow-xl bg-slate-50 dark:bg-slate-800/50 overflow-hidden rounded-2xl">
+                      <div className="lg:col-span-7">
+                        <Card className="border-0 shadow-lg bg-slate-50 dark:bg-slate-800/50 overflow-hidden rounded-xl">
                           <CardContent className="p-0">
                             <CalendarUI
                               mode="single"
@@ -304,7 +293,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
                       </div>
 
                       {/* Info Panel */}
-                      <div className="lg:col-span-4 space-y-6">
+                      <div className="lg:col-span-5 space-y-4">
                         <AnimatePresence mode="wait">
                           {activeBooking ? (
                             <motion.div
@@ -313,8 +302,8 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
                               animate={{ opacity: 1, x: 0 }}
                               exit={{ opacity: 0, x: -20 }}
                             >
-                              <Card className="border-0 shadow-2xl bg-white dark:bg-slate-900 rounded-2xl overflow-hidden">
-                                <div className="relative h-40">
+                              <Card className="border-0 shadow-lg bg-white dark:bg-slate-900 rounded-xl overflow-hidden">
+                                <div className="relative h-32">
                                   <ImageWithFallback 
                                     src={activeBooking.roomImage}
                                     alt="Room"
@@ -326,49 +315,37 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
                                     </Badge>
                                   </div>
                                 </div>
-                                <CardHeader>
-                                  <CardTitle className="text-xl font-bold flex items-center gap-2">
+                                <CardHeader className="pb-3">
+                                  <CardTitle className="text-base font-bold">
                                     {activeBooking.roomName}
                                   </CardTitle>
-                                  <CardDescription className="flex items-center gap-1">
-                                    <MapPin className="w-3 h-3 text-stone-400" />
-                                    Pondok Alam, Sigura-gura
-                                  </CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-6">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
-                                      <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Check In</p>
-                                      <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
-                                        <ChevronRight className="w-4 h-4 text-emerald-500" />
+                                <CardContent className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
+                                      <p className="text-[9px] text-slate-400 uppercase font-bold mb-1">Check In</p>
+                                      <p className="font-semibold text-xs text-slate-900 dark:text-white">
                                         {activeBooking.startDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                                      </div>
+                                      </p>
                                     </div>
-                                    <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
-                                      <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Check Out</p>
-                                      <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
-                                        <ChevronRight className="w-4 h-4 text-red-500" />
+                                    <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
+                                      <p className="text-[9px] text-slate-400 uppercase font-bold mb-1">Check Out</p>
+                                      <p className="font-semibold text-xs text-slate-900 dark:text-white">
                                         {activeBooking.endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                                      </div>
+                                      </p>
                                     </div>
                                   </div>
 
-                                  <div className="p-5 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-900/50">
-                                    <div className="flex items-center gap-3 mb-3">
-                                      <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                                      <p className="text-sm font-bold text-amber-900 dark:text-amber-200 uppercase tracking-wider">Next Due Date</p>
-                                    </div>
-                                    <p className="text-3xl font-black text-amber-700 dark:text-amber-300">
+                                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-100 dark:border-amber-900/50">
+                                    <p className="text-[9px] font-bold text-amber-900 dark:text-amber-200 uppercase mb-1">Due: {activeBooking.dueDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</p>
+                                    <p className="text-xs text-amber-700 dark:text-amber-300 font-semibold">
                                       {activeBooking.dueDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                                    </p>
-                                    <p className="text-xs text-amber-600 dark:text-amber-500 mt-2 italic font-medium">
-                                      Reminder will be sent 3 days before expiry.
                                     </p>
                                   </div>
 
                                   <Button 
                                     onClick={() => handleExtendClick(activeBooking)}
-                                    className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-6 rounded-xl shadow-xl transition-all"
+                                    className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-2 text-sm rounded-lg shadow-lg transition-all"
                                   >
                                     Extend Stay
                                   </Button>
@@ -391,26 +368,6 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
                         </AnimatePresence>
 
                         {/* Stay Summary Widget */}
-                        <Card className="border-0 shadow-xl bg-gradient-to-br from-stone-700 to-stone-900 text-white rounded-2xl overflow-hidden">
-                          <CardContent className="p-6">
-                            <div className="flex items-center gap-3 mb-6">
-                              <Bell className="w-5 h-5 text-amber-400" />
-                              <h3 className="font-bold uppercase tracking-widest text-xs">Stay Summary</h3>
-                            </div>
-                            <div className="space-y-4">
-                              <div className="flex justify-between items-center text-sm border-b border-white/10 pb-3">
-                                <span className="text-stone-300 font-medium tracking-wide">Active Bookings</span>
-                                <span className="font-black text-xl">{processedBookings.length}</span>
-                              </div>
-                              <div className="flex justify-between items-center text-sm border-b border-white/10 pb-3">
-                                <span className="text-stone-300 font-medium tracking-wide">Next Expiry</span>
-                                <span className="font-bold text-amber-400 uppercase tracking-tighter">
-                                  {processedBookings.length > 0 ? processedBookings[0].endDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : '-'}
-                                </span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
                       </div>
                     </div>
                   </div>
@@ -422,7 +379,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
 
         {/* Bookings List */}
         <motion.div 
-          className="space-y-6"
+          className="space-y-5 mt-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ staggerChildren: 0.15, delayChildren: 0.4 }}
@@ -585,19 +542,19 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <Card className="p-16 text-center bg-gradient-to-br from-slate-50 to-stone-50 dark:from-slate-900 dark:to-slate-950 border-0 dark:border dark:border-slate-800 shadow-lg">
+            <Card className="p-12 text-center bg-gradient-to-br from-slate-50 to-stone-50 dark:from-slate-900 dark:to-slate-950 border-0 dark:border dark:border-slate-800 shadow-lg">
               <motion.div 
-                className="w-20 h-20 bg-gradient-to-br from-stone-700 to-stone-900 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg"
+                className="w-16 h-16 bg-gradient-to-br from-stone-700 to-stone-900 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg"
                 whileHover={{ scale: 1.1, rotate: 10 }}
               >
-                <Calendar className="w-10 h-10 text-white" />
+                <Calendar className="w-8 h-8 text-white" />
               </motion.div>
-              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">No bookings yet</h3>
-              <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-md mx-auto">
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">No bookings yet</h3>
+              <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-sm mx-auto">
                 Start your journey to premium living. Explore our collection of luxury boarding houses and apartments.
               </p>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button className="bg-gradient-to-r from-stone-700 to-stone-900 dark:from-stone-600 dark:to-stone-800 text-white font-semibold px-8 py-2.5 shadow-lg hover:shadow-xl transition-all">
+                <Button className="bg-gradient-to-r from-stone-700 to-stone-900 dark:from-stone-600 dark:to-stone-800 text-white font-semibold px-6 py-2 shadow-lg hover:shadow-xl transition-all">
                   <Search className="w-4 h-4 mr-2" />
                   Browse Rooms
                 </Button>

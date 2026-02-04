@@ -5,11 +5,11 @@ import { Homepage } from './homepage';
 import { RoomDetail } from './RoomDetail';
 import { BookingFlow } from './booking-flow';
 import { BookingHistory } from './booking-history';
+import { BookingStatsDetail } from './booking-stats-detail';
 import { ContactUs } from './contact-us';
 import { Gallery } from './Gallery';
-import { SmartCalendar } from './SmartCalendar';
 import { motion } from 'framer-motion';
-import { Home, History, User, Menu, LogOut, Mail, Phone, MapPin, CreditCard, X, XCircle, MessageCircle, Heart, Star, Image, Calendar as CalendarIcon } from 'lucide-react';
+import { Home, History, User, Menu, LogOut, Mail, Phone, MapPin, CreditCard, X, XCircle, MessageCircle, Image } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -261,8 +261,6 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'gallery', label: 'Galery Koskosan', icon: Image },
-    { id: 'calendar', label: 'Smart Calendar', icon: CalendarIcon, hidden: !isLoggedIn },
-    { id: 'wishlist', label: 'Wishlist', icon: Heart, hidden: !isLoggedIn },
     { id: 'history', label: 'My Bookings', icon: History, hidden: !isLoggedIn },
     { id: 'profile', label: 'Profile', icon: User, hidden: !isLoggedIn },
   ];
@@ -408,88 +406,9 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
           />
         )}
         {activeView === 'gallery' && <Gallery />}
-        {activeView === 'calendar' && isLoggedIn && <SmartCalendar />}
         {activeView === 'contact' && <ContactUs />}
         
         {/* Protected Views with Guest Teasers */}
-        {activeView === 'wishlist' && (
-          !isLoggedIn ? (
-            <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-              <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
-                <Heart className="w-20 h-20 text-amber-500 mx-auto mb-6 opacity-20" />
-                <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Simpan Kamar Favoritmu</h2>
-                <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-md mx-auto">Login untuk mulai menyimpan kamar-kamar premium yang kamu sukai ke dalam wishlist personalmu.</p>
-                <Button onClick={() => router.push('/login')} className="bg-stone-900 hover:bg-stone-800 text-white px-10 py-6 text-lg rounded-xl font-bold shadow-xl shadow-stone-900/20">Login Sekarang</Button>
-              </div>
-            </div>
-          ) : (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-              {/* Wishlist Header */}
-              <div className="mb-12">
-                <h1 className="text-4xl font-bold text-slate-900 mb-4">My Wishlist</h1>
-                <p className="text-slate-600 text-lg">Room yang Anda sukai ({wishlist.length} items)</p>
-              </div>
-
-              {wishlist.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-center py-16"
-                >
-                  <Heart className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold text-slate-700 mb-2">No Wishlist Items Yet</h2>
-                  <p className="text-slate-500 mb-6">Tambahkan room favorit Anda ke wishlist</p>
-                  <Button
-                    onClick={() => setActiveView('home')}
-                    className="bg-stone-700 hover:bg-stone-800 text-white px-6 py-2 rounded-lg"
-                  >
-                    Explore Rooms
-                  </Button>
-                </motion.div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[
-                    { id: '1', name: 'Luxury Penthouse', price: 2500, image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBwZW50aG91c2V8ZW58MHx8fHwxNzY4NTI4NDI3fDA&ixlib=rb-4.0.3&q=80&w=500', rating: 4.9 },
-                    { id: '2', name: 'Modern Studio', price: 800, image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBzdHVkaW98ZW58MHx8fHwxNzY4NTI4NDI3fDA&ixlib=rb-4.0.3&q=80&w=500', rating: 4.7 },
-                    { id: '3', name: 'Cozy Apartment', price: 1200, image: 'https://images.unsplash.com/photo-1494145904049-0dca59b4bbad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb3p5JTIwYXBhcnRtZW50fGVufDB8fHx8MTc2ODUyODQyN3ww&ixlib=rb-4.0.3&q=80&w=500', rating: 4.8 },
-                  ].filter(room => wishlist.includes(room.id)).map((room) => (
-                    <motion.div
-                      key={room.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all overflow-hidden"
-                    >
-                      <div className="relative h-48 overflow-hidden">
-                        <ImageWithFallback src={room.image} alt={room.name} className="w-full h-full object-cover" />
-                        <button
-                          onClick={() => toggleWishlist(room.id)}
-                          className="absolute top-4 right-4 bg-white rounded-full p-2 hover:bg-red-50 transition-all shadow-lg"
-                        >
-                          <Heart className="w-5 h-5 text-red-500 fill-red-500" />
-                        </button>
-                      </div>
-                      <div className="p-6">
-                        <h3 className="text-lg font-bold text-slate-900 mb-2">{room.name}</h3>
-                        <div className="flex items-center gap-2 mb-4">
-                          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                          <span className="text-sm font-semibold text-slate-700">{room.rating}</span>
-                        </div>
-                        <p className="text-2xl font-bold text-stone-700 mb-4">${room.price}/mo</p>
-                        <Button
-                          onClick={() => navigateToRoomDetail(room.id)}
-                          className="w-full bg-stone-700 hover:bg-stone-800 text-white py-2 rounded-lg"
-                        >
-                          View Details
-                        </Button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        )}
-
         {activeView === 'room-detail' && selectedRoomId && (
           <RoomDetail 
             roomId={selectedRoomId} 
@@ -528,6 +447,13 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
           ) : (
             <BookingHistory onViewRoom={navigateToRoomDetail} />
           )
+        )}
+
+        {activeView === 'booking-stats' && isLoggedIn && (
+          <BookingStatsDetail 
+            bookings={bookingsData} 
+            onBack={() => setActiveView('history')} 
+          />
         )}
 
         {activeView === 'profile' && isLoggedIn && isLoadingProfile && (

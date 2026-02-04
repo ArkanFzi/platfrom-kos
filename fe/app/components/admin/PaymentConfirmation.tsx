@@ -44,7 +44,7 @@ export function PaymentConfirmation() {
   const fetchPayments = async () => {
     setIsLoading(true);
     try {
-      const data = await api.getPayments();
+      const data = await api.getAllPayments();
       const mapped = data.map((p: BackendPayment) => ({
         id: String(p.id),
         tenantName: p.pemesanan?.penyewa?.nama_lengkap || 'Guest',

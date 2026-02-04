@@ -93,9 +93,27 @@ type Pembayaran struct {
 	StatusPembayaran string         `json:"status_pembayaran"` // enum: Pending, Confirmed, Failed, Settled
 	OrderID          string         `json:"order_id"`
 	SnapToken        string         `json:"snap_token"`
+	MetodePembayaran string         `json:"metode_pembayaran"` // enum: midtrans, cash
+	TipePembayaran   string         `json:"tipe_pembayaran"`   // enum: full, dp (down payment)
+	JumlahDP         float64        `json:"jumlah_dp"`         // Jumlah DP jika tipe_pembayaran = dp
+	TanggalJatuhTempo time.Time     `json:"tanggal_jatuh_tempo"` // Tanggal pembayaran cicilan berikutnya
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
 	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// PaymentReminder untuk tracking pembayaran bulanan
+type PaymentReminder struct {
+	ID              uint           `gorm:"primaryKey" json:"id"`
+	PembayaranID    uint           `json:"pembayaran_id"`
+	Pembayaran      Pembayaran     `gorm:"foreignKey:PembayaranID" json:"-"`
+	JumlahBayar     float64        `json:"jumlah_bayar"`
+	TanggalReminder time.Time      `json:"tanggal_reminder"`
+	StatusReminder  string         `json:"status_reminder"` // enum: Pending, Paid, Expired
+	IsSent          bool           `json:"is_sent"`         // Apakah reminder sudah dikirim
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type Laporan struct {

@@ -68,7 +68,7 @@ export function GalleryData() {
   const handleDelete = async (id: number) => {
     if(!confirm("Are you sure?")) return;
     try {
-      await api.deleteGallery(id);
+      await api.deleteGallery(String(id));
       fetchGalleries();
     } catch (error) {
       console.error("Failed to delete gallery:", error);

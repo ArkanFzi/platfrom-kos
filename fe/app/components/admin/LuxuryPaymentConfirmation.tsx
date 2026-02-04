@@ -36,7 +36,7 @@ export function LuxuryPaymentConfirmation() {
   const fetchPayments = async () => {
     setIsLoading(true);
     try {
-      const data = await api.getPayments();
+      const data = await api.getAllPayments();
       const mapped = data.map((p: BackendPayment) => ({
         id: p.id,
         tenantName: p.pemesanan?.penyewa?.nama_lengkap || 'Guest',
@@ -60,7 +60,7 @@ export function LuxuryPaymentConfirmation() {
   }, []);
   const handleConfirm = async (id: number) => {
     try {
-      await api.confirmPayment(id);
+      await api.confirmPayment(String(id));
       fetchPayments();
       toast.success("Payment confirmed successfully!");
     } catch (e) {

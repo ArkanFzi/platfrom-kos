@@ -41,7 +41,7 @@ export function LuxuryReports() {
     const fetchData = async () => {
       try {
         const [pData, rData, sData] = await Promise.all([
-          api.getPayments(),
+          api.getAllPayments(),
           api.getRooms(),
           api.getDashboardStats()
         ]);

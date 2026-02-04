@@ -39,7 +39,7 @@ export function TenantData() {
     const fetchTenants = async () => {
       setIsLoading(true);
       try {
-        const data = await api.getTenants();
+        const data = await api.getAllTenants();
         const mapped = data.map((t: BackendTenant) => ({
           id: String(t.id),
           name: t.nama_lengkap || 'Guest',
