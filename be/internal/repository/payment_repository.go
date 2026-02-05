@@ -12,6 +12,7 @@ type PaymentRepository interface {
 	FindByOrderID(orderID string) (*models.Pembayaran, error)
 	Create(payment *models.Pembayaran) error
 	Update(payment *models.Pembayaran) error
+	WithTx(tx *gorm.DB) PaymentRepository
 }
 
 type paymentRepository struct {
@@ -46,4 +47,8 @@ func (r *paymentRepository) Create(payment *models.Pembayaran) error {
 
 func (r *paymentRepository) Update(payment *models.Pembayaran) error {
 	return r.db.Save(payment).Error
+}
+
+func (r *paymentRepository) WithTx(tx *gorm.DB) PaymentRepository {
+	return &paymentRepository{db: tx}
 }

@@ -42,6 +42,14 @@ func (m *MockUserRepository) FindByID(id uint) (*models.User, error) {
 	return args.Get(0).(*models.User), args.Error(1)
 }
 
+func (m *MockUserRepository) FindByResetToken(token string) (*models.User, error) {
+	args := m.Called(token)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.User), args.Error(1)
+}
+
 // MockPenyewaRepository implements repository.PenyewaRepository interface
 type MockPenyewaRepository struct {
 	mock.Mock
@@ -70,6 +78,29 @@ func (m *MockPenyewaRepository) Update(penyewa *models.Penyewa) error {
 	return args.Error(0)
 }
 
+func (m *MockPenyewaRepository) FindByEmail(email string) (*models.Penyewa, error) {
+	args := m.Called(email)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Penyewa), args.Error(1)
+}
+
+// MockEmailSender implements utils.EmailSender interface
+type MockEmailSender struct {
+	mock.Mock
+}
+
+func (m *MockEmailSender) SendEmail(to, subject, body string) error {
+	args := m.Called(to, subject, body)
+	return args.Error(0)
+}
+
+func (m *MockEmailSender) SendResetPasswordEmail(to, token string) error {
+	args := m.Called(to, token)
+	return args.Error(0)
+}
+
 // =============================================================================
 // LOGIN TESTS
 // =============================================================================
@@ -78,6 +109,7 @@ func TestLogin_Success(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(MockUserRepository)
 	mockPenyewaRepo := new(MockPenyewaRepository)
+	mockEmailSender := new(MockEmailSender)
 	cfg := &config.Config{JWTSecret: "test-secret-key-32-characters-long"}
 
 	password := "TestPassword123"
@@ -92,7 +124,7 @@ func TestLogin_Success(t *testing.T) {
 
 	mockUserRepo.On("FindByUsername", "testuser").Return(expectedUser, nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 
 	// Act
 	token, user, err := authService.Login("testuser", password)
@@ -110,11 +142,12 @@ func TestLogin_UserNotFound(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(MockUserRepository)
 	mockPenyewaRepo := new(MockPenyewaRepository)
+	mockEmailSender := new(MockEmailSender)
 	cfg := &config.Config{JWTSecret: "test-secret-key-32-characters-long"}
 
 	mockUserRepo.On("FindByUsername", "nonexistent").Return(nil, errors.New("user not found"))
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 
 	// Act
 	token, user, err := authService.Login("nonexistent", "password")
@@ -131,6 +164,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(MockUserRepository)
 	mockPenyewaRepo := new(MockPenyewaRepository)
+	mockEmailSender := new(MockEmailSender)
 	cfg := &config.Config{JWTSecret: "test-secret-key-32-characters-long"}
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("correctPassword"), bcrypt.DefaultCost)
@@ -142,7 +176,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 
 	mockUserRepo.On("FindByUsername", "testuser").Return(user, nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 
 	// Act
 	token, returnedUser, err := authService.Login("testuser", "wrongPassword")
@@ -163,6 +197,7 @@ func TestRegister_Success(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(MockUserRepository)
 	mockPenyewaRepo := new(MockPenyewaRepository)
+	mockEmailSender := new(MockEmailSender)
 	cfg := &config.Config{JWTSecret: "test-secret-key-32-characters-long"}
 
 	mockUserRepo.On("FindByUsername", "newuser").Return(nil, errors.New("not found"))
@@ -172,10 +207,10 @@ func TestRegister_Success(t *testing.T) {
 	})
 	mockPenyewaRepo.On("Create", mock.AnythingOfType("*models.Penyewa")).Return(nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 
 	// Act
-	user, err := authService.Register("newuser", "ValidPassword123", "tenant", "", "", "")
+	user, err := authService.Register("newuser", "password", "tenant", "test@example.com", "08123456789", "Jl. Test", "2000-01-01")
 
 	// Assert
 	assert.NoError(t, err)
@@ -192,15 +227,16 @@ func TestRegister_UserAlreadyExists(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(MockUserRepository)
 	mockPenyewaRepo := new(MockPenyewaRepository)
+	mockEmailSender := new(MockEmailSender)
 	cfg := &config.Config{JWTSecret: "test-secret-key-32-characters-long"}
 
 	existingUser := &models.User{Username: "existinguser"}
 	mockUserRepo.On("FindByUsername", "existinguser").Return(existingUser, nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 
 	// Act
-	user, err := authService.Register("existinguser", "ValidPassword123", "tenant", "", "", "")
+	user, err := authService.Register("existinguser", "ValidPassword123", "tenant", "", "", "", "")
 
 	// Assert
 	assert.Error(t, err)
@@ -213,6 +249,7 @@ func TestRegister_AdminRole(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(MockUserRepository)
 	mockPenyewaRepo := new(MockPenyewaRepository)
+	mockEmailSender := new(MockEmailSender)
 	cfg := &config.Config{JWTSecret: "test-secret-key-32-characters-long"}
 
 	mockUserRepo.On("FindByUsername", "adminuser").Return(nil, errors.New("not found"))
@@ -222,10 +259,10 @@ func TestRegister_AdminRole(t *testing.T) {
 	})
 	// Penyewa should NOT be created for admin role
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 
 	// Act
-	user, err := authService.Register("adminuser", "AdminPass123", "admin", "", "", "")
+	user, err := authService.Register("adminuser", "AdminPass123", "admin", "", "", "", "")
 
 	// Assert
 	assert.NoError(t, err)
@@ -243,6 +280,7 @@ func TestGoogleLogin_NewUser(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(MockUserRepository)
 	mockPenyewaRepo := new(MockPenyewaRepository)
+	mockEmailSender := new(MockEmailSender)
 	cfg := &config.Config{JWTSecret: "test-secret-key-32-characters-long"}
 
 	email := "newuser@gmail.com"
@@ -255,7 +293,7 @@ func TestGoogleLogin_NewUser(t *testing.T) {
 	})
 	mockPenyewaRepo.On("Create", mock.AnythingOfType("*models.Penyewa")).Return(nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 
 	// Act
 	token, user, err := authService.GoogleLogin(email, username, "")
@@ -274,6 +312,7 @@ func TestGoogleLogin_ExistingUser(t *testing.T) {
 	// Arrange
 	mockUserRepo := new(MockUserRepository)
 	mockPenyewaRepo := new(MockPenyewaRepository)
+	mockEmailSender := new(MockEmailSender)
 	cfg := &config.Config{JWTSecret: "test-secret-key-32-characters-long"}
 
 	email := "existing@gmail.com"
@@ -285,7 +324,7 @@ func TestGoogleLogin_ExistingUser(t *testing.T) {
 
 	mockUserRepo.On("FindByUsername", email).Return(existingUser, nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 
 	// Act
 	token, user, err := authService.GoogleLogin(email, "Some Name", "")
@@ -351,11 +390,12 @@ func TestLogin_TableDriven(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockUserRepo := new(MockUserRepository)
 			mockPenyewaRepo := new(MockPenyewaRepository)
+			mockEmailSender := new(MockEmailSender)
 			cfg := &config.Config{JWTSecret: "test-secret-key-32-characters-long"}
 
 			tt.setupMock(mockUserRepo)
 
-			authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg)
+			authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 			token, user, err := authService.Login(tt.username, tt.password)
 
 			if tt.expectError {

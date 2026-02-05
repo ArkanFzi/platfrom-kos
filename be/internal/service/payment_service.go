@@ -4,6 +4,8 @@ import (
 	"koskosan-be/internal/models"
 	"koskosan-be/internal/repository"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type PaymentService interface {
@@ -22,10 +24,11 @@ type paymentService struct {
 	bookingRepo     repository.BookingRepository
 	kamarRepo       repository.KamarRepository
 	midtransService MidtransService
+	db              *gorm.DB
 }
 
-func NewPaymentService(repo repository.PaymentRepository, bookingRepo repository.BookingRepository, kamarRepo repository.KamarRepository, midtransService MidtransService) PaymentService {
-	return &paymentService{repo, bookingRepo, kamarRepo, midtransService}
+func NewPaymentService(repo repository.PaymentRepository, bookingRepo repository.BookingRepository, kamarRepo repository.KamarRepository, midtransService MidtransService, db *gorm.DB) PaymentService {
+	return &paymentService{repo, bookingRepo, kamarRepo, midtransService, db}
 }
 
 func (s *paymentService) GetAllPayments() ([]models.Pembayaran, error) {
@@ -33,30 +36,40 @@ func (s *paymentService) GetAllPayments() ([]models.Pembayaran, error) {
 }
 
 func (s *paymentService) ConfirmPayment(paymentID uint) error {
-	payment, err := s.repo.FindByID(paymentID)
-	if err != nil {
-		return err
-	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := s.repo.WithTx(tx)
+		txBookingRepo := s.bookingRepo.WithTx(tx)
+		txKamarRepo := s.kamarRepo.WithTx(tx)
 
-	payment.StatusPembayaran = "Confirmed"
-	if err := s.repo.Update(payment); err != nil {
-		return err
-	}
-
-	// Also update booking status if needed
-	booking, err := s.bookingRepo.FindByID(payment.PemesananID)
-	if err == nil {
-		booking.StatusPemesanan = "Confirmed"
-		s.bookingRepo.Update(booking)
-
-		// Update room status to 'Penuh'
-		kamar, err := s.kamarRepo.FindByID(booking.KamarID)
-		if err == nil {
-			kamar.Status = "Penuh"
-			s.kamarRepo.Update(kamar)
+		payment, err := txRepo.FindByID(paymentID)
+		if err != nil {
+			return err
 		}
-	}
-	return nil
+
+		payment.StatusPembayaran = "Confirmed"
+		if err := txRepo.Update(payment); err != nil {
+			return err
+		}
+
+		// Also update booking status if needed
+		booking, err := txBookingRepo.FindByID(payment.PemesananID)
+		if err == nil {
+			booking.StatusPemesanan = "Confirmed"
+			if err := txBookingRepo.Update(booking); err != nil {
+				return err
+			}
+
+			// Update room status to 'Penuh'
+			kamar, err := txKamarRepo.FindByID(booking.KamarID)
+			if err == nil {
+				kamar.Status = "Penuh"
+				if err := txKamarRepo.Update(kamar); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 }
 
 // CreatePaymentSession mendukung multiple payment types dan methods
@@ -135,34 +148,44 @@ func (s *paymentService) CreatePaymentSession(pemesananID uint, paymentType stri
 }
 
 func (s *paymentService) ConfirmCashPayment(paymentID uint, buktiTransfer string) error {
-	payment, err := s.repo.FindByID(paymentID)
-	if err != nil {
-		return err
-	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := s.repo.WithTx(tx)
+		txBookingRepo := s.bookingRepo.WithTx(tx)
+		txKamarRepo := s.kamarRepo.WithTx(tx)
 
-	payment.StatusPembayaran = "Confirmed"
-	payment.BuktiTransfer = buktiTransfer
-	payment.TanggalBayar = time.Now()
-
-	if err := s.repo.Update(payment); err != nil {
-		return err
-	}
-
-	// Update booking status
-	booking, err := s.bookingRepo.FindByID(payment.PemesananID)
-	if err == nil {
-		booking.StatusPemesanan = "Confirmed"
-		s.bookingRepo.Update(booking)
-
-		// Update room status
-		kamar, err := s.kamarRepo.FindByID(booking.KamarID)
-		if err == nil {
-			kamar.Status = "Penuh"
-			s.kamarRepo.Update(kamar)
+		payment, err := txRepo.FindByID(paymentID)
+		if err != nil {
+			return err
 		}
-	}
 
-	return nil
+		payment.StatusPembayaran = "Confirmed"
+		payment.BuktiTransfer = buktiTransfer
+		payment.TanggalBayar = time.Now()
+
+		if err := txRepo.Update(payment); err != nil {
+			return err
+		}
+
+		// Update booking status
+		booking, err := txBookingRepo.FindByID(payment.PemesananID)
+		if err == nil {
+			booking.StatusPemesanan = "Confirmed"
+			if err := txBookingRepo.Update(booking); err != nil {
+				return err
+			}
+
+			// Update room status
+			kamar, err := txKamarRepo.FindByID(booking.KamarID)
+			if err == nil {
+				kamar.Status = "Penuh"
+				if err := txKamarRepo.Update(kamar); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
 }
 
 func (s *paymentService) HandleWebhook(payload map[string]interface{}) error {
@@ -171,36 +194,50 @@ func (s *paymentService) HandleWebhook(payload map[string]interface{}) error {
 		return err
 	}
 
-	payment, err := s.repo.FindByOrderID(orderID)
-	if err != nil {
-		return err
-	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := s.repo.WithTx(tx)
+		txBookingRepo := s.bookingRepo.WithTx(tx)
+		txKamarRepo := s.kamarRepo.WithTx(tx)
 
-	switch status {
-	case "settlement", "capture":
-		payment.StatusPembayaran = "Settled"
-		s.repo.Update(payment)
-		
-		// Update booking status
-		booking, err := s.bookingRepo.FindByID(payment.PemesananID)
-		if err == nil {
-			booking.StatusPemesanan = "Confirmed"
-			s.bookingRepo.Update(booking)
+		payment, err := txRepo.FindByOrderID(orderID)
+		if err != nil {
+			return err
+		}
 
-			// Update room status
-			kamar, err := s.kamarRepo.FindByID(booking.KamarID)
+		switch status {
+		case "settlement", "capture":
+			payment.StatusPembayaran = "Settled"
+			if err := txRepo.Update(payment); err != nil {
+				return err
+			}
+
+			// Update booking status
+			booking, err := txBookingRepo.FindByID(payment.PemesananID)
 			if err == nil {
-				kamar.Status = "Penuh"
-				s.kamarRepo.Update(kamar)
+				booking.StatusPemesanan = "Confirmed"
+				if err := txBookingRepo.Update(booking); err != nil {
+					return err
+				}
+
+				// Update room status
+				kamar, err := txKamarRepo.FindByID(booking.KamarID)
+				if err == nil {
+					kamar.Status = "Penuh"
+					if err := txKamarRepo.Update(kamar); err != nil {
+						return err
+					}
+				}
+			}
+		case "expire", "cancel", "deny":
+			payment.StatusPembayaran = "Failed"
+			if err := txRepo.Update(payment); err != nil {
+				return err
 			}
 		}
-	case "expire", "cancel", "deny":
-		payment.StatusPembayaran = "Failed"
-		s.repo.Update(payment)
-	}
-
-	return nil
+		return nil
+	})
 }
+
 func (s *paymentService) GetPaymentReminders() ([]models.PaymentReminder, error) {
 	// Note: Implementasi repository method GetPaymentReminders() sesuai kebutuhan
 	return []models.PaymentReminder{}, nil
@@ -231,37 +268,51 @@ func (s *paymentService) VerifyPayment(orderID string) error {
 		return err
 	}
 
-	// 2. Cari pembayaran di DB
-	payment, err := s.repo.FindByOrderID(orderID)
-	if err != nil {
-		return err
-	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := s.repo.WithTx(tx)
+		txBookingRepo := s.bookingRepo.WithTx(tx)
+		txKamarRepo := s.kamarRepo.WithTx(tx)
 
-	status := statusResp.TransactionStatus
+		// 2. Cari pembayaran di DB
+		payment, err := txRepo.FindByOrderID(orderID)
+		if err != nil {
+			return err
+		}
 
-	// 3. Update status jika settled/capture
-	switch status {
-	case "settlement", "capture":
-		payment.StatusPembayaran = "Settled"
-		s.repo.Update(payment)
+		status := statusResp.TransactionStatus
 
-		// Update booking status
-		booking, err := s.bookingRepo.FindByID(payment.PemesananID)
-		if err == nil {
-			booking.StatusPemesanan = "Confirmed"
-			s.bookingRepo.Update(booking)
+		// 3. Update status jika settled/capture
+		switch status {
+		case "settlement", "capture":
+			payment.StatusPembayaran = "Settled"
+			if err := txRepo.Update(payment); err != nil {
+				return err
+			}
 
-			// Update room status
-			kamar, err := s.kamarRepo.FindByID(booking.KamarID)
+			// Update booking status
+			booking, err := txBookingRepo.FindByID(payment.PemesananID)
 			if err == nil {
-				kamar.Status = "Penuh"
-				s.kamarRepo.Update(kamar)
+				booking.StatusPemesanan = "Confirmed"
+				if err := txBookingRepo.Update(booking); err != nil {
+					return err
+				}
+
+				// Update room status
+				kamar, err := txKamarRepo.FindByID(booking.KamarID)
+				if err == nil {
+					kamar.Status = "Penuh"
+					if err := txKamarRepo.Update(kamar); err != nil {
+						return err
+					}
+				}
+			}
+		case "expire", "cancel", "deny":
+			payment.StatusPembayaran = "Failed"
+			if err := txRepo.Update(payment); err != nil {
+				return err
 			}
 		}
-	case "expire", "cancel", "deny":
-		payment.StatusPembayaran = "Failed"
-		s.repo.Update(payment)
-	}
 
-	return nil
+		return nil
+	})
 }

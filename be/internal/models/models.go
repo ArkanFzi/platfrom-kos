@@ -11,9 +11,11 @@ type User struct {
 	Username  string         `gorm:"uniqueIndex" json:"username"`
 	Password  string         `json:"-"`
 	Role      string         `json:"role"` // enum: admin, penyewa, etc.
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
+	ResetToken       string         `json:"-"`
+	ResetTokenExpiry time.Time      `json:"-"`
 }
 
 type Kamar struct {
@@ -25,6 +27,9 @@ type Kamar struct {
 	Status        string         `json:"status"` // enum
 	Capacity      int            `json:"capacity"`
 	Floor         int            `json:"floor"`
+	Size          string         `json:"size"`      // e.g. "3x4m" or "12m2"
+	Bedrooms      int            `json:"bedrooms"`
+	Bathrooms     int            `json:"bathrooms"`
 	Description   string         `json:"description"`
 	ImageURL      string         `json:"image_url"`
 	CreatedAt     time.Time      `json:"created_at"`
@@ -62,6 +67,7 @@ type Penyewa struct {
 	Email        string         `json:"email"`
 	NIK          string         `json:"nik"`
 	NomorHP      string         `json:"nomor_hp"`
+	TanggalLahir time.Time      `json:"tanggal_lahir"`
 	AlamatAsal   string         `json:"alamat_asal"`
 	JenisKelamin string         `json:"jenis_kelamin"` // enum
 	FotoProfil   string         `json:"foto_profil"`

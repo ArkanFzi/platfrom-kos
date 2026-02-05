@@ -25,6 +25,7 @@ export function UserRegister({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [birthdate, setBirthdate] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -41,7 +42,7 @@ export function UserRegister({
 
     setIsLoading(true);
     try {
-      await api.register({ username, password, email, phone, address, role: "tenant" });
+      await api.register({ username, password, email, phone, address, birthdate, role: "tenant" });
       toast.success("Account created successfully!", {
         description: "Please login with your new credentials to continue.",
         duration: 5000,
@@ -233,6 +234,18 @@ export function UserRegister({
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Jl. Example No. 123, City"
+                className="mt-1"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="birthdate">Date of Birth</Label>
+              <Input
+                id="birthdate"
+                type="date"
+                value={birthdate}
+                onChange={(e) => setBirthdate(e.target.value)}
                 className="mt-1"
                 required
               />

@@ -2,6 +2,7 @@ package service
 
 import (
 	"koskosan-be/internal/models"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -234,11 +235,47 @@ func (s *dashboardService) GetStats() (*DashboardStats, error) {
 	}
 
 	// 9. Demographics (Mocked)
+	// 9. Demographics (Real Calculation)
+	var birthDates []time.Time
+	// Fetch all tenants with non-zero birth dates
+	s.db.Model(&models.Penyewa{}).
+		Where("tanggal_lahir IS NOT NULL").
+		Pluck("tanggal_lahir", &birthDates)
+
+	ageGroups := map[string]int{
+		"18-25": 0,
+		"26-35": 0,
+		"36-45": 0,
+		"45+":   0,
+	}
+
+	now := time.Now()
+	for _, dob := range birthDates {
+		if dob.IsZero() {
+			continue
+		}
+		age := now.Year() - dob.Year()
+		if now.YearDay() < dob.YearDay() {
+			age--
+		}
+
+		switch {
+		case age >= 18 && age <= 25:
+			ageGroups["18-25"]++
+		case age >= 26 && age <= 35:
+			ageGroups["26-35"]++
+		case age >= 36 && age <= 45:
+			ageGroups["36-45"]++
+		case age > 45:
+			ageGroups["45+"]++
+		}
+	}
+
 	stats.Demographics = []Demographic{
-		{Name: "18-25", Value: 33, Color: "#f59e0b"},
-		{Name: "26-35", Value: 45, Color: "#3b82f6"},
-		{Name: "36-45", Value: 15, Color: "#10b981"},
-		{Name: "45+", Value: 7, Color: "#8b5cf6"},
+		{Name: "18-25", Value: ageGroups["18-25"], Color: "#f59e0b"},
+		{Name: "26-35", Value: ageGroups["26-35"], Color: "#3b82f6"},
+		{Name: "36-45", Value: ageGroups["36-45"], Color: "#10b981"},
+		{Name: "45+", Value: ageGroups["45+"], Color: "#8b5cf6"},
 	}
 
 	return &stats, nil

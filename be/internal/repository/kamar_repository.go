@@ -12,6 +12,7 @@ type KamarRepository interface {
 	Create(kamar *models.Kamar) error
 	Update(kamar *models.Kamar) error
 	Delete(id uint) error
+	WithTx(tx *gorm.DB) KamarRepository
 }
 
 type kamarRepository struct {
@@ -44,4 +45,8 @@ func (r *kamarRepository) Update(kamar *models.Kamar) error {
 
 func (r *kamarRepository) Delete(id uint) error {
 	return r.db.Delete(&models.Kamar{}, id).Error
+}
+
+func (r *kamarRepository) WithTx(tx *gorm.DB) KamarRepository {
+	return &kamarRepository{db: tx}
 }

@@ -12,8 +12,20 @@ const nextConfig: NextConfig = {
         protocol: "http",
         hostname: "localhost",
         port: "8080",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "8081",
       }
+      // TODO: Tambahkan domain production Anda di sini sebelum deploy
+      // {
+      //   protocol: "https",
+      //   hostname: "yourdomain.com",
+      // }
     ],
+    // Hanya unoptimized di development, di production akan dioptimasi
+    unoptimized: process.env.NODE_ENV === 'development',
   },
 };
 

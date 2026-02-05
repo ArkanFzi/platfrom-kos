@@ -163,16 +163,16 @@ export function RoomDetail({
             price: Number(roomData.harga_per_bulan) || 0,
             location: 'Kota Malang, Jawa Timur',
             description: roomData.description || 'Hunian nyaman dengan fasilitas lengkap di pusat kota Malang.',
-            bedrooms: 1,
-            bathrooms: 1,
-            size: '24m²',
+            bedrooms: roomData.bedrooms || 1,
+            bathrooms: roomData.bathrooms || 1,
+            size: roomData.size || '24m²',
             facilities: (roomData.fasilitas || "WiFi, AC").split(',').map((f: string) => ({
               name: f.trim(),
               icon: facilityIcons[f.trim()] || Check
             })),
             features: (roomData.fasilitas || "WiFi, AC").split(',').map((f: string) => f.trim()),
             images: [
-              roomData.image_url ? (roomData.image_url.startsWith('http') ? roomData.image_url : `http://localhost:8080${roomData.image_url}`) : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=1080',
+              roomData.image_url ? (roomData.image_url.startsWith('http') ? roomData.image_url : `http://localhost:8081${roomData.image_url}`) : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=1080',
               'https://images.unsplash.com/photo-1662454419736-de132ff75638?q=80&w=1080',
               'https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=1080'
             ]
@@ -652,10 +652,12 @@ export function RoomDetail({
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start text-left font-normal border-slate-200 dark:border-slate-700"
+                        className={`w-full justify-start text-left font-medium border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-amber-500/50 transition-all duration-300 h-12 ${!date && "text-slate-500"}`}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "PPP") : <span>Pick a date</span>}
+                        <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg mr-3 text-amber-600 dark:text-amber-400 group-hover:bg-amber-200 dark:group-hover:bg-amber-900/50 transition-colors">
+                          <CalendarIcon className="h-4 w-4" />
+                        </div>
+                        {date ? format(date, "PPP") : <span>Pick a check-in date</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">

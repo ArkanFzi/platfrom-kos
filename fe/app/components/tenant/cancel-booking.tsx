@@ -21,15 +21,12 @@ interface CancelBookingProps {
   };
 }
 
-const REFUND_PENALTY = 15; // 15% potongan
+const REFUND_PENALTY = 100; // 100% potongan (No Refund)
 
 export function CancelBooking({ isOpen, onClose, bookingData }: CancelBookingProps) {
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const { cancelBooking } = useApp();
-  // Hitung refund
-  const refundAmount = Math.floor(bookingData.totalPaid * (1 - REFUND_PENALTY / 100));
-  const penalty = bookingData.totalPaid - refundAmount;
 
   const handleConfirmCancel = () => {
     if (!confirmed) {
@@ -45,7 +42,7 @@ export function CancelBooking({ isOpen, onClose, bookingData }: CancelBookingPro
       setLoading(false);
       setConfirmed(false);
       toast.success('Booking berhasil dibatalkan', {
-        description: `Refund sebesar $${refundAmount} akan diproses dalam 3-5 hari kerja (potongan 15%: $${penalty}). Data otomatis terupdate di global state dan admin dapat melihatnya.`,
+        description: `Booking telah dibatalkan sesuai kebijakan (No Refund). Status booking kini Cancelled.`,
         duration: 4000,
       });
       onClose();
@@ -119,7 +116,7 @@ export function CancelBooking({ isOpen, onClose, bookingData }: CancelBookingPro
               <div className="p-4 bg-red-50 rounded-xl flex gap-3 border border-red-100">
                 <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                 <p className="text-sm text-red-700 leading-relaxed">
-                  Membatalkan booking tidak bisa dibatalkan kembali. Anda akan kehilangan akses ke kamar dan potongan 15% akan dipotong dari refund.
+                  Perhatian: Sesuai kebijakan terbaru, pembatalan booking <strong>TIDAK DAPAT DI-REFUND</strong> (No Refund). Uang yang sudah dibayarkan tidak dapat dikembalikan.
                 </p>
               </div>
 
@@ -127,17 +124,21 @@ export function CancelBooking({ isOpen, onClose, bookingData }: CancelBookingPro
               <div className="space-y-3 p-4 bg-slate-50 rounded-2xl">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-600">Total Pembayaran</span>
-                  <span className="font-bold text-slate-900">${bookingData.totalPaid}</span>
+                  <span className="font-bold text-slate-900">
+                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(bookingData.totalPaid)}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-red-600">Potongan {REFUND_PENALTY}%</span>
-                  <span className="font-bold text-red-600">-${penalty}</span>
+                  <span className="text-red-600">Potongan Hangus (100%)</span>
+                  <span className="font-bold text-red-600">
+                    -{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(bookingData.totalPaid)}
+                  </span>
                 </div>
                 <div className="pt-3 border-t border-dashed border-slate-200 flex justify-between items-center">
                   <span className="font-bold text-slate-900">Refund Anda</span>
-                  <span className="text-2xl font-black text-emerald-600">${refundAmount}</span>
+                  <span className="text-2xl font-black text-slate-400">Rp 0</span>
                 </div>
-                <p className="text-xs text-slate-500 pt-2">Refund akan diproses dalam 3-5 hari kerja</p>
+                <p className="text-xs text-slate-500 pt-2">Kebijakan No Refund berlaku untuk semua pembatalan.</p>
               </div>
 
               {/* Confirmation Checkbox */}
@@ -150,7 +151,7 @@ export function CancelBooking({ isOpen, onClose, bookingData }: CancelBookingPro
                   className="mt-1 w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer"
                 />
                 <label htmlFor="confirm-cancel" className="text-xs text-slate-600 cursor-pointer">
-                  Saya memahami dan setuju untuk membatalkan booking ini. Saya telah membaca kebijakan pembatalan dan paham bahwa 15% dari total pembayaran akan dipotong.
+                  Saya memahami bahwa pembatalan ini <strong>permanen</strong> dan saya <strong>tidak akan menerima pengembalian dana</strong> apapun.
                 </label>
               </div>
             </div>

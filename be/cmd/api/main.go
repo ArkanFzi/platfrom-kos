@@ -6,10 +6,12 @@ import (
 	"koskosan-be/internal/handlers"
 	"koskosan-be/internal/middleware"
 	"koskosan-be/internal/repository"
+	"koskosan-be/internal/routes"
 	"koskosan-be/internal/service"
 	"koskosan-be/internal/utils"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -33,7 +35,8 @@ func main() {
 	paymentRepo := repository.NewPaymentRepository(db)
 
 	// 4. Initialize Services
-	authService := service.NewAuthService(userRepo, penyewaRepo, cfg)
+	emailSender := utils.NewEmailSender(cfg)
+	authService := service.NewAuthService(userRepo, penyewaRepo, cfg, emailSender)
 	kamarService := service.NewKamarService(kamarRepo)
 	galleryService := service.NewGalleryService(galleryRepo)
 	dashboardService := service.NewDashboardService(db)
@@ -41,7 +44,7 @@ func main() {
 	profileService := service.NewProfileService(userRepo, penyewaRepo)
 	midtransService := service.NewMidtransService()
 	bookingService := service.NewBookingService(bookingRepo, penyewaRepo)
-	paymentService := service.NewPaymentService(paymentRepo, bookingRepo, kamarRepo, midtransService)
+	paymentService := service.NewPaymentService(paymentRepo, bookingRepo, kamarRepo, midtransService, db)
 	tenantService := service.NewTenantService(penyewaRepo)
 	contactService := service.NewContactService()
 
@@ -57,6 +60,20 @@ func main() {
 	paymentHandler := handlers.NewPaymentHandler(paymentService)
 	tenantHandler := handlers.NewTenantHandler(tenantService)
 	contactHandler := handlers.NewContactHandler(contactService)
+
+	// Initialize Routes
+	appRoutes := routes.NewRoutes(
+		authHandler,
+		kamarHandler,
+		galleryHandler,
+		dashboardHandler,
+		reviewHandler,
+		profileHandler,
+		bookingHandler,
+		paymentHandler,
+		tenantHandler,
+		contactHandler,
+	)
 
 	// Log startup
 	utils.GlobalLogger.Info("All handlers initialized successfully")
@@ -85,53 +102,24 @@ func main() {
 	}))
 
 	// API Routes
-	// Serve static files
-	r.Static("/uploads", "./uploads")
+	appRoutes.Register(r, cfg)
 
-	api := r.Group("/api")
-	{
-		// Public Routes
-		api.POST("/login", authHandler.Login)
-		api.POST("/google-login", authHandler.GoogleLogin)
-		api.POST("/register", authHandler.Register)
-		api.GET("/kamar", kamarHandler.GetKamars)
-		api.GET("/kamar/:id", kamarHandler.GetKamarByID)
-		api.GET("/kamar/:id/reviews", reviewHandler.GetReviews)
-		api.GET("/reviews", reviewHandler.GetAllReviews) // New endpoint for homepage
-		api.GET("/galleries", galleryHandler.GetGalleries)
-		api.POST("/contact", contactHandler.HandleContactForm)
-
-		// Protected Routes
-		protected := api.Group("/")
-		protected.Use(middleware.AuthMiddleware(cfg))
-		{
-			// Admin Only Routes
-			admin := protected.Group("/")
-			admin.Use(middleware.RoleMiddleware("admin"))
-			{
-				admin.POST("/kamar", kamarHandler.CreateKamar)
-				admin.PUT("/kamar/:id", kamarHandler.UpdateKamar)
-				admin.DELETE("/kamar/:id", kamarHandler.DeleteKamar)
-				admin.POST("/galleries", galleryHandler.CreateGallery)
-				admin.DELETE("/galleries/:id", galleryHandler.DeleteGallery)
-				admin.GET("/dashboard", dashboardHandler.GetStats)
-				admin.GET("/payments", paymentHandler.GetAllPayments)
-				admin.POST("/payments/:id/confirm", paymentHandler.ConfirmPayment)
-				admin.GET("/tenants", tenantHandler.GetAllTenants)
-			}
-
-			// All Authenticated Users
-			protected.POST("/reviews", reviewHandler.CreateReview)
-			protected.GET("/profile", profileHandler.GetProfile)
-			protected.PUT("/profile", profileHandler.UpdateProfile)
-			protected.PUT("/profile/change-password", profileHandler.ChangePassword)
-			protected.GET("/my-bookings", bookingHandler.GetMyBookings)
-			protected.POST("/bookings", bookingHandler.CreateBooking)
-			protected.POST("/payments/snap-token", paymentHandler.CreateSnapToken)
-			protected.POST("/payments/verify", paymentHandler.VerifyPayment)
-			protected.POST("/payments/confirm-cash/:id", paymentHandler.ConfirmCashPayment)
+	// 7. Start Background Worker for Auto-Cancellation
+	go func() {
+		utils.GlobalLogger.Info("Starting auto-cancellation background worker...")
+		// Run once on startup
+		if err := bookingService.AutoCancelExpiredBookings(); err != nil {
+			utils.GlobalLogger.Error("Failed to auto-cancel bookings: %v", err)
 		}
-	}
+
+		// Run every 1 hour
+		ticker := time.NewTicker(1 * time.Hour)
+		for range ticker.C {
+			if err := bookingService.AutoCancelExpiredBookings(); err != nil {
+				utils.GlobalLogger.Error("Failed to auto-cancel bookings: %v", err)
+			}
+		}
+	}()
 
 	log.Printf("Server running on http://localhost:%s", cfg.Port)
 	utils.GlobalLogger.Info("Server started on port %s", cfg.Port)

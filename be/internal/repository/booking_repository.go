@@ -2,6 +2,7 @@ package repository
 
 import (
 	"koskosan-be/internal/models"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -13,6 +14,9 @@ type BookingRepository interface {
 	Create(booking *models.Pemesanan) error
 	Update(booking *models.Pemesanan) error
 	GetPaymentsByBookingID(bookingID uint) ([]models.Pembayaran, error)
+	FindExpiredPendingBookings(expiryTime time.Time) ([]models.Pemesanan, error)
+	UpdateStatus(id uint, status string) error
+	WithTx(tx *gorm.DB) BookingRepository
 }
 
 type bookingRepository struct {
@@ -67,4 +71,19 @@ func (r *bookingRepository) GetPaymentsByBookingID(bookingID uint) ([]models.Pem
 	var payments []models.Pembayaran
 	err := r.db.Where("pemesanan_id = ?", bookingID).Find(&payments).Error
 	return payments, err
+}
+
+func (r *bookingRepository) FindExpiredPendingBookings(expiryTime time.Time) ([]models.Pemesanan, error) {
+	var bookings []models.Pemesanan
+	// Find bookings that are 'Pending' and created before the expiryTime
+	err := r.db.Where("status_pemesanan = ? AND created_at < ?", "Pending", expiryTime).Find(&bookings).Error
+	return bookings, err
+}
+
+func (r *bookingRepository) UpdateStatus(id uint, status string) error {
+	return r.db.Model(&models.Pemesanan{}).Where("id = ?", id).Update("status_pemesanan", status).Error
+}
+
+func (r *bookingRepository) WithTx(tx *gorm.DB) BookingRepository {
+	return &bookingRepository{db: tx}
 }

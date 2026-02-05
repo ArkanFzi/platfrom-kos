@@ -9,6 +9,7 @@ import (
 type UserRepository interface {
 	FindByUsername(username string) (*models.User, error)
 	FindByID(id uint) (*models.User, error)
+	FindByResetToken(token string) (*models.User, error)
 	Create(user *models.User) error
 	Update(user *models.User) error
 }
@@ -30,6 +31,12 @@ func (r *userRepository) FindByUsername(username string) (*models.User, error) {
 func (r *userRepository) FindByID(id uint) (*models.User, error) {
 	var user models.User
 	err := r.db.First(&user, id).Error
+	return &user, err
+}
+
+func (r *userRepository) FindByResetToken(token string) (*models.User, error) {
+	var user models.User
+	err := r.db.Where("reset_token = ?", token).First(&user).Error
 	return &user, err
 }
 

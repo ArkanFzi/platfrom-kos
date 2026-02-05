@@ -3,10 +3,13 @@ package service
 import (
 	"errors"
 	"koskosan-be/internal/models"
+	"koskosan-be/internal/repository"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"gorm.io/gorm"
 )
 
 // MockBookingRepository implements repository.BookingRepository
@@ -56,6 +59,27 @@ func (m *MockBookingRepository) Create(booking *models.Pemesanan) error {
 func (m *MockBookingRepository) Update(booking *models.Pemesanan) error {
 	args := m.Called(booking)
 	return args.Error(0)
+}
+
+func (m *MockBookingRepository) UpdateStatus(id uint, status string) error {
+	args := m.Called(id, status)
+	return args.Error(0)
+}
+
+func (m *MockBookingRepository) WithTx(tx *gorm.DB) repository.BookingRepository {
+	args := m.Called(tx)
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(repository.BookingRepository)
+}
+
+func (m *MockBookingRepository) FindExpiredPendingBookings(beforeTime time.Time) ([]models.Pemesanan, error) {
+	args := m.Called(beforeTime)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Pemesanan), args.Error(1)
 }
 
 // =============================================================================

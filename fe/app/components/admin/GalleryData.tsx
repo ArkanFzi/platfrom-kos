@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Trash2, Plus } from 'lucide-react';
+import { Search, Trash2, Plus, Download, Eye } from 'lucide-react';
 import Image from 'next/image';
 import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
@@ -15,7 +15,7 @@ interface Gallery {
   created_at: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+
 
 export function GalleryData() {
   const [galleries, setGalleries] = useState<Gallery[]>([]);
@@ -31,7 +31,7 @@ export function GalleryData() {
   const fetchGalleries = async () => {
     try {
       const data = await api.getGalleries();
-      setGalleries(data);
+      setGalleries(data as Gallery[]);
     } catch (error) {
       console.error("Failed to fetch galleries:", error);
     }
@@ -68,7 +68,7 @@ export function GalleryData() {
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure?")) return;
     try {
-      await api.deleteGallery(id);
+      await api.deleteGallery(id.toString());
       void fetchGalleries();
     } catch (error) {
       console.error("Failed to delete gallery:", error);
@@ -107,10 +107,64 @@ export function GalleryData() {
                 <Label className="text-slate-300">Category</Label>
                 <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g., Interior, Facilities" className="bg-slate-800 border-slate-700 text-white" />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="text-slate-300">Image File</Label>
-                <div className="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-amber-500/50 transition-colors bg-slate-800/20">
-                  <input type="file" onChange={e => setImageFile(e.target.files?.[0] || null)} className="w-full text-xs text-slate-400" />
+                <div className="flex flex-col gap-4">
+                  {(imageFile) && (
+                    <div className="relative w-full h-48 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 group">
+                      <Image
+                        src={URL.createObjectURL(imageFile)}
+                        alt="Preview"
+                        fill
+                        className="object-cover transition-transform group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <p className="text-white font-medium text-sm">Current Preview</p>
+                      </div>
+                      <button
+                        onClick={() => setImageFile(null)}
+                        className="absolute top-2 right-2 p-1.5 bg-red-500/80 text-white rounded-full hover:bg-red-600 transition-colors"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="gallery-upload"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImageFile(e.target.files?.[0] || null)}
+                    />
+                    <label
+                      htmlFor="gallery-upload"
+                      className={`
+                        flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-xl cursor-pointer transition-all
+                        ${imageFile 
+                          ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10' 
+                          : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800 hover:border-amber-500/50'
+                        }
+                      `}
+                    >
+                      <div className={`
+                        p-4 rounded-full mb-3 transition-colors
+                        ${imageFile ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-amber-500 group-hover:scale-110'}
+                      `}>
+                        {imageFile ? <Eye className="size-6" /> : <Download className="size-6 rotate-180" />} 
+                      </div>
+                      <p className="text-sm font-bold text-slate-300 mb-1">
+                        {imageFile ? 'Change Image' : 'Click to Upload Image'}
+                      </p>
+                      <p className="text-xs text-slate-500 text-center max-w-xs">
+                        {imageFile 
+                          ? `Selected: ${imageFile.name}` 
+                          : 'SVG, PNG, JPG or GIF (max. 5MB)'
+                        }
+                      </p>
+                    </label>
+                  </div>
                 </div>
               </div>
               <Button onClick={handleCreate} className="w-full bg-amber-500 hover:bg-amber-600 text-white py-6">Upload Asset</Button>
@@ -143,7 +197,7 @@ export function GalleryData() {
           <div key={image.id} className="bg-slate-900/40 rounded-2xl border border-slate-800 overflow-hidden hover:border-amber-500/30 transition-all duration-300 group">
             <div className="aspect-[4/3] overflow-hidden relative">
               <Image
-                src={image.image_url.startsWith('http') ? image.image_url : `http://localhost:8080${image.image_url}`}
+                src={image.image_url.startsWith('http') ? image.image_url : `http://localhost:8081${image.image_url}`}
                 alt={image.title}
                 width={400}
                 height={300}

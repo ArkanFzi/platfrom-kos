@@ -14,11 +14,13 @@ interface UserLoginProps {
   onLoginSuccess: () => void;
   onBack: () => void;
   onRegisterClick: () => void;
+  onForgotPassword: () => void;
 }
 
-export function UserLogin({ onLoginSuccess, onBack, onRegisterClick }: UserLoginProps) {
+export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPassword }: UserLoginProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -27,7 +29,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick }: UserLogin
     setIsLoading(true);
     setError('');
     try {
-      await api.login({ username, password });
+      await api.login({ username, password }, rememberMe);
       onLoginSuccess();
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -166,6 +168,31 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick }: UserLogin
               />
             </div>
 
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="remember"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-stone-900 focus:ring-stone-900"
+                />
+                <label
+                  htmlFor="remember"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-600"
+                >
+                  Remember me
+                </label>
+              </div>
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                className="text-sm font-medium text-amber-600 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+
             <Button
               type="submit"
               disabled={isLoading}
@@ -178,6 +205,9 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick }: UserLogin
           <GoogleButton
             isLoading={isLoading}
             onSuccess={(data) => {
+              // Standard behavior for Google Login is usually Session persistence or same as unchecked.
+              // We'll treat it as session storage by default unless we add logic, but code assumes explicit choice.
+              // Let's default Google Login to LocalStorage (Persistent) as is common for OAuth
               localStorage.setItem('token', data.token);
               localStorage.setItem('user', JSON.stringify(data.user));
               onLoginSuccess();

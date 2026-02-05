@@ -6,6 +6,7 @@ import { Button } from "@/app/components/ui/button";
 // Login Components
 import { UserLogin } from "@/app/components/shared/UserLogin";
 import { UserRegister } from "@/app/components/shared/UserRegister";
+import { ForgotPassword } from "@/app/components/shared/ForgotPassword";
 
 // Admin Components
 import { AdminSidebar } from "@/app/components/admin/AdminSidebar";
@@ -20,7 +21,7 @@ import { LuxuryReports } from "@/app/components/admin/LuxuryReports";
 import { UserPlatform } from "@/app/components/tenant/user-platform";
 import { Loader2 } from "lucide-react";
 
-type ViewMode = "login" | "register" | "home" | "admin" | "tenant";
+type ViewMode = "login" | "register" | "forgot-password" | "home" | "admin" | "tenant";
 type AdminPage =
   | "dashboard"
   | "gallery"
@@ -69,14 +70,14 @@ export default function App() {
     if (storedToken) {
         if (storedUserCheckRole === 'admin') {
            // Admin logic
-           if (storedViewMode === 'login' || storedViewMode === 'register') {
+           if (storedViewMode === 'login' || storedViewMode === 'register' || storedViewMode === 'forgot-password') {
                setViewMode('admin');
            } else {
                setViewMode(storedViewMode || 'admin');
            }
         } else {
            // For tenant/users
-           if (storedViewMode === 'login' || storedViewMode === 'register' || !storedViewMode) {
+           if (storedViewMode === 'login' || storedViewMode === 'register' || storedViewMode === 'forgot-password' || !storedViewMode) {
                setViewMode('tenant');
                setUserRole('tenant');
            } else {
@@ -205,6 +206,7 @@ export default function App() {
         }}
         onBack={() => setViewMode("home")}
         onRegisterClick={() => setViewMode("register")}
+        onForgotPassword={() => setViewMode("forgot-password")}
       />
     );
   }
@@ -215,6 +217,15 @@ export default function App() {
       <UserRegister
         onRegisterSuccess={() => setViewMode("login")}
         onBackToLogin={() => setViewMode("login")}
+      />
+    );
+  }
+
+  // Forgot Password Screen
+  if (viewMode === "forgot-password") {
+    return (
+      <ForgotPassword
+        onBack={() => setViewMode("login")}
       />
     );
   }
@@ -246,7 +257,9 @@ export default function App() {
               variant="destructive"
               onClick={() => {
                 clearStoredState();
-                window.location.href = "/login";
+                setUserRole(null);
+                setAdminPage("dashboard");
+                setViewMode("login");
               }}
               className="bg-red-600 hover:bg-red-700"
             >
@@ -266,7 +279,12 @@ export default function App() {
 
   // Tenant Portal
   if (viewMode === "tenant") {
-    return <UserPlatform onLogout={() => setViewMode("login")} />;
+    return <UserPlatform onLogout={() => {
+        clearStoredState();
+        setUserRole(null);
+        setTenantPage("landing");
+        setViewMode("login");
+    }} />;
   }
 
   // Default: Tenant/Guest Portal
@@ -274,7 +292,9 @@ export default function App() {
     <UserPlatform
       onLogout={() => {
         clearStoredState();
-        window.location.reload();
+        setUserRole(null);
+        setTenantPage("landing");
+        setViewMode("login");
       }}
     />
   );

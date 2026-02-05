@@ -1,4 +1,5 @@
 "use client";
+// Force update
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -27,6 +28,9 @@ interface Room {
   status: string;
   capacity: number;
   floor: number;
+  size: string;
+  bedrooms: number;
+  bathrooms: number;
   description: string;
   image: string;
   facilities: string[];
@@ -40,6 +44,9 @@ interface BackendRoom {
   status: string;
   capacity: number;
   floor: number;
+  size: string;
+  bedrooms: number;
+  bathrooms: number;
   description: string;
   image_url: string;
   fasilitas: string;
@@ -66,8 +73,11 @@ export function RoomManagement() {
         status: r.status,
         capacity: r.capacity || 1,
         floor: r.floor || 1,
+        size: r.size || '3x4m',
+        bedrooms: r.bedrooms || 1,
+        bathrooms: r.bathrooms || 1,
         description: r.description || '',
-        image: r.image_url ? (r.image_url.startsWith('http') ? r.image_url : `http://localhost:8080${r.image_url}`) : 'https://via.placeholder.com/300',
+        image: r.image_url ? (r.image_url.startsWith('http') ? r.image_url : `http://localhost:8081${r.image_url}`) : 'https://via.placeholder.com/300',
         facilities: r.fasilitas ? r.fasilitas.split(',').map((f: string) => f.trim()) : []
       }));
       setRooms(mapped);
@@ -84,12 +94,15 @@ export function RoomManagement() {
 
   const [formData, setFormData] = useState<Partial<Room>>({
     name: '',
-    type: 'Single',
+    type: 'Standard',
     price: 0,
     status: 'Tersedia',
     capacity: 1,
     facilities: [],
     floor: 1,
+    size: '',
+    bedrooms: 1,
+    bathrooms: 1,
     description: ''
   });
 
@@ -101,13 +114,18 @@ export function RoomManagement() {
   const handleSubmit = async () => {
     const data = new FormData();
     data.append('nomor_kamar', formData.name || '');
-    data.append('tipe_kamar', formData.type || 'Single');
+    data.append('tipe_kamar', formData.type || 'Standard');
     data.append('harga_per_bulan', String(formData.price));
     data.append('status', formData.status || 'Tersedia');
     data.append('capacity', String(formData.capacity));
     data.append('floor', String(formData.floor));
+    data.append('size', formData.size || '');
+    data.append('bedrooms', String(formData.bedrooms));
+    data.append('bathrooms', String(formData.bathrooms));
     data.append('description', formData.description || '');
-    data.append('fasilitas', (formData.facilities || []).join(', '));
+    // Handle facilities array to string
+    data.append('fasilitas', Array.isArray(formData.facilities) ? formData.facilities.join(', ') : formData.facilities || '');
+    
     if (imageFile) {
       data.append('image', imageFile);
     }
@@ -147,12 +165,15 @@ export function RoomManagement() {
   const resetForm = () => {
     setFormData({
       name: '',
-      type: 'Single',
+      type: 'Standard',
       price: 0,
       status: 'Tersedia',
       capacity: 1,
       facilities: [],
       floor: 1,
+      size: '',
+      bedrooms: 1,
+      bathrooms: 1,
       description: ''
     });
     setEditingRoom(null);
@@ -204,8 +225,8 @@ export function RoomManagement() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Single">Single</SelectItem>
-                      <SelectItem value="Double">Double</SelectItem>
+                      <SelectItem value="Standard">Standard (Shared Bathroom)</SelectItem>
+                      <SelectItem value="Premium">Premium (Private Bathroom)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -258,6 +279,48 @@ export function RoomManagement() {
                     min="1"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="size">Size</Label>
+                  <Input
+                    id="size"
+                    value={formData.size}
+                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                    placeholder="e.g. 4x5m"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bedrooms">Bedrooms</Label>
+                  <Input
+                    id="bedrooms"
+                    type="number"
+                    value={formData.bedrooms}
+                    onChange={(e) => setFormData({ ...formData, bedrooms: Number(e.target.value) })}
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bathrooms">Bathrooms</Label>
+                  <Input
+                    id="bathrooms"
+                    type="number"
+                    value={formData.bathrooms}
+                    onChange={(e) => setFormData({ ...formData, bathrooms: Number(e.target.value) })}
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="facilities">Facilities (comma separated)</Label>
+                <Input
+                  id="facilities"
+                  value={Array.isArray(formData.facilities) ? formData.facilities.join(', ') : formData.facilities}
+                  onChange={(e) => setFormData({ ...formData, facilities: e.target.value.split(',').map(s => s.trim()) })}
+                  placeholder="TV, AC, WiFi, Bathroom"
+                />
               </div>
 
               <div>

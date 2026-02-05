@@ -59,6 +59,10 @@ func (h *KamarHandler) CreateKamar(c *gin.Context) {
 	capacity, _ := strconv.Atoi(c.PostForm("capacity"))
 	floor, _ := strconv.Atoi(c.PostForm("floor"))
 
+	size := c.PostForm("size")
+	bedrooms, _ := strconv.Atoi(c.PostForm("bedrooms"))
+	bathrooms, _ := strconv.Atoi(c.PostForm("bathrooms"))
+
 	// File upload
 	var imageURL string
 	file, err := c.FormFile("image")
@@ -83,6 +87,9 @@ func (h *KamarHandler) CreateKamar(c *gin.Context) {
 		Status:        status,
 		Capacity:      capacity,
 		Floor:         floor,
+		Size:          size,
+		Bedrooms:      bedrooms,
+		Bathrooms:     bathrooms,
 		Description:   description,
 		ImageURL:      imageURL,
 	}
@@ -128,6 +135,15 @@ func (h *KamarHandler) UpdateKamar(c *gin.Context) {
 	}
 	if v := c.PostForm("floor"); v != "" {
 		kamar.Floor, _ = strconv.Atoi(v)
+	}
+	if v := c.PostForm("size"); v != "" {
+		kamar.Size = v
+	}
+	if v := c.PostForm("bedrooms"); v != "" {
+		kamar.Bedrooms, _ = strconv.Atoi(v)
+	}
+	if v := c.PostForm("bathrooms"); v != "" {
+		kamar.Bathrooms, _ = strconv.Atoi(v)
 	}
 
 	// File upload

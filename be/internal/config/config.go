@@ -23,6 +23,12 @@ type Config struct {
 	GoogleClientID     string
 	GoogleClientSecret string
 	GoogleRedirectURL  string
+
+	// SMTP Config
+	SMTPHost     string
+	SMTPPort     string
+	SMTPEmail    string
+	SMTPPassword string
 }
 
 func LoadConfig() *Config {
@@ -45,6 +51,12 @@ func LoadConfig() *Config {
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
+
+		// SMTP Config
+		SMTPHost:     getEnv("SMTP_HOST", ""),
+		SMTPPort:     getEnv("SMTP_PORT", "587"),
+		SMTPEmail:    getEnv("SMTP_EMAIL", ""),
+		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
 	}
 
 	// Validate required environment variables

@@ -21,6 +21,8 @@ type BookingResponse struct {
 type BookingService interface {
 	GetUserBookings(userID uint) ([]BookingResponse, error)
 	CreateBooking(userID uint, kamarID uint, tanggalMulai string, durasiSewa int) (*models.Pemesanan, error)
+	CancelBooking(id uint) error
+	AutoCancelExpiredBookings() error
 }
 
 type bookingService struct {
@@ -112,4 +114,48 @@ func (s *bookingService) CreateBooking(userID uint, kamarID uint, tanggalMulai s
 
 	// Re-fetch to get associations if needed, or just return
 	return &booking, nil
+}
+
+func (s *bookingService) CancelBooking(id uint) error {
+	booking, err := s.repo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	if booking.StatusPemesanan == "Cancelled" {
+		return fmt.Errorf("booking is already cancelled")
+	}
+
+	// Update status to Cancelled.
+	// NOTE: Per business requirement, NO Refund is processed even if DP was paid.
+	if err := s.repo.UpdateStatus(id, "Cancelled"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *bookingService) AutoCancelExpiredBookings() error {
+	// 1 week deadline
+	deadline := time.Now().AddDate(0, 0, -7)
+
+	expiredBookings, err := s.repo.FindExpiredPendingBookings(deadline)
+	if err != nil {
+		return err
+	}
+
+	for _, b := range expiredBookings {
+		// Cancel booking without refund
+		if err := s.repo.UpdateStatus(b.ID, "Cancelled"); err != nil {
+			fmt.Printf("Failed to auto-cancel booking %d: %v\n", b.ID, err)
+			continue
+		}
+		// Optional: We could send an email notification here
+	}
+	
+	if len(expiredBookings) > 0 {
+		fmt.Printf("Auto-cancelled %d expired bookings\n", len(expiredBookings))
+	}
+
+	return nil
 }

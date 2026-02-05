@@ -5,6 +5,8 @@ import { TrendingUp, Download, Calendar, DollarSign, Loader2, BarChart3, Activit
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { api } from '@/app/services/api';
 import { Button } from '@/app/components/ui/button';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Room {
   id: number;
@@ -18,6 +20,16 @@ interface Payment {
   jumlah_bayar: number;
   status_pembayaran: string;
   tanggal_bayar: string;
+  created_at: string;
+  pemesanan?: {
+    penyewa?: {
+      nama_lengkap: string;
+    };
+    kamar?: {
+      tipe_kamar: string;
+      nomor_kamar: string;
+    };
+  };
 }
 
 interface DashboardStats {
@@ -47,9 +59,9 @@ export function LuxuryReports() {
           api.getRooms(),
           api.getDashboardStats()
         ]);
-        setPayments(pData);
-        setRooms(rData);
-        setStats(sData);
+        setPayments(pData as Payment[]);
+        setRooms(rData as any); // Room interface might need adjustment or just use any if simple
+        setStats(sData as DashboardStats);
       } catch (e) {
         console.error("Failed to fetch reports data:", e);
       } finally {
@@ -94,8 +106,43 @@ export function LuxuryReports() {
   ];
 
   const handleExport = () => {
-    console.log("Exporting report...");
-    // TODO: Implement actual export functionality
+    const doc = new jsPDF();
+
+    const tableColumn = ["Date", "Tenant Name", "Room Type", "Room No", "Amount", "Status"];
+    const tableRows: any[] = [];
+
+    payments.forEach(p => {
+      const rowData = [
+        new Date(p.created_at).toLocaleDateString("id-ID"),
+        p.pemesanan?.penyewa?.nama_lengkap || "Unknown",
+        p.pemesanan?.kamar?.tipe_kamar || "Unknown",
+        p.pemesanan?.kamar?.nomor_kamar || "Unknown",
+        formatPrice(p.jumlah_bayar),
+        p.status_pembayaran
+      ];
+      tableRows.push(rowData);
+    });
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text("Financial Report", 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Date: ${dateStr}`, 14, 30);
+    doc.setTextColor(100);
+
+    // Add table using autoTable
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 40,
+      theme: 'grid',
+      headStyles: { fillColor: [245, 158, 11] }, // Amber 500
+      styles: { fontSize: 8 },
+    });
+
+    doc.save(`financial_report_${dateStr}.pdf`);
   };
 
   const formatPrice = (price: number) => {

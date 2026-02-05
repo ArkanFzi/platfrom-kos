@@ -58,6 +58,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Email    string `json:"email"`
 		Phone    string `json:"phone"`
 		Address  string `json:"address"`
+		Birthdate string `json:"birthdate"` // "YYYY-MM-DD"
 	}
 
 	if err := c.ShouldBindJSON(&input); err  != nil {
@@ -71,6 +72,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	input.Email = utils.SanitizeString(input.Email)
 	input.Phone = utils.SanitizeString(input.Phone)
 	input.Address = utils.SanitizeString(input.Address)
+	input.Birthdate = utils.SanitizeString(input.Birthdate)
 
 	// Validate username
 	if validationErr := utils.ValidateUsername(input.Username); validationErr != nil {
@@ -84,7 +86,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.Register(input.Username, input.Password, "tenant", input.Email, input.Phone, input.Address)
+	// Parse birthdate
+	
+	user, err := h.service.Register(input.Username, input.Password, "tenant", input.Email, input.Phone, input.Address, input.Birthdate)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -129,4 +133,49 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 		"token": token,
 		"user":  user,
 	})
+}
+
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var input struct {
+		Email string `json:"email" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	err := h.service.ForgotPassword(input.Email)
+	if err != nil {
+		// In a real generic app, we shouldn't return detailed user-not-found errors to public.
+		// But for tenant/friendly apps, it's often accepted.
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset link has been sent to your email"})
+}
+
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var input struct {
+		Token       string `json:"token" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	if validationErr := utils.ValidatePassword(input.NewPassword); validationErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Message})
+		return
+	}
+
+	if err := h.service.ResetPassword(input.Token, input.NewPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password has been reset successfully"})
 }

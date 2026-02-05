@@ -121,12 +121,12 @@ export function SmartCalendar() {
                     head_cell: "text-slate-400 rounded-md w-full font-medium text-[0.8rem] uppercase tracking-widest",
                     row: "flex w-full mt-2",
                     cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 w-full",
-                    day: "h-14 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all flex items-center justify-center cursor-pointer",
-                    day_selected: "bg-stone-900 text-white hover:bg-stone-800 focus:bg-stone-900 focus:text-white dark:bg-white dark:text-stone-900 dark:hover:bg-slate-200",
-                    day_today: "bg-slate-100 dark:bg-slate-800 text-stone-900 dark:text-white font-bold border-2 border-stone-200 dark:border-slate-700",
+                    day: "h-14 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                    day_selected: "bg-amber-500 text-white hover:bg-amber-600 focus:bg-amber-600 focus:text-white shadow-lg shadow-amber-500/30",
+                    day_today: "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold border-2 border-amber-200 dark:border-amber-900/50",
                     day_outside: "text-slate-300 opacity-50 dark:text-slate-600",
                     day_disabled: "text-slate-300 opacity-50 dark:text-slate-600",
-                    day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                    day_range_middle: "aria-selected:bg-amber-50 dark:aria-selected:bg-amber-950/30 aria-selected:text-amber-900 dark:aria-selected:text-amber-100",
                     day_hidden: "invisible",
                 }}
              />
@@ -146,7 +146,7 @@ export function SmartCalendar() {
                 <Card className="border-0 shadow-2xl bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
                   <div className="relative h-40">
                      <ImageWithFallback 
-                        src={activeBooking.kamar.image_url.startsWith('http') ? activeBooking.kamar.image_url : `http://localhost:8080${activeBooking.kamar.image_url}`}
+                        src={activeBooking.kamar.image_url.startsWith('http') ? activeBooking.kamar.image_url : `http://localhost:8081${activeBooking.kamar.image_url}`}
                         alt="Room"
                         className="w-full h-full object-cover"
                      />

@@ -194,7 +194,7 @@ export function Homepage({
         image: r.image_url
           ? r.image_url.startsWith("http")
             ? r.image_url
-            : `http://localhost:8080${r.image_url}`
+            : `http://localhost:8081${r.image_url}`
           : "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=1080",
         location: "Kota Malang, Jawa Timur",
         rating: 4.8,
@@ -422,14 +422,16 @@ export function Homepage({
                 displayRooms.map((room) => (
                   <motion.div
                     key={room.id}
-                    layout
+                    layout // Keep layout for smooth reordering
                     variants={fadeInUp}
+                    initial="hidden"
+                    animate="visible"
                     whileHover={{ y: -5 }}
                     className="group cursor-pointer h-full"
                     onClick={() => onRoomClick(room.id)}
                   >
                     <Card className="overflow-hidden border-0 bg-white dark:bg-slate-900 shadow-lg lg:shadow-xl lg:shadow-slate-200/50 dark:shadow-none rounded-[1.2rem] lg:rounded-[2.5rem] h-full flex flex-col transition-all duration-300 hover:shadow-2xl">
-                      <div className="relative aspect-[4/3] overflow-hidden">
+                      <div className="relative aspect-[4/3] overflow-hidden rounded-t-[1.2rem] lg:rounded-t-[2.5rem] transform-gpu">
                         <ImageWithFallback
                           src={room.image}
                           alt={room.name}

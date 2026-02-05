@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, Edit, Trash2, Eye, Download, ChevronUp, ChevronDown } from 'lucide-react';
-import { Room } from '@/app/data/mockData';
 import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -10,6 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { api } from '@/app/services/api';
 import { toast } from 'sonner';
 
+interface Room {
+  id: string;
+  name: string;
+  type: string;
+  price: number;
+  status: string;
+  capacity: number;
+  floor: number;
+  size: string;
+  bedrooms: number;
+  bathrooms: number;
+  description: string;
+  image: string;
+  facilities: string[];
+}
+
 interface BackendRoom {
   id: number;
   nomor_kamar: string;
@@ -18,6 +33,9 @@ interface BackendRoom {
   status: string;
   capacity: number;
   floor: number;
+  size: string;
+  bedrooms: number;
+  bathrooms: number;
   description: string;
   image_url: string;
   fasilitas: string;
@@ -38,12 +56,15 @@ export function LuxuryRoomManagement() {
 
   const [formData, setFormData] = useState<Partial<Room>>({
     name: '',
-    type: 'Single',
+    type: 'Standard',
     price: 0,
     status: 'Tersedia',
     capacity: 1,
     facilities: [],
     floor: 1,
+    size: '',
+    bedrooms: 1,
+    bathrooms: 1,
     description: ''
   });
 
@@ -59,8 +80,11 @@ export function LuxuryRoomManagement() {
         status: r.status as "Tersedia" | "Penuh" | "Maintenance",
         capacity: r.capacity || 1,
         floor: r.floor || 1,
+        size: r.size || '3x4m',
+        bedrooms: r.bedrooms || 1,
+        bathrooms: r.bathrooms || 1,
         description: r.description || '',
-        image: r.image_url ? (r.image_url.startsWith('http') ? r.image_url : `http://localhost:8080${r.image_url}`) : 'https://via.placeholder.com/300',
+        image: r.image_url ? (r.image_url.startsWith('http') ? r.image_url : `http://localhost:8081${r.image_url}`) : 'https://via.placeholder.com/300',
         facilities: r.fasilitas ? r.fasilitas.split(',').map(f => f.trim()) : []
       }));
       setRooms(mapped);
@@ -97,13 +121,18 @@ export function LuxuryRoomManagement() {
   const handleSubmit = async () => {
     const data = new FormData();
     data.append('nomor_kamar', formData.name || '');
-    data.append('tipe_kamar', formData.type || 'Single');
+    data.append('tipe_kamar', formData.type || 'Standard');
     data.append('harga_per_bulan', String(formData.price));
     data.append('status', formData.status || 'Tersedia');
     data.append('capacity', String(formData.capacity));
     data.append('floor', String(formData.floor));
+    data.append('size', formData.size || '');
+    data.append('bedrooms', String(formData.bedrooms));
+    data.append('bathrooms', String(formData.bathrooms));
     data.append('description', formData.description || '');
-    data.append('fasilitas', (formData.facilities || []).join(', '));
+    // Handle facilities array to string
+    data.append('fasilitas', Array.isArray(formData.facilities) ? formData.facilities.join(', ') : formData.facilities || '');
+
     if (imageFile) {
       data.append('image', imageFile);
     }
@@ -144,12 +173,15 @@ export function LuxuryRoomManagement() {
   const resetForm = () => {
     setFormData({
       name: '',
-      type: 'Single',
+      type: 'Standard',
       price: 0,
       status: 'Tersedia',
       capacity: 1,
       facilities: [],
       floor: 1,
+      size: '',
+      bedrooms: 1,
+      bathrooms: 1,
       description: ''
     });
     setEditingRoom(null);
@@ -199,7 +231,7 @@ export function LuxuryRoomManagement() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button
-                onClick={() => { setEditingRoom(null); setFormData({ name: '', type: 'Single', price: 0, status: 'Tersedia', capacity: 1, facilities: [], floor: 1, description: '' }); }}
+                onClick={() => { setEditingRoom(null); setFormData({ name: '', type: 'Standard', price: 0, status: 'Tersedia', capacity: 1, facilities: [], floor: 1, size: '', bedrooms: 1, bathrooms: 1, description: '' }); }}
                 className="flex-1 sm:flex-none bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/20 px-4 md:px-6 py-2 h-auto"
               >
                 <Plus className="size-4 mr-2" />
@@ -231,10 +263,8 @@ export function LuxuryRoomManagement() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-800 border-slate-700 text-white">
-                        <SelectItem value="Single">Single</SelectItem>
-                        <SelectItem value="Double">Double</SelectItem>
-                        <SelectItem value="Suite">Suite</SelectItem>
-                        <SelectItem value="Deluxe">Deluxe</SelectItem>
+                        <SelectItem value="Standard">Standard (Shared Bathroom)</SelectItem>
+                        <SelectItem value="Premium">Premium (Private Bathroom)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -292,6 +322,52 @@ export function LuxuryRoomManagement() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="size" className="text-slate-300">Size</Label>
+                    <Input
+                      id="size"
+                      value={formData.size}
+                      onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                      placeholder="e.g. 4x5m"
+                      className="bg-slate-800 border-slate-700 text-white focus:ring-amber-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bedrooms" className="text-slate-300">Bedrooms</Label>
+                    <Input
+                      id="bedrooms"
+                      type="number"
+                      value={formData.bedrooms}
+                      onChange={(e) => setFormData({ ...formData, bedrooms: Number(e.target.value) })}
+                      min="1"
+                      className="bg-slate-800 border-slate-700 text-white focus:ring-amber-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bathrooms" className="text-slate-300">Bathrooms</Label>
+                    <Input
+                      id="bathrooms"
+                      type="number"
+                      value={formData.bathrooms}
+                      onChange={(e) => setFormData({ ...formData, bathrooms: Number(e.target.value) })}
+                      min="1"
+                      className="bg-slate-800 border-slate-700 text-white focus:ring-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="facilities" className="text-slate-300">Facilities (comma separated)</Label>
+                  <Input
+                    id="facilities"
+                    value={Array.isArray(formData.facilities) ? formData.facilities.join(', ') : formData.facilities}
+                    onChange={(e) => setFormData({ ...formData, facilities: e.target.value.split(',').map(s => s.trim()) })}
+                    placeholder="TV, AC, WiFi, Bathroom"
+                    className="bg-slate-800 border-slate-700 text-white focus:ring-amber-500"
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-slate-300">Description</Label>
                   <textarea
@@ -303,19 +379,67 @@ export function LuxuryRoomManagement() {
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label className="text-slate-300">Room Image</Label>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    {formData.image && !imageFile && (
-                      <div className="size-20 rounded-lg overflow-hidden border border-slate-700 flex-shrink-0">
-                        <ImageWithFallback src={formData.image} alt="Current" className="w-full h-full object-cover" />
+                  <div className="flex flex-col gap-4">
+                    {/* Image Preview Area */}
+                    {(imageFile || formData.image) && (
+                      <div className="relative w-full h-48 md:h-56 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 group">
+                        <ImageWithFallback
+                          src={imageFile ? URL.createObjectURL(imageFile) : formData.image}
+                          alt="Room Preview"
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <p className="text-white font-medium text-sm">Current Preview</p>
+                        </div>
+                        {imageFile && (
+                          <button
+                            onClick={() => setImageFile(null)}
+                            className="absolute top-2 right-2 p-1.5 bg-red-500/80 text-white rounded-full hover:bg-red-600 transition-colors"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        )}
                       </div>
                     )}
-                    <Input
-                      type="file"
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImageFile(e.target.files?.[0] || null)}
-                      className="bg-slate-800 border-slate-700 text-white text-xs h-auto py-2"
-                    />
+
+                    {/* Styled Upload Button */}
+                    <div className="relative">
+                      <input
+                        type="file"
+                        id="image-upload"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImageFile(e.target.files?.[0] || null)}
+                      />
+                      <label
+                        htmlFor="image-upload"
+                        className={`
+                          flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-xl cursor-pointer transition-all
+                          ${imageFile 
+                            ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10' 
+                            : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800 hover:border-amber-500/50'
+                          }
+                        `}
+                      >
+                        <div className={`
+                          p-4 rounded-full mb-3 transition-colors
+                          ${imageFile ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-amber-500 group-hover:scale-110'}
+                        `}>
+                          {imageFile ? <Eye className="size-6" /> : <Download className="size-6 rotate-180" />} 
+                        </div>
+                        <p className="text-sm font-bold text-slate-300 mb-1">
+                          {imageFile ? 'Change Image' : 'Click to Upload Image'}
+                        </p>
+                        <p className="text-xs text-slate-500 text-center max-w-xs">
+                          {imageFile 
+                            ? `Selected: ${imageFile.name}` 
+                            : 'SVG, PNG, JPG or GIF (max. 5MB)'
+                          }
+                        </p>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
