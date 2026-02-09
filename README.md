@@ -1,6 +1,6 @@
 # 🏡 Kost Putra Rahmat ZAW - Management System
 
-> _Sistem Manajemen Kos Putra Paling Modern, Kencang, dan Aman di Malang!_
+> _Sistem Manajemen Kos Putra Premium: Modern, Cepat, dan Skalabel._
 
 [![Go](https://img.shields.io/badge/Backend-Go_1.24-blue?style=for-the-badge&logo=go)](https://golang.org)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js_15-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
@@ -9,137 +9,116 @@
 [![Docker](https://img.shields.io/badge/Deployment-Docker-2496ED?style=for-the-badge&logo=docker)](https://docker.com)
 [![Tailwind](https://img.shields.io/badge/Styling-Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com)
 
-Selamat datang di repo **Kost Putra Rahmat ZAW**! 😎  
-Bukan sekedar aplikasi, ini adalah platform premium buat penghuni dan pengelola kos yang mengutamakan kecepatan (SWR), keamanan (Midtrans Integration + Secure Auth), dan kenyamanan UI (Modern Web Design).
+**Kost Putra Rahmat ZAW** adalah platform manajemen kos terintegrasi yang dirancang untuk memberikan pengalaman terbaik bagi penghuni dan efisiensi maksimal bagi manajemen. Memadukan arsitektur **Clean Architecture (Golang)** yang tangguh dengan antarmuka **Next.js** yang elegan.
 
 ---
 
-## 🗺️ Meluncur di Arsitektur Modern
+## 🏗️ Arsitektur Sistem
 
-Aplikasi ini menggunakan arsitektur modern yang memisahkan antara frontend dan backend (Decoupled Architecture).
+Proyek ini mengimplementasikan **Decoupled Architecture** untuk memastikan skalabilitas dan performa tinggi.
 
 ```mermaid
 graph TD
-    User("👱 Penghuni/Admin") -->|HTTPS| FE["🏠 Frontend Lobby<br>(Next.js + SWR Cache)"]
-    FE -->|API Request| BE["🏢 Backend Kantor<br>(Golang API)"]
-    BE -->|Query| DB[("🗄️ Database<br>PostgreSQL")]
-    BE -->|Payment| Midtrans["💳 Payment Gateway<br>(Midtrans Snap)"]
-    BE -->|Auth| Satpam["👮 Auth Guard<br>(JWT + Argon2)"]
+    User("👱 Penghuni/Admin") -->|HTTPS| FE["🏠 Frontend (Next.js + SWR)"]
+    FE -->|REST API| BE["🏢 Backend (Golang API)"]
+    BE -->|GORM| DB[("🗄️ Database PostgreSQL")]
+    BE -->|Payment SDK| Midtrans["💳 Midtrans Payment"]
+    BE -->|Auth| Security["🔐 JWT + Argon2"]
     
-    subgraph "Frontend Engine"
-    FE --- SWR[SWR Data Sync]
-    FE --- Framer[Framer Motion Animations]
+    subgraph "Frontend Layer"
+    FE --- Shadcn["Radix UI / Shadcn"]
+    FE --- Recharts["Recharts Analytics"]
+    FE --- Motion["Framer Motion"]
     end
 
-    subgraph "Backend Engine"
-    BE --- Gin[Gin Gonic Framework]
-    BE --- Repo[Repository Pattern]
+    subgraph "Backend Layer"
+    BE --- Gin["Gin Web Framework"]
+    BE --- Layer["Clean Arch (Repo Pattern)"]
     end
 ```
 
 ---
 
-## ✨ Fitur Unggulan (Premium Features)
+## ✨ Fitur Utama
 
-### 🎨 Frontend (The User Experience)
+### 🛡️ Keamanan & Autentikasi Modern
+- **Google OAuth 2.0 Integration**: Login cepat dan aman menggunakan akun Google.
+- **Robust JWT Auth**: Manajemen sesi yang aman dengan JSON Web Tokens.
+- **Secure Password Reset**: Sistem reset password berbasis email yang terenkripsi.
+- **Argon2 Hashing**: Standar hashing password tingkat industri.
 
-- **⚡ Zero-Loading Navigation**: Berkat **SWR**, data di-cache otomatis. Pindah tab? Instan!
-- **💎 Glassmorphism UI**: Tampilan modern dengan efek transparansi & blur yang premium menggunakan **Tailwind CSS**.
-- **🎭 Smooth Animations**: Interaksi halus saat buka modal atau transisi halaman via **Framer Motion**.
-- **📱 Ultra Responsive**: Nyaman dibuka dari HP Android, iPhone, sampai monitor gaming jumbo.
-- **🌙 Theme Switcher**: Dukungan penuh Dark Mode & Light Mode yang elegan.
-- **💸 Pembayaran Mudah**: Integrasi langsung dengan **Midtrans** untuk pembayaran otomatis dan konfirmasi instan.
+### 📊 Luxury Admin Dashboard
+- **Real-time Analytics**: Visualisasi tren pendapatan dan statistik okupansi menggunakan **Recharts**.
+- **Financial Reports**: Laporan keuangan mendetail (Total Revenue, Pending Payments, Potential Revenue).
+- **Metric Dashboard**: Monitoring penyewa aktif, kamar tersedia, dan performa pembayaran secara instan.
+- **Auto-Refresh**: Data yang selalu mutakhir dengan sistem sinkronisasi otomatis.
 
-### ⚙️ Backend (The Powerhouse)
+### 💸 Sistem Pembayaran & Booking
+- **Midtrans Snap Integration**: Pembayaran otomatis melalui berbagai kanal (VA, E-Wallet, Kartu Kredit).
+- **Automated Status Update**: Status kamar otomatis berubah setelah pembayaran terkonfirmasi.
+- **Booking Flow**: Proses pemesanan kamar yang intuitif dengan validasi ketersediaan real-time.
 
-- **🏎️ High Performance**: Ditenagai **Go** dengan kompilasi super cepat.
-- **🗄️ Relational Database**: Menggunakan **PostgreSQL** untuk integritas data yang kuat (booking, user, payment).
-- **🔐 Security First**: CORS policy ketat, password hashing yang aman, dan JWT authentication.
-- **💳 Payment Automation**: Verifikasi pembayaran otomatis (Midtrans) sehingga status kamar langsung terupdate.
-- **🏢 Clean Architecture**: Menggunakan pattern `Handler -> Service -> Repository` yang mudah dirawat.
-- **📝 Live Documentation**: Dokumentasi API interaktif menggunakan **Swagger UI**.
+### 🎨 User Experience (UX)
+- **⚡ Zero-Loading UI**: Optimasi navigasi dengan caching **SWR**.
+- **💎 Glassmorphism Design**: Antarmuka modern dengan efek blur dan transparansi yang premium.
+- **📱 Responsive Layout**: Dioptimalkan secara penuh untuk perangkat mobile hingga desktop.
+- **🌙 Dynamic Theming**: Dukungan Dark Mode dan Light Mode yang elegan.
 
 ---
 
-## 📁 Struktur Bangunan (Folders)
+## 📁 Struktur Proyek
 
 ```text
 /
 ├── be/                 # 🏗️ Backend (Golang Engine)
-│   ├── cmd/            # Entry point (main.go)
-│   ├── internal/       # Core logic (Handlers, Services, Repos)
-│   └── docs/           # API Docs (Swagger)
+│   ├── cmd/            # Entry point aplikasi
+│   ├── internal/       # Business Logic (Handlers, Services, Repositories)
+│   └── utils/          # Helper & Validation tools
 ├── fe/                 # 🎨 Frontend (Next.js Application)
-│   ├── app/            # Pages & Components
-│   ├── context/        # Global State (Login, Theme)
-│   └── services/       # API integration logic
-├── compose.yaml        # 🐳 Blueprint Docker (One-click setup)
-└── README.md           # 📍 Peta Utama
+│   ├── app/            # App Router (Pages & Components)
+│   ├── context/        # State Management
+│   └── services/       # API Consumer Layer
+├── docs/               # 📍 Dokumentasi Teknis
+└── compose.yaml        # 🐳 Docker Infrastructure Blueprint
 ```
 
 ---
 
-## 🚀 Cara Mulai (Getting Started)
+## 🚀 Instalasi Cepat
 
-### 📋 Prasyarat
+### Prasyarat
+- PostgreSQL 15+
+- Node.js 18+
+- Go 1.24+
 
-- **PostgreSQL** (Installed & Running)
-- **Node.js 18+**
-- **Go 1.22+**
-- **Midtrans Account** (Sandbox/Production Keys)
-
-### 📦 Setup Database
-
-Pastikan buat database bernama `tugas_arkan` (atau sesuai `.env`) di PostgreSQL Anda.
-
-### 🛠️ Jalur Tukang (Development)
-
-#### **1. Backend (`/be`)**
-
-Konfigurasi `.env`:
-Salin `be/.env.example` ke `be/.env` dan isi kredensial DB serta Midtrans Anda.
-
-```bash
-cd be
-# Install dependencies
-go mod tidy
-
-# Jalankan server
-go run cmd/api/main.go
-```
-*Server berjalan di port 8081*
-
-#### **2. Frontend (`/fe`)**
-
-Konfigurasi `.env`:
-Buat file `fe/.env` jika perlu kustomisasi URL API.
-
-```bash
-cd fe
-# Install paket
-npm install
-
-# Jalankan mode dev
-npm run dev
-```
-*Akses di http://localhost:3000*
+### Setup Local
+1. **Database**: Buat database bernama `tugas_arkan`.
+2. **Backend**: 
+   ```bash
+   cd be && go mod tidy
+   go run cmd/api/main.go
+   ```
+3. **Frontend**:
+   ```bash
+   cd fe && npm install
+   npm run dev
+   ```
 
 ---
 
-## 🛣️ Rencana Renovasi (Roadmap)
+## 🛣️ Roadmap Pengembangan
 
-- [x] 💳 **Otomatisasi Pembayaran**: Integrasi Midtrans sukses!
-- [x] 🔒 **Keamanan**: Auth dengan JWT dan Google OAuth.
-- [ ] 💬 **In-App Messaging**: Chat langsung antara penyewa dan admin.
-- [ ] 📅 **Kalender Pintar**: Notifikasi jatuh tempo sewa otomatis via WhatsApp.
-- [ ] 📊 **Dashboard Juragan**: Laporan keuangan lengkap dalam hitungan detik.
+- [x] 🏦 **Automated Payment**: Integrasi Midtrans (Selesai).
+- [x] 🔐 **Advanced Security**: JWT + Google OAuth + Password Reset (Selesai).
+- [x] 📊 **Luxury Dashboard**: Analytics & Financial Reporting (Selesai).
+- [ ] 💬 **Integrated Chat**: Sistem komunikasi in-app.
+- [ ] 📱 **Mobile App**: Versi native Android/iOS.
+- [ ] 🤖 **Smart Notifications**: Pengingat otomatis via WhatsApp/Email.
 
 ---
 
 ## 📄 Lisensi
 
-Distribusi di bawah **MIT License**. Silakan pakai dan modifikasi, tapi jangan lupa bawa martabak ke Malang ya! 😉
+Didistribusikan di bawah **MIT License**.
 
----
-
-> _Dibuat di Malang. Kost Putra Rahmat ZAW - Home away from home._
+> _Handcrafted with ❤️ in Malang. Kost Putra Rahmat ZAW - Home away from home._
