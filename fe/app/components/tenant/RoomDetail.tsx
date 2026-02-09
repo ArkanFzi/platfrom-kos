@@ -43,7 +43,7 @@ import { toast } from "sonner";
 
 interface RoomDetailProps {
   roomId: string;
-  onBookNow: (roomId: string) => void;
+  onBookNow: (roomId: string, initialData?: { moveInDate?: string; duration?: string; guests?: string }) => void;
   onBack: () => void;
   isLoggedIn?: boolean;
   onLoginPrompt?: () => void;
@@ -246,6 +246,23 @@ export function RoomDetail({
     );
   };
 
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: room.name,
+          text: `Check out this amazing room: ${room.name}`,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success("Link copied to clipboard!");
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+    }
+  };
+
   const averageRating =
     reviews.length > 0
       ? (
@@ -288,6 +305,7 @@ export function RoomDetail({
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
+              onClick={handleShare}
               className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
             >
               <Share2 className="w-6 h-6 text-slate-600 dark:text-slate-400" />
@@ -744,7 +762,15 @@ export function RoomDetail({
               <Button
                 onClick={() => {
                   if (!isLoggedIn) onLoginPrompt?.();
-                  else onBookNow(roomId);
+                  else {
+                      // Format date to YYYY-MM-DD for consistency
+                      const formattedDate = date ? format(date, "yyyy-MM-dd") : undefined;
+                      onBookNow(roomId, {
+                          moveInDate: formattedDate,
+                          duration,
+                          guests
+                      });
+                  }
                 }}
                 className="w-full bg-slate-900 hover:bg-amber-500 text-white h-12 lg:h-14 text-sm lg:text-lg font-bold rounded-xl shadow-xl shadow-stone-900/20 transition-all active:scale-95"
               >

@@ -1,8 +1,10 @@
 package service
 
 import (
+	"fmt"
 	"koskosan-be/internal/models"
 	"koskosan-be/internal/repository"
+	"koskosan-be/internal/utils"
 	"time"
 
 	"gorm.io/gorm"
@@ -25,10 +27,12 @@ type paymentService struct {
 	kamarRepo       repository.KamarRepository
 	midtransService MidtransService
 	db              *gorm.DB
+	emailSender     utils.EmailSender
+	waSender        utils.WhatsAppSender
 }
 
-func NewPaymentService(repo repository.PaymentRepository, bookingRepo repository.BookingRepository, kamarRepo repository.KamarRepository, midtransService MidtransService, db *gorm.DB) PaymentService {
-	return &paymentService{repo, bookingRepo, kamarRepo, midtransService, db}
+func NewPaymentService(repo repository.PaymentRepository, bookingRepo repository.BookingRepository, kamarRepo repository.KamarRepository, midtransService MidtransService, db *gorm.DB, emailSender utils.EmailSender, waSender utils.WhatsAppSender) PaymentService {
+	return &paymentService{repo, bookingRepo, kamarRepo, midtransService, db, emailSender, waSender}
 }
 
 func (s *paymentService) GetAllPayments() ([]models.Pembayaran, error) {
@@ -68,6 +72,10 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 				}
 			}
 		}
+		
+		// Send Notifications
+		go s.sendSuccessNotifications(payment.ID)
+		
 		return nil
 	})
 }
@@ -183,6 +191,9 @@ func (s *paymentService) ConfirmCashPayment(paymentID uint, buktiTransfer string
 				}
 			}
 		}
+		
+		// Send Notifications
+		go s.sendSuccessNotifications(payment.ID)
 
 		return nil
 	})
@@ -228,6 +239,10 @@ func (s *paymentService) HandleWebhook(payload map[string]interface{}) error {
 					}
 				}
 			}
+			
+			// Send Notifications
+			go s.sendSuccessNotifications(payment.ID)
+			
 		case "expire", "cancel", "deny":
 			payment.StatusPembayaran = "Failed"
 			if err := txRepo.Update(payment); err != nil {
@@ -318,6 +333,10 @@ func (s *paymentService) VerifyPayment(orderID string) error {
 					}
 				}
 			}
+			
+			// Send Notifications
+			go s.sendSuccessNotifications(payment.ID)
+
 		case "expire", "cancel", "deny":
 			payment.StatusPembayaran = "Failed"
 			if err := txRepo.Update(payment); err != nil {
@@ -327,4 +346,26 @@ func (s *paymentService) VerifyPayment(orderID string) error {
 
 		return nil
 	})
+}
+
+// Helper to send notifications
+func (s *paymentService) sendSuccessNotifications(paymentID uint) {
+	var payment models.Pembayaran
+	if err := s.db.Preload("Pemesanan.Penyewa").Preload("Pemesanan.Kamar").First(&payment, paymentID).Error; err != nil {
+		return
+	}
+
+	tenant := payment.Pemesanan.Penyewa
+	
+	// Email
+	if tenant.Email != "" {
+		s.emailSender.SendPaymentSuccessEmail(tenant.Email, tenant.NamaLengkap, payment.JumlahBayar, time.Now())
+	}
+	
+	// WhatsApp
+	if tenant.NomorHP != "" {
+		msg := fmt.Sprintf("Terima kasih %s! Pembayaran sebesar Rp %.0f untuk kamar %s telah kami terima.", 
+			tenant.NamaLengkap, payment.JumlahBayar, payment.Pemesanan.Kamar.NomorKamar)
+		s.waSender.SendWhatsApp(tenant.NomorHP, msg)
+	}
 }

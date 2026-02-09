@@ -31,6 +31,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
   // Initialize with server-safe defaults
   const [activeView, setActiveView] = useState('home');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [bookingDraft, setBookingDraft] = useState<{ moveInDate?: string; duration?: string; guests?: string } | undefined>(undefined);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -216,8 +217,9 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
     setActiveView('room-detail');
   };
 
-  const navigateToBooking = (roomId: string) => {
+  const navigateToBooking = (roomId: string, initialData?: { moveInDate?: string; duration?: string; guests?: string }) => {
     setSelectedRoomId(roomId);
+    setBookingDraft(initialData);
     setActiveView('booking');
   };
 
@@ -546,7 +548,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                   </div>
                 </div>
               ) : (
-                <BookingFlow roomId={selectedRoomId} onBack={() => setActiveView('room-detail')} />
+                <BookingFlow roomId={selectedRoomId} initialData={bookingDraft} onBack={() => setActiveView('room-detail')} />
               )
             )}
 

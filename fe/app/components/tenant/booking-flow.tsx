@@ -33,6 +33,11 @@ declare global {
 interface BookingFlowProps {
   roomId: string;
   onBack: () => void;
+  initialData?: {
+    moveInDate?: string;
+    duration?: string;
+    guests?: string;
+  };
 }
 
 interface BookingResponse {
@@ -61,7 +66,7 @@ const roomDetails: { [key: string]: any } = {
   }
 };
 
-export function BookingFlow({ roomId, onBack }: BookingFlowProps) {
+export function BookingFlow({ roomId, onBack, initialData }: BookingFlowProps) {
   const [step, setStep] = useState(1);
   const [bookingComplete, setBookingComplete] = useState(false);
   const [bookingId, setBookingId] = useState("");
@@ -69,8 +74,9 @@ export function BookingFlow({ roomId, onBack }: BookingFlowProps) {
     fullName: "",
     email: "",
     phone: "",
-    moveInDate: "",
-    duration: "6",
+    moveInDate: initialData?.moveInDate || "",
+    duration: initialData?.duration || "6", // Default fallback if not provided
+    guests: initialData?.guests || "1",
     paymentMethod: "midtrans", // 'midtrans' atau 'cash'
     paymentType: "full", // 'full' atau 'dp' (down payment)
   });
@@ -446,6 +452,29 @@ export function BookingFlow({ roomId, onBack }: BookingFlowProps) {
                           handleInputChange("moveInDate", e.target.value)
                         }
                       />
+                    </div>
+
+                    {/* Guests Input (Read-only or Editable) */}
+                    {/* Since we don't have a guests field in the original form, adding it now */}
+                     <div className="space-y-2">
+                      <Label htmlFor="guests">Number of Guests</Label>
+                      <Select
+                        value={formData.guests}
+                        onValueChange={(val) =>
+                          handleInputChange("guests", val)
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select guests" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3].map((g) => (
+                            <SelectItem key={g} value={String(g)}>
+                              {g} Guest{g > 1 ? "s" : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">

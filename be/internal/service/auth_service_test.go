@@ -5,6 +5,7 @@ import (
 	"koskosan-be/internal/config"
 	"koskosan-be/internal/models"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -98,6 +99,16 @@ func (m *MockEmailSender) SendEmail(to, subject, body string) error {
 
 func (m *MockEmailSender) SendResetPasswordEmail(to, token string) error {
 	args := m.Called(to, token)
+	return args.Error(0)
+}
+
+func (m *MockEmailSender) SendPaymentSuccessEmail(toEmail, tenantName string, amount float64, date time.Time) error {
+	args := m.Called(toEmail, tenantName, amount, date)
+	return args.Error(0)
+}
+
+func (m *MockEmailSender) SendPaymentReminderEmail(toEmail, tenantName string, amount float64, dueDate time.Time, paymentLink string) error {
+	args := m.Called(toEmail, tenantName, amount, dueDate, paymentLink)
 	return args.Error(0)
 }
 

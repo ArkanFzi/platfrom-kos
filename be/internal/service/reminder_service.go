@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"koskosan-be/internal/models"
 	"koskosan-be/internal/repository"
+	"koskosan-be/internal/utils"
 	"time"
 
 	"gorm.io/gorm"
@@ -20,11 +21,12 @@ type ReminderService interface {
 type reminderService struct {
 	paymentRepo repository.PaymentRepository
 	db          *gorm.DB
-	// Bisa ditambahkan service untuk email/notification di masa depan
+	emailSender utils.EmailSender
+	waSender    utils.WhatsAppSender
 }
 
-func NewReminderService(paymentRepo repository.PaymentRepository, db *gorm.DB) ReminderService {
-	return &reminderService{paymentRepo, db}
+func NewReminderService(paymentRepo repository.PaymentRepository, db *gorm.DB, emailSender utils.EmailSender, waSender utils.WhatsAppSender) ReminderService {
+	return &reminderService{paymentRepo, db, emailSender, waSender}
 }
 
 // CreateMonthlyReminders membuat reminder untuk semua pembayaran DP yang jatuh tempo
@@ -90,8 +92,36 @@ func (s *reminderService) SendPendingReminders() ([]models.PaymentReminder, erro
 	}
 
 	for i := range reminders {
-		// Simulasi kirim notifikasi
-		fmt.Printf("Display notification for Reminder ID %d: Please pay Rp %.2f\n", reminders[i].ID, reminders[i].JumlahBayar)
+		// Use Preloaded data to get tenant details
+		var reminder models.PaymentReminder
+		
+		if err := s.db.Preload("Pembayaran.Pemesanan.Penyewa").Preload("Pembayaran.Pemesanan.Kamar").First(&reminder, reminders[i].ID).Error; err == nil {
+			
+			tenant := reminder.Pembayaran.Pemesanan.Penyewa
+			kamar := reminder.Pembayaran.Pemesanan.Kamar
+			
+			// 1. Send Email
+			if tenant.Email != "" {
+				// Generate payment link (placeholder or real if available)
+				paymentLink := fmt.Sprintf("http://localhost:3000/dashboard/payments/%d", reminder.PembayaranID)
+				
+				go func(email, name string, amount float64, due time.Time, link string) {
+					s.emailSender.SendPaymentReminderEmail(email, name, amount, due, link)
+				}(tenant.Email, tenant.NamaLengkap, reminder.JumlahBayar, reminder.Pembayaran.TanggalJatuhTempo, paymentLink)
+			}
+			
+			// 2. Send WhatsApp
+			if tenant.NomorHP != "" {
+				msg := fmt.Sprintf("Halo %s, ini pengingat tagihan kos kamar %s sebesar Rp %.0f jatuh tempo pada %s. Mohon segera dibayar.", 
+					tenant.NamaLengkap, kamar.NomorKamar, reminder.JumlahBayar, reminder.Pembayaran.TanggalJatuhTempo.Format("02 Jan 2006"))
+				
+				go func(phone, message string) {
+					s.waSender.SendWhatsApp(phone, message)
+				}(tenant.NomorHP, msg)
+			}
+			
+			fmt.Printf("Sent notifications for Reminder ID %d\n", reminder.ID)
+		}
 		
 		// Update status
 		reminders[i].IsSent = true

@@ -7,6 +7,7 @@ import (
 	"koskosan-be/internal/middleware"
 	"koskosan-be/internal/repository"
 	"koskosan-be/internal/routes"
+	"koskosan-be/internal/scheduler"
 	"koskosan-be/internal/service"
 	"koskosan-be/internal/utils"
 	"log"
@@ -36,6 +37,8 @@ func main() {
 
 	// 4. Initialize Services
 	emailSender := utils.NewEmailSender(cfg)
+	waSender := utils.NewWhatsAppSender(cfg)
+
 	authService := service.NewAuthService(userRepo, penyewaRepo, cfg, emailSender)
 	kamarService := service.NewKamarService(kamarRepo)
 	galleryService := service.NewGalleryService(galleryRepo)
@@ -44,7 +47,7 @@ func main() {
 	profileService := service.NewProfileService(userRepo, penyewaRepo)
 	midtransService := service.NewMidtransService()
 	bookingService := service.NewBookingService(bookingRepo, penyewaRepo)
-	paymentService := service.NewPaymentService(paymentRepo, bookingRepo, kamarRepo, midtransService, db)
+	paymentService := service.NewPaymentService(paymentRepo, bookingRepo, kamarRepo, midtransService, db, emailSender, waSender)
 	tenantService := service.NewTenantService(penyewaRepo)
 	contactService := service.NewContactService()
 
@@ -108,33 +111,22 @@ func main() {
 	go func() {
 		utils.GlobalLogger.Info("Starting background workers...")
 		
-		// Reminder Service Worker
-		reminderService := service.NewReminderService(paymentRepo, db)
+		// Reminder Service & Scheduler
+		reminderService := service.NewReminderService(paymentRepo, db, emailSender, waSender)
+		schedulerService := scheduler.NewScheduler(reminderService)
+		schedulerService.Start()
 		
 		// Run initial checks
 		if err := bookingService.AutoCancelExpiredBookings(); err != nil {
 			utils.GlobalLogger.Error("Failed to auto-cancel bookings: %v", err)
 		}
 		
-		// Tickers
+		// Tickers (Only for Cancel now, Reminder handled by Scheduler)
 		cancelTicker := time.NewTicker(1 * time.Hour)
-		dailyTicker := time.NewTicker(24 * time.Hour) // For daily reminders
-		reminderTicker := time.NewTicker(4 * time.Hour) // Check pending reminders every 4 hours
 
-		for {
-			select {
-			case <-cancelTicker.C:
-				if err := bookingService.AutoCancelExpiredBookings(); err != nil {
-					utils.GlobalLogger.Error("Failed to auto-cancel bookings: %v", err)
-				}
-			case <-dailyTicker.C:
-				if err := reminderService.CreateMonthlyReminders(); err != nil {
-					utils.GlobalLogger.Error("Failed to create monthly reminders: %v", err)
-				}
-			case <-reminderTicker.C:
-				if _, err := reminderService.SendPendingReminders(); err != nil {
-					utils.GlobalLogger.Error("Failed to send pending reminders: %v", err)
-				}
+		for range cancelTicker.C {
+			if err := bookingService.AutoCancelExpiredBookings(); err != nil {
+				utils.GlobalLogger.Error("Failed to auto-cancel bookings: %v", err)
 			}
 		}
 	}()
