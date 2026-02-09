@@ -140,3 +140,20 @@ func (h *PaymentHandler) VerifyPayment(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Payment verified successfully"})
 }
+
+func (h *PaymentHandler) GetReminders(c *gin.Context) {
+	userIDLocal, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID := uint(userIDLocal.(int))
+
+	reminders, err := h.service.GetPaymentReminders(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, reminders)
+}

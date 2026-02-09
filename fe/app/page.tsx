@@ -62,7 +62,7 @@ export default function App() {
     setIsClient(true);
     
     // FETCH STORED DATA FIRST
-    const storedToken = localStorage.getItem('token');
+    const storedToken = localStorage.getItem('token') || sessionStorage.getItem('token');
     const storedViewMode = localStorage.getItem(STORAGE_KEYS.VIEW_MODE) as ViewMode;
     const storedUserCheckRole = localStorage.getItem(STORAGE_KEYS.USER_ROLE) as "admin" | "tenant" | "guest";
     
@@ -244,14 +244,14 @@ export default function App() {
         <div className="flex-1 overflow-auto">
           <div className="p-4 bg-slate-900/50 border-b border-slate-800/50 flex items-center justify-between">
             <Button variant="outline" onClick={() => setViewMode("home")}>
-              Back to Home
+              Kembali ke Beranda
             </Button>
             <Button
               variant="outline"
               onClick={() => setViewMode("tenant")}
               className="bg-slate-800/50 border-slate-700 text-white hover:bg-slate-800"
             >
-              Switch to User View
+              Beralih ke Tampilan Pengguna
             </Button>
             <Button
               variant="destructive"
@@ -263,7 +263,7 @@ export default function App() {
               }}
               className="bg-red-600 hover:bg-red-700"
             >
-              Logout
+              Keluar
             </Button>
           </div>
           {adminPage === "dashboard" && <LuxuryDashboard />}

@@ -14,7 +14,7 @@ type PaymentService interface {
 	CreatePaymentSession(pemesananID uint, paymentType string, paymentMethod string) (string, string, error)
 	HandleWebhook(payload map[string]interface{}) error
 	ConfirmCashPayment(paymentID uint, buktiTransfer string) error
-	GetPaymentReminders() ([]models.PaymentReminder, error)
+	GetPaymentReminders(userID uint) ([]models.PaymentReminder, error)
 	CreatePaymentReminder(pembayaranID uint, jumlahBayar float64, daysUntilDue int) error
 	VerifyPayment(orderID string) error
 }
@@ -238,9 +238,20 @@ func (s *paymentService) HandleWebhook(payload map[string]interface{}) error {
 	})
 }
 
-func (s *paymentService) GetPaymentReminders() ([]models.PaymentReminder, error) {
-	// Note: Implementasi repository method GetPaymentReminders() sesuai kebutuhan
-	return []models.PaymentReminder{}, nil
+func (s *paymentService) GetPaymentReminders(userID uint) ([]models.PaymentReminder, error) {
+	var reminders []models.PaymentReminder
+	// Join tables to find reminders for the specific user
+	// User -> Penyewa -> Pemesanan -> Pembayaran -> PaymentReminder
+	err := s.db.Table("payment_reminders").
+		Joins("JOIN pembayarans ON pembayarans.id = payment_reminders.pembayaran_id").
+		Joins("JOIN pemesanans ON pemesanans.id = pembayarans.pemesanan_id").
+		Joins("JOIN penyewas ON penyewas.id = pemesanans.penyewa_id").
+		Where("penyewas.user_id = ?", userID).
+		Preload("Pembayaran.Pemesanan.Kamar").
+		Order("payment_reminders.tanggal_reminder ASC").
+		Find(&reminders).Error
+
+	return reminders, err
 }
 
 func (s *paymentService) CreatePaymentReminder(pembayaranID uint, jumlahBayar float64, daysUntilDue int) error {

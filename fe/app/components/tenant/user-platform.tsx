@@ -18,7 +18,7 @@ import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { ThemeToggleButton } from '@/app/components/ui/ThemeToggleButton';
 import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
-import { api } from '@/app/services/api';
+import { api, PaymentReminder } from '@/app/services/api';
 import { LogIn } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -53,10 +53,30 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
   const [passwordError, setPasswordError] = useState('');
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [userName, setUserName] = useState('');
 
   useEffect(() => {
     const init = () => {
       setIsClient(true);
+      
+      // Check both storages for token
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const hasToken = !!token;
+      setIsLoggedIn(hasToken);
+
+      if (hasToken) {
+        try {
+          // Check both storages for user data
+          const userStr = localStorage.getItem('user') || sessionStorage.getItem('user');
+          if (userStr) {
+            const userObj = JSON.parse(userStr);
+            setUserName(userObj.username || userObj.name || 'User');
+          }
+        } catch (e) {
+          console.error("Error parsing user from storage", e);
+        }
+      }
+
       const storedActiveView = localStorage.getItem('user_platform_active_view');
       if (storedActiveView) setActiveView(storedActiveView);
 
@@ -68,9 +88,6 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
 
       const storedEditing = localStorage.getItem('user_platform_is_editing_profile');
       if (storedEditing) setIsEditingProfile(storedEditing === 'true');
-
-      const token = localStorage.getItem('token');
-      setIsLoggedIn(!!token);
     };
 
     setTimeout(init, 0);
@@ -113,6 +130,8 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
     }
   }, [isClient, isLoggedIn, activeView]);
 
+
+
   const fetchProfile = async () => {
     setIsLoadingProfile(true);
     try {
@@ -129,13 +148,13 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
       }
 
       setUserData({
-        name: data.penyewa?.nama_lengkap || data.user?.username || 'Guest',
+        name: data.penyewa?.nama_lengkap || data.user?.username || 'Tamu',
         email: data.user?.email || data.user?.username || 'N/A',
         phone: data.penyewa?.nomor_hp || 'N/A',
         address: data.penyewa?.alamat_asal || 'N/A',
         nik: data.penyewa?.nik || '',
         jenisKelamin: data.penyewa?.jenis_kelamin || '',
-        joinDate: data.user?.created_at ? new Date(data.user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'N/A',
+        joinDate: data.user?.created_at ? new Date(data.user.created_at).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) : 'N/A',
         status: 'Active',
         totalBookings: bookingsCount,
         totalSpent: totalSpent,
@@ -158,6 +177,8 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
         isGoogleUser: data.is_google_user,
         profileImage: '',
       });
+      // Update simple userName state too
+      setUserName(data.penyewa?.nama_lengkap || data.user?.username || 'User');
     } catch (e) {
       console.error("Failed to fetch profile", e);
     } finally {
@@ -167,7 +188,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
 
   // Editable user data
   const [userData, setUserData] = useState({
-    name: 'Loading...',
+    name: 'Memuat...',
     email: '',
     phone: '',
     address: '',
@@ -224,10 +245,12 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
       setIsEditingProfile(false);
       setSelectedFile(null);
       setPreviewUrl(null);
-      toast.success("Profile updated successfully!");
+      toast.success("Profil berhasil diperbarui!");
+      // Update simple userName
+      setUserName(editData.name);
     } catch (e) {
       console.error("Failed to update profile", e);
-      toast.error("Failed to update profile. Please try again.");
+      toast.error("Gagal memperbarui profil. Silakan coba lagi.");
     }
   };
 
@@ -252,12 +275,12 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
     setPasswordError('');
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError('New passwords do not match');
+      setPasswordError('Password baru tidak cocok');
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
+      setPasswordError('Password minimal 6 karakter');
       return;
     }
 
@@ -267,7 +290,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
         old_password: passwordData.oldPassword,
         new_password: passwordData.newPassword,
       });
-      toast.success('Password updated successfully!');
+      toast.success('Password berhasil diperbarui!');
       setIsChangingPassword(false);
       setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err: unknown) {
@@ -275,8 +298,8 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
         setPasswordError(err.message);
         toast.error(err.message);
       } else {
-        setPasswordError('Failed to change password');
-        toast.error('Failed to change password');
+        setPasswordError('Gagal mengganti password');
+        toast.error('Gagal mengganti password');
       }
     } finally {
       setIsPasswordLoading(false);
@@ -284,11 +307,11 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
   };
 
   const menuItems = [
-    { id: 'home', label: 'Home', icon: Home },
-    { id: 'gallery', label: 'Gallery Koskosan', icon: ImageIcon },
+    { id: 'home', label: 'Beranda', icon: Home },
+    { id: 'gallery', label: 'Galeri Kos', icon: ImageIcon },
 
-    { id: 'history', label: 'My Bookings', icon: History, hidden: !isLoggedIn },
-    { id: 'profile', label: 'Profile', icon: User, hidden: !isLoggedIn },
+    { id: 'history', label: 'Pesanan & Tagihan', icon: History, hidden: !isLoggedIn },
+    { id: 'profile', label: 'Profil', icon: User, hidden: !isLoggedIn },
   ];
 
   if (!isMounted) return null;
@@ -337,7 +360,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm bg-stone-900 text-white hover:bg-stone-800 transition-all duration-200 ml-2 shadow-lg"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span>Login</span>
+                  <span>Masuk</span>
                 </motion.button>
               )}
 
@@ -349,7 +372,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-all duration-200 ml-2"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>Contact Us</span>
+                <span>Hubungi Kami</span>
               </motion.button>
 
               {/* Theme Toggle Button */}
@@ -448,7 +471,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                       }`}
                   >
                     <MessageCircle className="w-5 h-5" />
-                    <span className="text-sm">Contact Us</span>
+                    <span className="text-sm">Hubungi Kami</span>
                   </button>
 
                   {!isLoggedIn && (
@@ -460,7 +483,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                       className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium text-white bg-stone-900 hover:bg-stone-800 shadow-lg shadow-stone-900/20"
                     >
                       <LogIn className="w-5 h-5" />
-                      <span className="text-sm">Login</span>
+                      <span className="text-sm">Masuk</span>
                     </button>
                   )}
                 </div>
@@ -491,6 +514,8 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                 onRoomClick={navigateToRoomDetail}
                 isLoggedIn={isLoggedIn}
                 onLoginPrompt={onLogout}
+                userName={userName}
+                onViewHistory={() => setActiveView('history')}
               />
             )}
             {activeView === 'gallery' && <Gallery />}
@@ -515,9 +540,9 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                 <div className="max-w-4xl mx-auto px-4 py-20 text-center">
                   <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
                     <CreditCard className="w-20 h-20 text-blue-500 mx-auto mb-6 opacity-20" />
-                    <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Ready to Move In?</h2>
+                    <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Siap untuk Pindah?</h2>
                     <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-md mx-auto">Silakan login terlebih dahulu untuk melakukan pemesanan kamar premium ini secara aman.</p>
-                    <Button onClick={onLogout} className="bg-stone-900 hover:bg-stone-800 text-white px-10 py-6 text-lg rounded-xl font-bold shadow-xl shadow-stone-900/20">Login to Book</Button>
+                    <Button onClick={onLogout} className="bg-stone-900 hover:bg-stone-800 text-white px-10 py-6 text-lg rounded-xl font-bold shadow-xl shadow-stone-900/20">Masuk untuk Memesan</Button>
                   </div>
                 </div>
               ) : (
@@ -560,7 +585,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                     </div>
                     <div className="flex flex-col items-center justify-center mt-12 gap-3 text-slate-400">
                       <Loader2 className="w-8 h-8 animate-spin" />
-                      <p className="text-sm font-medium">Loading your profile data...</p>
+                      <p className="text-sm font-medium">Memuat data profil...</p>
                     </div>
                   </motion.div>
                 ) : (
@@ -612,7 +637,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                                 size="sm"
                                 className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold px-6 shadow-lg backdrop-blur-sm transition-all"
                               >
-                                Edit Profile
+                                Edit Profil
                               </Button>
                             </div>
                           )}
@@ -621,15 +646,15 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                         {/* Bottom Row: Stats Grid - Separated for cleaner layout */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/10 pt-6">
                             <div className="bg-white/5 p-4 rounded-xl border border-white/5 backdrop-blur-sm flex flex-col items-center md:items-start transition-colors hover:bg-white/10">
-                              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Room Number</p>
+                              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Nomor Kamar</p>
                               <p className="text-2xl font-bold text-white tracking-tight leading-none">{userData.totalBookings > 0 ? '#' + userData.totalBookings : '-'}</p>
                             </div>
                             <div className="bg-white/5 p-4 rounded-xl border border-white/5 backdrop-blur-sm flex flex-col items-center md:items-start transition-colors hover:bg-white/10">
-                              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Total Spent</p>
+                              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Total Pengeluaran</p>
                               <p className="text-2xl font-bold text-white tracking-tight leading-none">Rp {userData.totalSpent.toLocaleString()}</p>
                             </div>
                             <div className="bg-white/5 p-4 rounded-xl border border-white/5 backdrop-blur-sm flex flex-col items-center md:items-start transition-colors hover:bg-white/10">
-                              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Member Since</p>
+                              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Anggota Sejak</p>
                               <p className="text-xl font-bold text-white tracking-tight leading-none">{userData.joinDate}</p>
                             </div>
                         </div>
@@ -643,8 +668,8 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                           <div className="p-8">
                             <div className="flex items-center justify-between mb-8">
                               <div>
-                                <h2 className="text-3xl font-bold text-slate-900">Edit Profile</h2>
-                                <p className="text-slate-600 mt-1">Update your personal information</p>
+                                <h2 className="text-3xl font-bold text-slate-900">Edit Profil</h2>
+                                <p className="text-slate-600 mt-1">Perbarui informasi pribadi Anda</p>
                               </div>
                               <button
                                 onClick={handleCancelEdit}
@@ -663,7 +688,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                                     className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-md group-hover:opacity-75 transition-opacity"
                                   />
                                   <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                                    <span className="text-white text-xs font-bold">Change</span>
+                                    <span className="text-white text-xs font-bold">Ubah</span>
                                     <input
                                       type="file"
                                       className="hidden"
@@ -672,16 +697,16 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                                     />
                                   </label>
                                 </div>
-                                <p className="text-xs text-slate-500 mt-2">Click image to change photo</p>
+                                <p className="text-xs text-slate-500 mt-2">Klik gambar untuk mengganti foto</p>
                               </div>
 
                               <div>
-                                <Label className="text-slate-900 font-semibold mb-3 block">Full Name</Label>
+                                <Label className="text-slate-900 font-semibold mb-3 block">Nama Lengkap</Label>
                                 <Input
                                   value={editData.name}
                                   onChange={(e) => setEditData({ ...editData, name: e.target.value })}
                                   className="border-slate-300 bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2"
-                                  placeholder="Enter your full name"
+                                  placeholder="Masukkan nama lengkap"
                                 />
                               </div>
 
@@ -696,13 +721,13 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                                   />
                                 </div>
                                 <div>
-                                  <Label className="text-slate-900 font-semibold mb-3 block">Gender</Label>
+                                  <Label className="text-slate-900 font-semibold mb-3 block">Jenis Kelamin</Label>
                                   <select
                                     value={editData.jenisKelamin}
                                     onChange={(e) => setEditData({ ...editData, jenisKelamin: e.target.value })}
                                     className="w-full border border-slate-300 rounded-md bg-slate-50 focus:bg-white focus:border-stone-900 text-lg py-2 px-3"
                                   >
-                                    <option value="">Select Gender</option>
+                                    <option value="">Pilih Jenis Kelamin</option>
                                     <option value="Laki-laki">Laki-laki</option>
                                     <option value="Perempuan">Perempuan</option>
                                   </select>
@@ -710,7 +735,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                               </div>
 
                               <div>
-                                <Label className="text-slate-900 font-semibold mb-3 block">Phone Number</Label>
+                                <Label className="text-slate-900 font-semibold mb-3 block">Nomor Telepon</Label>
                                 <Input
                                   value={editData.phone}
                                   onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
@@ -720,7 +745,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                               </div>
 
                               <div>
-                                <Label className="text-slate-900 font-semibold mb-3 block">Address</Label>
+                                <Label className="text-slate-900 font-semibold mb-3 block">Alamat</Label>
                                 <Input
                                   value={editData.address}
                                   onChange={(e) => setEditData({ ...editData, address: e.target.value })}
@@ -734,14 +759,14 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                                   onClick={handleSaveProfile}
                                   className="flex-1 bg-stone-900 hover:bg-stone-800 text-white font-bold py-3 shadow-lg hover:shadow-xl transition-all"
                                 >
-                                  Save Changes
+                                  Simpan Perubahan
                                 </Button>
                                 <Button
                                   onClick={handleCancelEdit}
                                   variant="outline"
                                   className="flex-1 border-2 border-slate-300 hover:bg-slate-50 font-bold py-3"
                                 >
-                                  Cancel
+                                  Batal
                                 </Button>
                               </div>
                             </div>
@@ -757,8 +782,8 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                           <div className="p-8">
                             <div className="flex items-center justify-between mb-6">
                               <div>
-                                <h2 className="text-2xl font-bold text-slate-900">Change Password</h2>
-                                <p className="text-slate-500 text-sm mt-1">Ensure your account stays secure</p>
+                                <h2 className="text-2xl font-bold text-slate-900">Ganti Password</h2>
+                                <p className="text-slate-500 text-sm mt-1">Pastikan akun Anda tetap aman</p>
                               </div>
                               <button
                                 onClick={() => {
@@ -781,7 +806,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                               )}
 
                               <div className="space-y-2">
-                                <Label className="text-sm font-semibold text-slate-700">Current Password</Label>
+                                <Label className="text-sm font-semibold text-slate-700">Password Saat Ini</Label>
                                 <Input
                                   type="password"
                                   required
@@ -793,7 +818,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                               </div>
 
                               <div className="space-y-2">
-                                <Label className="text-sm font-semibold text-slate-700">New Password</Label>
+                                <Label className="text-sm font-semibold text-slate-700">Password Baru</Label>
                                 <Input
                                   type="password"
                                   required
@@ -805,7 +830,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                               </div>
 
                               <div className="space-y-2">
-                                <Label className="text-sm font-semibold text-slate-700">Confirm New Password</Label>
+                                <Label className="text-sm font-semibold text-slate-700">Konfirmasi Password Baru</Label>
                                 <Input
                                   type="password"
                                   required
@@ -822,7 +847,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                                   disabled={isPasswordLoading}
                                   className="flex-1 bg-stone-900 hover:bg-stone-800 text-white font-bold py-2 rounded-xl shadow-lg"
                                 >
-                                  {isPasswordLoading ? 'Updating...' : 'Update Password'}
+                                  {isPasswordLoading ? 'Memperbarui...' : 'Perbarui Password'}
                                 </Button>
                                 <Button
                                   type="button"
@@ -833,7 +858,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                                   }}
                                   className="flex-1 border-slate-200"
                                 >
-                                  Cancel
+                                  Batal
                                 </Button>
                               </div>
                             </form>
@@ -857,19 +882,19 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                             <div className="w-10 h-10 bg-gradient-to-br from-stone-700 to-stone-900 rounded-lg flex items-center justify-center">
                               <Mail className="w-5 h-5 text-white" />
                             </div>
-                            <h2 className="text-2xl font-bold text-slate-900">Personal Information</h2>
+                            <h2 className="text-2xl font-bold text-slate-900">Informasi Pribadi</h2>
                           </div>
 
                           <div className="space-y-6">
                             <div className="pb-4 border-b border-slate-200">
-                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Full Name</label>
+                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Nama Lengkap</label>
                               <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.name}</p>
                             </div>
 
                             <div className="pb-4 border-b border-slate-200">
                               <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
                                 <Mail className="w-4 h-4 text-stone-700" />
-                                Email Address
+                                Alamat Email
                               </label>
                               <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.email}</p>
                             </div>
@@ -877,7 +902,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                             <div className="pb-4 border-b border-slate-200">
                               <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
                                 <Phone className="w-4 h-4 text-stone-700" />
-                                Phone Number
+                                Nomor Telepon
                               </label>
                               <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.phone}</p>
                             </div>
@@ -885,7 +910,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                             <div>
                               <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide mb-2 flex items-center gap-2">
                                 <MapPin className="w-4 h-4 text-stone-700" />
-                                Address
+                                Alamat
                               </label>
                               <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.address}</p>
                             </div>
@@ -900,17 +925,17 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
                               <CreditCard className="w-5 h-5 text-white" />
                             </div>
-                            <h2 className="text-2xl font-bold text-slate-900">Account & Settings</h2>
+                            <h2 className="text-2xl font-bold text-slate-900">Akun & Pengaturan</h2>
                           </div>
 
                           <div className="space-y-6">
                             <div className="pb-4 border-b border-slate-200">
-                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Member Since</label>
+                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Anggota Sejak</label>
                               <p className="text-slate-900 mt-2 text-lg font-semibold">{userData.joinDate}</p>
                             </div>
 
                             <div className="pb-4 border-b border-slate-200">
-                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Account Status</label>
+                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Status Akun</label>
                               <div className="mt-2 flex items-center gap-3">
                                 <div className="w-3 h-3 bg-emerald-400 rounded-full shadow-md" />
                                 <p className="text-slate-900 text-lg font-semibold">{userData.status}</p>
@@ -918,8 +943,8 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                             </div>
 
                             <div className="pb-4 border-b border-slate-200">
-                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Verification</label>
-                              <Badge className="mt-2 bg-emerald-100 text-emerald-800 font-bold px-3 py-1">✓ Email Verified</Badge>
+                              <label className="text-sm text-slate-600 font-semibold uppercase tracking-wide">Verifikasi</label>
+                              <Badge className="mt-2 bg-emerald-100 text-emerald-800 font-bold px-3 py-1">✓ Email Terverifikasi</Badge>
                             </div>
 
                             {!userData?.isGoogleUser && (
@@ -929,7 +954,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                                   variant="outline"
                                   className="w-full font-semibold border-2 border-slate-300 hover:bg-slate-50 py-2"
                                 >
-                                  Change Password
+                                  Ganti Password
                                 </Button>
                               </div>
                             )}
@@ -943,10 +968,10 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                       <Card className="mt-10 p-8 border-red-200 bg-gradient-to-br from-red-50 to-rose-50 hover:shadow-lg transition-all">
                         <div className="flex items-center gap-3 mb-4">
                           <XCircle className="w-6 h-6 text-red-600" />
-                          <h2 className="text-2xl font-bold text-red-900">Danger Zone</h2>
+                          <h2 className="text-2xl font-bold text-red-900">Area Berbahaya</h2>
                         </div>
                         <p className="text-sm text-red-700 mb-8 leading-relaxed">
-                          These actions are irreversible. Please carefully review before proceeding.
+                          Tindakan ini tidak dapat dibatalkan. Mohon tinjau kembali sebelum melanjutkan.
                         </p>
                         <div className="space-y-4">
                           <div className="flex gap-4 flex-col sm:flex-row">
@@ -964,14 +989,14 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
                               className="flex-1 bg-stone-900 hover:bg-stone-800 text-white font-bold py-3 shadow-lg hover:shadow-xl transition-all"
                             >
                               <LogOut className="w-5 h-5 mr-2" />
-                              Logout
+                              Keluar
                             </Button>
 
                             <Button
                               variant="outline"
                               className="flex-1 border-2 border-red-300 text-red-700 hover:bg-red-100 font-semibold py-3"
                             >
-                              Delete Account
+                              Hapus Akun
                             </Button>
                           </div>
                         </div>
@@ -1004,11 +1029,11 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
             <div className="grid grid-cols-2 gap-8 md:contents">
               {/* Quick Links */}
               <div>
-                <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Quick Links</h4>
+                <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Tautan Cepat</h4>
                 <ul className="space-y-3 text-sm">
-                  <li><button onClick={() => setActiveView('home')} className="text-slate-400 hover:text-white transition-colors">Home</button></li>
-                  <li><button onClick={() => setActiveView('gallery')} className="text-slate-400 hover:text-white transition-colors">Gallery</button></li>
-                  <li><button onClick={() => setActiveView('contact')} className="text-slate-400 hover:text-white transition-colors">Contact</button></li>
+                  <li><button onClick={() => setActiveView('home')} className="text-slate-400 hover:text-white transition-colors">Beranda</button></li>
+                  <li><button onClick={() => setActiveView('gallery')} className="text-slate-400 hover:text-white transition-colors">Galeri</button></li>
+                  <li><button onClick={() => setActiveView('contact')} className="text-slate-400 hover:text-white transition-colors">Kontak</button></li>
                   <li><a href="#" className="text-slate-400 hover:text-white transition-colors">FAQ</a></li>
                 </ul>
               </div>
@@ -1017,15 +1042,15 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
               <div>
                 <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Legal</h4>
                 <ul className="space-y-3 text-sm">
-                  <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Privacy Policy</a></li>
-                  <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Terms of Service</a></li>
+                  <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Kebijakan Privasi</a></li>
+                  <li><a href="#" className="text-slate-400 hover:text-white transition-colors">Syarat & Ketentuan</a></li>
                 </ul>
               </div>
             </div>
 
             {/* Contact Info */}
             <div>
-              <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Contact</h4>
+              <h4 className="font-semibold mb-4 text-white uppercase tracking-wide text-sm">Kontak</h4>
               <ul className="space-y-3 text-sm text-slate-400">
                 <li className="flex items-start gap-2">
                   <Mail className="w-4 h-4 text-stone-400 mt-0.5 flex-shrink-0" />

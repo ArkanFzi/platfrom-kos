@@ -210,7 +210,7 @@ func TestRegister_Success(t *testing.T) {
 	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 
 	// Act
-	user, err := authService.Register("newuser", "password", "tenant", "test@example.com", "08123456789", "Jl. Test", "2000-01-01")
+	user, err := authService.Register("newuser", "password", "tenant", "test@example.com", "08123456789", "Jl. Test", "2000-01-01", "1234567890")
 
 	// Assert
 	assert.NoError(t, err)
@@ -236,7 +236,7 @@ func TestRegister_UserAlreadyExists(t *testing.T) {
 	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 
 	// Act
-	user, err := authService.Register("existinguser", "ValidPassword123", "tenant", "", "", "", "")
+	user, err := authService.Register("existinguser", "ValidPassword123", "tenant", "", "", "", "", "")
 
 	// Assert
 	assert.Error(t, err)
@@ -262,7 +262,7 @@ func TestRegister_AdminRole(t *testing.T) {
 	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
 
 	// Act
-	user, err := authService.Register("adminuser", "AdminPass123", "admin", "", "", "", "")
+	user, err := authService.Register("adminuser", "AdminPass123", "admin", "", "", "", "", "")
 
 	// Assert
 	assert.NoError(t, err)

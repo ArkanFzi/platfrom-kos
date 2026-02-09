@@ -20,7 +20,7 @@ interface UserLoginProps {
 export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPassword }: UserLoginProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,7 +35,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Login failed');
+        setError('Login gagal');
       }
     } finally {
       setIsLoading(false);
@@ -77,18 +77,18 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
             </div>
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 md:mb-6 leading-tight tracking-tight">
-              Welcome <span className="text-amber-400">Back</span>
+              Selamat Datang <span className="text-amber-400">Kembali</span>
             </h1>
 
             <p className="text-lg md:text-xl text-stone-300 font-medium leading-relaxed max-w-lg mx-auto mb-6 md:mb-10 opacity-90">
-              Access your premium dashboard to manage bookings and experience world-class comfort.
+              Akses dashboard premium Anda untuk mengelola pemesanan dan rasakan kenyamanan kelas dunia.
             </p>
 
             <div className="flex items-center justify-center gap-6 pt-6 border-t border-white/10">
               <div className="text-center">
                 <p className="text-xl md:text-2xl font-bold text-white">500+</p>
                 <p className="text-stone-400 text-[10px] md:text-sm uppercase tracking-wider font-semibold">
-                  Active Tenants
+                  Penyewa Aktif
                 </p>
               </div>
               <div className="w-px h-8 md:h-10 bg-white/20" />
@@ -97,7 +97,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
                   4.9/5
                 </p>
                 <p className="text-stone-400 text-[10px] md:text-sm uppercase tracking-wider font-semibold">
-                  User Rating
+                  Rating Pengguna
                 </p>
               </div>
             </div>
@@ -133,8 +133,8 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
           </Button>
 
           <div className="mb-10">
-            <h2 className="text-4xl font-bold text-stone-900 tracking-tight mb-3">Tenant Login</h2>
-            <p className="text-slate-500 font-medium leading-relaxed">Enter your credentials to access your portal.</p>
+            <h2 className="text-4xl font-bold text-stone-900 tracking-tight mb-3">Login Penghuni</h2>
+            <p className="text-slate-500 font-medium leading-relaxed">Masukkan kredensial Anda untuk mengakses portal.</p>
           </div>
 
           {error && (
@@ -150,7 +150,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                placeholder="Masukkan username Anda"
                 className="mt-1"
                 required
               />
@@ -181,7 +181,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
                   htmlFor="remember"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-600"
                 >
-                  Remember me
+                  Ingat saya
                 </label>
               </div>
               <button
@@ -189,7 +189,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
                 onClick={onForgotPassword}
                 className="text-sm font-medium text-amber-600 hover:underline"
               >
-                Forgot password?
+                Lupa password?
               </button>
             </div>
 
@@ -198,7 +198,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
               disabled={isLoading}
               className="w-full bg-stone-900 hover:bg-stone-800 text-white h-11 font-semibold mt-6"
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? 'Sedang masuk...' : 'Masuk'}
             </Button>
           </form>
 
@@ -215,12 +215,12 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
           />
 
           <p className="mt-8 text-center text-slate-600">
-            Don&apos;t have an account?{' '}
+            Belum punya akun?{' '}
             <button
               onClick={onRegisterClick}
               className="text-amber-600 font-semibold hover:underline"
             >
-              Register here
+              Daftar di sini
             </button>
           </p>
         </motion.div>

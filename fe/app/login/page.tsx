@@ -11,6 +11,7 @@ export default function LoginPage() {
       onLoginSuccess={() => router.push('/')}
       onBack={() => router.push('/')}
       onRegisterClick={() => router.push('/register')}
+      onForgotPassword={() => router.push('/forgot-password')}
     />
   );
 }

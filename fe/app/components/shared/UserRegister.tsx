@@ -26,6 +26,7 @@ export function UserRegister({
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [birthdate, setBirthdate] = useState("");
+  const [nik, setNik] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -42,9 +43,9 @@ export function UserRegister({
 
     setIsLoading(true);
     try {
-      await api.register({ username, password, email, phone, address, birthdate, role: "tenant" });
-      toast.success("Account created successfully!", {
-        description: "Please login with your new credentials to continue.",
+      await api.register({ username, password, email, phone, address, birthdate, nik, role: "tenant" });
+      toast.success("Akun berhasil dibuat!", {
+        description: "Silakan masuk dengan akun baru Anda untuk melanjutkan.",
         duration: 5000,
       });
       setIsSuccess(true);
@@ -55,7 +56,7 @@ export function UserRegister({
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Registration failed");
+        setError("Registrasi gagal");
       }
     } finally {
       setIsLoading(false);
@@ -73,10 +74,10 @@ export function UserRegister({
             <CheckCircle2 className="w-10 h-10 text-emerald-600" />
           </div>
           <h2 className="text-3xl font-bold text-slate-900 mb-2">
-            Account Created!
+            Akun Berhasil Dibuat!
           </h2>
           <p className="text-slate-600 mb-8">
-            Registration successful. You are being redirected to login...
+            Registrasi berhasil. Anda akan dialihkan ke halaman login...
           </p>
         </motion.div>
       </div>
@@ -117,19 +118,18 @@ export function UserRegister({
             </div>
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 md:mb-6 leading-tight tracking-tight">
-              Start Your <span className="text-amber-400">Journey</span>
+              Mulai Perjalanan <span className="text-amber-400">Anda</span>
             </h1>
 
             <p className="text-lg md:text-xl text-stone-300 font-medium leading-relaxed max-w-lg mx-auto mb-6 md:mb-10 opacity-90">
-              Join our premium community today. Discover the perfect balance of
-              comfort, style, and modern convenience.
+              Bergabunglah dengan komunitas premium kami hari ini. Temukan keseimbangan sempurna antara kenyamanan, gaya, dan kemudahan modern.
             </p>
 
             <div className="flex items-center justify-center gap-6 pt-6 border-t border-white/10">
               <div className="text-center">
                 <p className="text-xl md:text-2xl font-bold text-white">500+</p>
                 <p className="text-stone-400 text-[10px] md:text-sm uppercase tracking-wider font-semibold">
-                  Active Tenants
+                  Penyewa Aktif
                 </p>
               </div>
               <div className="w-px h-8 md:h-10 bg-white/20" />
@@ -138,7 +138,7 @@ export function UserRegister({
                   4.9/5
                 </p>
                 <p className="text-stone-400 text-[10px] md:text-sm uppercase tracking-wider font-semibold">
-                  User Rating
+                  Rating Pengguna
                 </p>
               </div>
             </div>
@@ -171,15 +171,15 @@ export function UserRegister({
             className="mb-10 p-0 hover:bg-transparent text-slate-500 hover:text-stone-900 transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-            Back to Login
+            Kembali ke Login
           </Button>
 
           <div className="mb-10">
             <h2 className="text-4xl font-bold text-stone-900 tracking-tight mb-3">
-              Register
+              Daftar
             </h2>
             <p className="text-slate-500 font-medium leading-relaxed">
-              Join Rahmat ZAW and find your next premium home.
+              Bergabung dengan Rahmat ZAW dan temukan hunian premium Anda berikutnya.
             </p>
           </div>
           {error && (
@@ -190,7 +190,7 @@ export function UserRegister({
 
           <form onSubmit={handleRegister} className="space-y-4">
             <div>
-              <Label htmlFor="username">Choose Username</Label>
+              <Label htmlFor="username">Pilih Username</Label>
               <Input
                 id="username"
                 value={username}
@@ -202,7 +202,7 @@ export function UserRegister({
             </div>
             
             <div>
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email">Alamat Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -215,7 +215,19 @@ export function UserRegister({
             </div>
 
             <div>
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="nik">NIK</Label>
+              <Input
+                id="nik"
+                value={nik}
+                onChange={(e) => setNik(e.target.value)}
+                placeholder="Nomor Induk Kependudukan"
+                className="mt-1"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="phone">Nomor Telepon</Label>
               <Input
                 id="phone"
                 type="tel"
@@ -228,7 +240,7 @@ export function UserRegister({
             </div>
 
             <div>
-              <Label htmlFor="address">Home Address</Label>
+              <Label htmlFor="address">Alamat Asal</Label>
               <Input
                 id="address"
                 value={address}
@@ -240,7 +252,7 @@ export function UserRegister({
             </div>
 
             <div>
-              <Label htmlFor="birthdate">Date of Birth</Label>
+              <Label htmlFor="birthdate">Tanggal Lahir</Label>
               <Input
                 id="birthdate"
                 type="date"
@@ -264,7 +276,7 @@ export function UserRegister({
               />
             </div>
             <div>
-              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Label htmlFor="confirm-password">Konfirmasi Password</Label>
               <Input
                 id="confirm-password"
                 type="password"
@@ -281,17 +293,17 @@ export function UserRegister({
               disabled={isLoading}
               className="w-full bg-stone-900 hover:bg-stone-800 text-white h-11 font-semibold mt-6"
             >
-              {isLoading ? "Creating Account..." : "Register Account"}
+              {isLoading ? "Membuat Akun..." : "Daftar Akun"}
             </Button>
           </form>
 
           <p className="mt-8 text-center text-slate-600">
-            Already have an account?{" "}
+            Sudah punya akun?{" "}
             <button
               onClick={onBackToLogin}
               className="text-amber-600 font-semibold hover:underline"
             >
-              Log in instead
+              Masuk di sini
             </button>
           </p>
         </motion.div>

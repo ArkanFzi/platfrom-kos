@@ -52,6 +52,7 @@ func InitDB(cfg *config.Config) {
 
 		&models.Gallery{},
 		&models.Review{},
+		&models.PaymentReminder{},
 	)
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)

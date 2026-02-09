@@ -21,6 +21,7 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 		// Validate token - use config (already validated on startup)
 		claims, err := utils.ValidateToken(token, cfg.JWTSecret)
 		if err != nil {
+			utils.GlobalLogger.Error("AuthMiddleware: Token validation failed: %v", err)
 			utils.UnauthorizedError(c, "Invalid or expired token")
 			c.Abort()
 			return

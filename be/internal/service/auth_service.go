@@ -8,14 +8,13 @@ import (
 	"koskosan-be/internal/utils"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	github_uuid "github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService interface {
 	Login(username, password string) (string, *models.User, error)
-	Register(username, password, role, email, phone, address, birthdate string) (*models.User, error)
+	Register(username, password, role, email, phone, address, birthdate, nik string) (*models.User, error)
 	GoogleLogin(email, username, picture string) (string, *models.User, error)
 	ForgotPassword(email string) error
 	ResetPassword(token, newPassword string) error
@@ -42,14 +41,7 @@ func (s *authService) Login(username, password string) (string, *models.User, er
 		return "", nil, errors.New("invalid credentials")
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id":  user.ID,
-		"username": user.Username,
-		"role":     user.Role,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(),
-	})
-
-	tokenString, err := token.SignedString([]byte(s.config.JWTSecret))
+	tokenString, err := utils.GenerateToken(int(user.ID), user.Username, user.Role, s.config.JWTSecret, time.Hour*24)
 	if err != nil {
 		return "", nil, err
 	}
@@ -57,7 +49,7 @@ func (s *authService) Login(username, password string) (string, *models.User, er
 	return tokenString, user, nil
 }
 
-func (s *authService) Register(username, password, role, email, phone, address, birthdate string) (*models.User, error) {
+func (s *authService) Register(username, password, role, email, phone, address, birthdate, nik string) (*models.User, error) {
 	// Check if user already exists
 	_, err := s.repo.FindByUsername(username)
 	if err == nil {
@@ -96,6 +88,7 @@ func (s *authService) Register(username, password, role, email, phone, address, 
 			NomorHP:      phone,
 			AlamatAsal:   address,
 			TanggalLahir: tglLahir,
+			NIK:          nik,
 		}
 		if err := s.penyewaRepo.Create(penyewa); err != nil {
 			// Note: We might want to handle this failure, maybe delete the user or just log it
@@ -134,14 +127,7 @@ func (s *authService) GoogleLogin(email, username, picture string) (string, *mod
     }
 
     // 4. Generate JWT Token
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "user_id":  user.ID,
-        "username": user.Username,
-        "role":     user.Role,
-        "exp":      time.Now().Add(time.Hour * 24).Unix(),
-    })
-
-    tokenString, err := token.SignedString([]byte(s.config.JWTSecret))
+    tokenString, err := utils.GenerateToken(int(user.ID), user.Username, user.Role, s.config.JWTSecret, time.Hour*24)
     if err != nil {
         return "", nil, err
     }

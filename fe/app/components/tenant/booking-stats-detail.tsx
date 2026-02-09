@@ -43,31 +43,31 @@ export function BookingStatsDetail({ bookings: initialBookings, onBack }: Bookin
       try {
         const data = await api.getMyBookings();
         
-        interface KamarData {
-          nomor_kamar: string;
-          tipe_kamar: string;
-          image_url: string;
-          floor: number;
-          harga_per_bulan: number;
-        }
-
-        const mapped = data.map((b: { id: number; kamar: KamarData; tanggal_mulai: string; durasi_sewa: number; status_bayar: string; total_bayar: number }) => {
+        const mapped = data.map((b) => {
           const moveIn = new Date(b.tanggal_mulai);
           const moveOut = new Date(moveIn);
           moveOut.setMonth(moveOut.getMonth() + b.durasi_sewa);
+          
+          const room = b.kamar || { 
+            nomor_kamar: '?', 
+            tipe_kamar: 'Unknown', 
+            image_url: '', 
+            floor: 0, 
+            harga_per_bulan: 0 
+          };
 
           return {
             id: b.id.toString(),
-            roomName: b.kamar.nomor_kamar + " - " + b.kamar.tipe_kamar,
-            roomImage: b.kamar.image_url.startsWith('http') ? b.kamar.image_url : `http://localhost:8081${b.kamar.image_url}`,
-            location: `Floor ${b.kamar.floor}`,
+            roomName: room.nomor_kamar + " - " + room.tipe_kamar,
+            roomImage: room.image_url ? (room.image_url.startsWith('http') ? room.image_url : `http://localhost:8081${room.image_url}`) : '',
+            location: `Floor ${room.floor}`,
             status: b.status_bayar === 'Confirmed' ? 'Confirmed' : (b.status_bayar === 'Pending' ? 'Pending' : 'Completed'),
             moveInDate: b.tanggal_mulai,
             moveOutDate: moveOut.toISOString().split('T')[0],
-            monthlyRent: b.kamar.harga_per_bulan,
-            totalPaid: b.total_bayar,
+            monthlyRent: room.harga_per_bulan,
+            totalPaid: b.total_bayar || 0,
             duration: `${b.durasi_sewa} Months`,
-            rawStatus: b.status_bayar
+            rawStatus: b.status_bayar || 'Pending'
           };
         });
         setBookings(mapped);

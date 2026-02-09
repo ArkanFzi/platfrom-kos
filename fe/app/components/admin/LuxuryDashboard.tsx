@@ -18,41 +18,7 @@ import {
   Tooltip,
 } from "recharts";
 import { useEffect, useState } from "react";
-import { api } from "@/app/services/api";
-
-interface Tenant {
-  id: string;
-  nama_lengkap: string;
-  user?: {
-    username: string;
-  };
-  status?: string;
-  kamar?: { nomor_kamar: string };
-}
-
-interface Payment {
-  id: string;
-  status_pembayaran: string;
-}
-
-interface DashboardStatResponse {
-  total_revenue: number;
-  active_tenants: number;
-  available_rooms: number;
-  occupied_rooms: number;
-  pending_payments: number;
-  pending_revenue: number;
-  rejected_payments: number;
-  potential_revenue: number;
-  monthly_trend?: { month: string; revenue: number }[];
-  type_breakdown?: {
-    type: string;
-    revenue: number;
-    count: number;
-    occupied: number;
-  }[];
-  demographics?: { name: string; value: number; color: string }[];
-}
+import { api, DashboardStats as DashboardStatResponse, Tenant, Payment } from "@/app/services/api";
 
 interface TooltipPayload {
   payload: {
@@ -175,19 +141,19 @@ export function LuxuryDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 bg-clip-text text-transparent mb-1 md:mb-2">
-            Dashboard Overview
+            Ringkasan Dashboard
           </h1>
           <p className="text-slate-400 text-sm md:text-base">
-            Welcome back, Administrator
+            Selamat datang kembali, Administrator
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="px-3 py-1.5 md:px-4 md:py-2 bg-slate-800/50 border border-slate-700 rounded-lg">
             <p className="text-[10px] md:text-xs text-slate-500 uppercase tracking-wider">
-              Last updated
+              Terakhir diperbarui
             </p>
             <p className="text-xs md:text-sm text-white font-medium">
-              Just now
+              Baru saja
             </p>
           </div>
         </div>
@@ -209,12 +175,12 @@ export function LuxuryDashboard() {
               </div>
             </div>
             <p className="text-slate-400 text-[10px] md:text-sm mb-1">
-              Total Revenue
+              Total Pendapatan
             </p>
             <p className="text-xl md:text-3xl font-bold text-white mb-0.5 md:mb-1">
               {formatPrice(totalRevenue)}
             </p>
-            <p className="text-[10px] text-slate-500">This month</p>
+            <p className="text-[10px] text-slate-500">Bulan ini</p>
           </div>
         </div>
 
@@ -232,13 +198,13 @@ export function LuxuryDashboard() {
               </div>
             </div>
             <p className="text-slate-400 text-[10px] md:text-sm mb-1">
-              Active Tenants
+              Penyewa Aktif
             </p>
             <p className="text-xl md:text-3xl font-bold text-white mb-0.5 md:mb-1">
               {activeTenants}
             </p>
             <p className="text-[10px] text-slate-500">
-              {tenants.length} total registrations
+              {tenants.length} total pendaftaran
             </p>
           </div>
         </div>
@@ -253,18 +219,18 @@ export function LuxuryDashboard() {
               </div>
               <div className="px-1.5 md:px-2 py-0.5 md:py-1 bg-green-500/20 rounded-lg">
                 <span className="text-[10px] text-green-400 font-medium">
-                  Available
+                  Tersedia
                 </span>
               </div>
             </div>
             <p className="text-slate-400 text-[10px] md:text-sm mb-1">
-              Available Rooms
+              Kamar Tersedia
             </p>
             <p className="text-xl md:text-3xl font-bold text-white mb-0.5 md:mb-1">
               {availableRooms}
             </p>
             <p className="text-[10px] text-slate-500">
-              Out of {roomsCount} rooms
+              Dari {roomsCount} kamar
             </p>
           </div>
         </div>
@@ -279,17 +245,17 @@ export function LuxuryDashboard() {
               </div>
               <div className="px-1.5 md:px-2 py-0.5 md:py-1 bg-red-500/20 rounded-lg">
                 <span className="text-[10px] text-red-400 font-medium">
-                  Action Req.
+                  Perlu Tindakan
                 </span>
               </div>
             </div>
             <p className="text-slate-400 text-[10px] md:text-sm mb-1">
-              Pending Payments
+              Pembayaran Menunggu
             </p>
             <p className="text-xl md:text-3xl font-bold text-white mb-0.5 md:mb-1">
               {pendingPayments}
             </p>
-            <p className="text-[10px] text-slate-500">Need confirmation</p>
+            <p className="text-[10px] text-slate-500">Perlu konfirmasi</p>
           </div>
         </div>
       </div>
@@ -301,16 +267,16 @@ export function LuxuryDashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-xl font-semibold text-white mb-1">
-                Monthly Revenue Trend
+                Tren Pendapatan Bulanan
               </h3>
               <p className="text-sm text-slate-400">
-                Last 6 months performance
+                Kinerja 6 bulan terakhir
               </p>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2">
                 <div className="size-3 bg-amber-500 rounded-full" />
-                <span className="text-xs text-slate-400">Revenue</span>
+                <span className="text-xs text-slate-400">Pendapatan</span>
               </div>
               <div className="flex items-center gap-2 ml-4">
                 <div className="size-3 bg-blue-500 rounded-full" />
@@ -375,9 +341,9 @@ export function LuxuryDashboard() {
         <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 border border-slate-800 rounded-2xl p-6">
           <div className="mb-6">
             <h3 className="text-xl font-semibold text-white mb-1">
-              Occupancy Rate
+              Tingkat Okupansi
             </h3>
-            <p className="text-sm text-slate-400">Current room status</p>
+            <p className="text-sm text-slate-400">Status kamar saat ini</p>
           </div>
           <div className="h-64 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
@@ -427,7 +393,7 @@ export function LuxuryDashboard() {
         {/* Recent Registrations */}
         <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 border border-slate-800 rounded-2xl p-6">
           <h3 className="text-xl font-semibold text-white mb-4">
-            New Registrations
+            Pendaftaran Baru
           </h3>
           <div className="space-y-3">
             {tenants.length > 0 ? (
@@ -450,7 +416,7 @@ export function LuxuryDashboard() {
                         ? `Kamar ${tenant.kamar.nomor_kamar}`
                         : tenant.user?.username
                           ? `@${tenant.user.username}`
-                          : "New User"}
+                          : "User Baru"}
                     </p>
                   </div>
                   <span
@@ -466,7 +432,7 @@ export function LuxuryDashboard() {
               ))
             ) : (
               <p className="text-slate-500 text-center py-4">
-                No registrations found
+                Tidak ada pendaftaran ditemukan
               </p>
             )}
           </div>
@@ -475,12 +441,12 @@ export function LuxuryDashboard() {
         {/* Progress Metrics */}
         <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 border border-slate-800 rounded-2xl p-6">
           <h3 className="text-xl font-semibold text-white mb-4">
-            Performance Metrics
+            Metrik Kinerja
           </h3>
           <div className="space-y-5">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-slate-400">Occupancy Rate</span>
+                <span className="text-sm text-slate-400">Tingkat Okupansi</span>
                 <span className="text-sm font-semibold text-white">
                   {Math.round((occupiedRooms / (roomsCount || 1)) * 100)}%
                 </span>
@@ -498,7 +464,7 @@ export function LuxuryDashboard() {
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-slate-400">
-                  Payment Completion
+                  Penyelesaian Pembayaran
                 </span>
                 <span className="text-sm font-semibold text-white">
                   {payments.length > 0
@@ -526,7 +492,7 @@ export function LuxuryDashboard() {
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-slate-400">
-                  Tenant Satisfaction
+                  Kepuasan Penyewa
                 </span>
                 <span className="text-sm font-semibold text-white">95%</span>
               </div>
@@ -540,7 +506,7 @@ export function LuxuryDashboard() {
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-slate-400">Monthly Target</span>
+                <span className="text-sm text-slate-400">Target Bulanan</span>
                 <span className="text-sm font-semibold text-white">88%</span>
               </div>
               <div className="h-2.5 bg-slate-800 rounded-full overflow-hidden shadow-inner">

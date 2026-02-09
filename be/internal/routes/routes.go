@@ -123,6 +123,7 @@ func (r *Routes) registerProtectedRoutes(protected *gin.RouterGroup) {
 	{
 		payments.POST("/snap-token", r.paymentHandler.CreateSnapToken)      // POST /api/payments/snap-token
 		payments.POST("/confirm-cash/:id", r.paymentHandler.ConfirmCashPayment) // POST /api/payments/confirm-cash/:id
+		payments.GET("/reminders", r.paymentHandler.GetReminders)             // GET /api/payments/reminders
 	}
 
 	// Reviews

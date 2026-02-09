@@ -59,6 +59,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Phone    string `json:"phone"`
 		Address  string `json:"address"`
 		Birthdate string `json:"birthdate"` // "YYYY-MM-DD"
+		NIK       string `json:"nik"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err  != nil {
@@ -73,6 +74,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	input.Phone = utils.SanitizeString(input.Phone)
 	input.Address = utils.SanitizeString(input.Address)
 	input.Birthdate = utils.SanitizeString(input.Birthdate)
+	input.NIK = utils.SanitizeString(input.NIK)
 
 	// Validate username
 	if validationErr := utils.ValidateUsername(input.Username); validationErr != nil {
@@ -88,7 +90,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	// Parse birthdate
 	
-	user, err := h.service.Register(input.Username, input.Password, "tenant", input.Email, input.Phone, input.Address, input.Birthdate)
+	user, err := h.service.Register(input.Username, input.Password, "tenant", input.Email, input.Phone, input.Address, input.Birthdate, input.NIK)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

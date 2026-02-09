@@ -57,6 +57,8 @@ export interface Tenant {
   jenis_kelamin: string;
   foto_profil: string;
   created_at?: string;
+  status?: string; // Optional status for frontend display
+  kamar?: { nomor_kamar: string }; // Optional linking to current room
 }
 
 export interface Payment {
@@ -75,6 +77,17 @@ export interface Payment {
   created_at?: string;
 }
 
+export interface PaymentReminder {
+  id: number;
+  pembayaran_id: number;
+  pembayaran?: Payment;
+  jumlah_bayar: number;
+  tanggal_reminder: string;
+  status_reminder: 'Pending' | 'Paid' | 'Expired';
+  is_sent: boolean;
+  created_at?: string;
+}
+
 export interface Booking {
   id: number;
   penyewa_id: number;
@@ -86,15 +99,22 @@ export interface Booking {
   status_pemesanan: 'Pending' | 'Confirmed' | 'Cancelled' | 'Active' | 'Completed';
   pembayaran?: Payment[];
   created_at?: string;
+  status_bayar?: string; // Optional frontend helper
+  total_bayar?: number; // Optional frontend helper
 }
 
 export interface DashboardStats {
-  total_pemasukan: number;
-  jumlah_penghuni_aktif: number;
-  kamar_tersedia: number;
-  kamar_terisi: number;
-  occupancy_rate: number;
-  recent_activities: any[];
+  total_revenue: number;
+  active_tenants: number;
+  available_rooms: number;
+  occupied_rooms: number;
+  pending_payments: number;
+  pending_revenue: number;
+  rejected_payments: number;
+  potential_revenue: number;
+  monthly_trend: { month: string; revenue: number }[];
+  type_breakdown: { type: string; revenue: number; count: number; occupied: number }[];
+  demographics: { name: string; value: number; color: string }[];
 }
 
 export interface LoginResponse {
@@ -242,7 +262,7 @@ export const api = {
     return apiCall<{ user: User; tenant?: Tenant }>('GET', '/profile');
   },
 
-  updateProfile: async (data: Partial<Tenant>) => {
+  updateProfile: async (data: Partial<Tenant> | FormData) => {
     return apiCall<Tenant>('PUT', '/profile', data);
   },
 
@@ -324,9 +344,14 @@ export const api = {
     return apiCall<MessageResponse>('POST', `/payments/${paymentId}/confirm`);
   },
   
+
   verifyPayment: async (orderId: string) => {
     // Returns { message: "Payment verified successfully" }
     return apiCall<MessageResponse>('POST', '/payments/verify', { order_id: orderId });
+  },
+
+  getReminders: async () => {
+    return apiCall<PaymentReminder[]>('GET', '/payments/reminders');
   },
 
   // --- OTHERS ---

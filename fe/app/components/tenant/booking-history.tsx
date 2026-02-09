@@ -19,10 +19,15 @@ import {
   Trash2,
   Loader2,
   Info,
-  ChevronDown
+  ChevronDown,
+  Home,
+  Wallet
 } from 'lucide-react';
-import { api } from '@/app/services/api';
+import { api, PaymentReminder } from '@/app/services/api';
 import { useEffect } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs-component";
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface Booking {
   id: string;
@@ -53,12 +58,17 @@ interface BookingHistoryProps {
 
 export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [activeTab, setActiveTab] = useState("bookings");
   const [isLoading, setIsLoading] = useState(true);
   const [extendModalOpen, setExtendModalOpen] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+
   const [calendarExpanded, setCalendarExpanded] = useState(false);
+  const [reminders, setReminders] = useState<PaymentReminder[]>([]);
+  const [isLoadingReminders, setIsLoadingReminders] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -98,7 +108,21 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
       }
     };
 
+    const fetchReminders = async () => {
+      setIsLoadingReminders(true);
+      try {
+        const data = await api.getReminders();
+        setReminders(data || []);
+      } catch (e) {
+        console.error("Failed to fetch reminders", e);
+        toast.error("Gagal memuat tagihan");
+      } finally {
+        setIsLoadingReminders(false);
+      }
+    };
+
     fetchBookings();
+    fetchReminders();
   }, []);
 
   // Process bookings for calendar with start/end/due dates
@@ -195,37 +219,86 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
 
         {/* Summary Cards - 2x2 on Mobile */}
         <motion.div
-          className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-12"
+          className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-12"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ staggerChildren: 0.1, delayChildren: 0.2 }}
         >
           {[
-            { label: 'Number Room', value: bookings.length.toString(), icon: '🏠', color: 'from-stone-700 to-stone-900', bgColor: 'from-stone-50 to-stone-100 dark:from-slate-900 dark:to-slate-900' },
-            { label: 'Bill Completed', value: bookings.filter(b => b.rawStatus === 'Confirmed').length.toString(), icon: '✓', color: 'from-emerald-500 to-emerald-600', bgColor: 'from-emerald-50 to-emerald-100 dark:from-slate-900 dark:to-slate-900' },
-            { label: 'Pending Bills', value: bookings.filter(b => b.rawStatus === 'Pending').length.toString(), icon: '⏳', color: 'from-amber-500 to-amber-600', bgColor: 'from-amber-50 to-amber-100 dark:from-slate-900 dark:to-slate-900' },
-            { label: 'Total', value: `Rp ${bookings.reduce((sum, b) => sum + b.totalPaid, 0).toLocaleString()}`, icon: '💰', color: 'from-blue-500 to-blue-600', bgColor: 'from-blue-50 to-blue-100 dark:from-slate-900 dark:to-slate-900' },
+            { 
+              label: 'Total Rooms', 
+              value: bookings.length.toString(), 
+              icon: <Home className="w-6 h-6" />,
+              delay: 0
+            },
+            { 
+              label: 'Completed Bills', 
+              value: bookings.filter(b => b.rawStatus === 'Confirmed').length.toString(), 
+              icon: <CheckCircle2 className="w-6 h-6" />,
+              delay: 0.1
+            },
+            { 
+              label: 'Pending Bills', 
+              value: bookings.filter(b => b.rawStatus === 'Pending').length.toString(), 
+              icon: <Clock className="w-6 h-6" />,
+              delay: 0.2
+            },
+            { 
+              label: 'Total Expenses', 
+              value: `Rp ${bookings.reduce((sum, b) => sum + b.totalPaid, 0).toLocaleString()}`, 
+              icon: <Wallet className="w-6 h-6" />,
+              delay: 0.3
+            },
           ].map((stat, index) => (
             <motion.div
               key={stat.label}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
+              transition={{ duration: 0.5, delay: stat.delay }}
               whileHover={{ y: -5 }}
             >
-              <Card className={`p-4 md:p-6 bg-gradient-to-br ${stat.bgColor} border-0 dark:border dark:border-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 h-full`}>
-                <div className={`w-10 h-10 md:w-14 md:h-14 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center mb-3 md:mb-4 shadow-lg`}>
-                  <span className="text-xl md:text-2xl">{stat.icon}</span>
+              <Card className="h-full p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 group">
+                <div className="flex flex-col h-full justify-between">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 rounded-2xl bg-stone-50 dark:bg-slate-800 flex items-center justify-center text-stone-900 dark:text-white group-hover:bg-stone-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-stone-900 transition-colors duration-300">
+                      {stat.icon}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                      {stat.label}
+                    </p>
+                    <p className="text-2xl md:text-3xl font-bold text-stone-900 dark:text-white tracking-tight">
+                      {stat.value}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[10px] md:text-sm text-slate-600 dark:text-slate-400 font-semibold mb-1 md:mb-2 uppercase tracking-wide">{stat.label}</p>
-                <p className="text-lg md:text-3xl font-bold text-slate-900 dark:text-white line-clamp-1">{stat.value}</p>
               </Card>
             </motion.div>
           ))}
         </motion.div>
 
-        {/* Smart Calendar Section */}
-        <motion.div
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex items-center justify-center mb-8">
+            <TabsList className="grid w-full max-w-md grid-cols-2 bg-slate-100 dark:bg-slate-900 p-1 rounded-full">
+              <TabsTrigger value="bookings" className="rounded-full data-[state=active]:bg-white data-[state=active]:text-stone-900 dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-white">Active Bookings</TabsTrigger>
+              <TabsTrigger value="bills" className="rounded-full data-[state=active]:bg-white data-[state=active]:text-stone-900 dark:data-[state=active]:bg-stone-800 dark:data-[state=active]:text-white relative">
+                My Bills
+                {reminders.filter(r => r.status_reminder !== 'Paid').length > 0 && (
+                   <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                     <span className="relative inline-flex rounded-full h-4 w-4 bg-orange-500 text-[10px] text-white items-center justify-center font-bold">
+                       {reminders.filter(r => r.status_reminder !== 'Paid').length}
+                     </span>
+                   </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="bookings" className="space-y-8">
+            {/* Smart Calendar Section */}
+            <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.25 }}
@@ -383,7 +456,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
             </AnimatePresence>
           </Card>
         </motion.div>
-
+        
         {/* Bookings List */}
         <motion.div 
           className="space-y-5 mt-8"
@@ -543,7 +616,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
         </motion.div>
 
         {/* Empty State */}
-        {!isLoading && bookings.length === 0 && (
+        {!isLoading && bookings.length === 0 && activeTab === "bookings" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -569,6 +642,74 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
             </Card>
           </motion.div>
         )}
+        </TabsContent>
+
+          <TabsContent value="bills">
+             <motion.div
+               initial={{ opacity: 0, scale: 0.95 }}
+               animate={{ opacity: 1, scale: 1 }}
+               transition={{ duration: 0.4 }}
+             >
+                {isLoadingReminders ? (
+                   <div className="flex flex-col items-center justify-center py-20">
+                     <Loader2 className="w-10 h-10 animate-spin text-slate-400" />
+                     <p className="mt-4 text-slate-500">Loading bills...</p>
+                   </div>
+                ) : reminders.length === 0 ? (
+                   <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                     <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                       <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+                     </div>
+                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No Due Bills</h3>
+                     <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">Great! You have no pending bills at the moment.</p>
+                   </div>
+                ) : (
+                   <div className="grid gap-6">
+                     {reminders.map((reminder) => (
+                       <Card key={reminder.id} className="p-6 border-l-4 border-l-orange-500 shadow-lg hover:shadow-xl transition-all bg-white dark:bg-slate-900 border-y-slate-200 dark:border-y-slate-800 border-r-slate-200 dark:border-r-slate-800 border-t-slate-200 dark:border-t-slate-800">
+                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                           <div>
+                             <div className="flex items-center gap-3 mb-2">
+                               <Badge variant={reminder.status_reminder === 'Paid' ? 'default' : 'secondary'} className={
+                                 reminder.status_reminder === 'Paid' 
+                                   ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' 
+                                   : 'bg-orange-100 text-orange-700 hover:bg-orange-100'
+                               }>
+                                 {reminder.status_reminder === 'Paid' ? 'Paid' : 'Unpaid'}
+                               </Badge>
+                               <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+                                 ID: #{reminder.id}
+                               </span>
+                             </div>
+                             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                               Monthly Rent Bill
+                             </h3>
+                             <p className="text-slate-500 dark:text-slate-400 text-sm">
+                               Due Date: {new Date(reminder.tanggal_reminder).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                             </p>
+                           </div>
+                           
+                           <div className="flex flex-col items-end gap-2">
+                             <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                               Rp {reminder.jumlah_bayar.toLocaleString()}
+                             </p>
+                             {reminder.status_reminder !== 'Paid' && (
+                               <Button size="sm" onClick={() => router.push('/dashboard/payment?reminder_id=' + reminder.id)} className="bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-500/20">
+                                 Pay Now
+                               </Button>
+                             )}
+                           </div>
+                         </div>
+                       </Card>
+                     ))}
+                   </div>
+                )}
+             </motion.div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Empty State */}
+
       </div>
 
       {/* Modals remain same, they should handle dark mode internally via their components */}

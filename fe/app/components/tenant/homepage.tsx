@@ -161,12 +161,16 @@ interface HomepageProps {
   onRoomClick: (roomId: string) => void;
   isLoggedIn?: boolean;
   onLoginPrompt?: () => void;
+  userName?: string;
+  onViewHistory?: () => void;
 }
 
 export function Homepage({
   onRoomClick,
   isLoggedIn,
   onLoginPrompt,
+  userName,
+  onViewHistory,
 }: HomepageProps) {
   const [searchLocation, setSearchLocation] = useState("");
   const [selectedPrice, setSelectedPrice] = useState("all");
@@ -277,21 +281,59 @@ export function Homepage({
             transition={{ duration: 0.8 }}
             className="md:col-span-7 text-left order-2 md:order-1"
           >
-            <Badge variant="outline" className="mb-4 lg:mb-6 px-3 lg:px-4 py-1 lg:py-1.5 text-amber-600 border-amber-200 bg-amber-50 rounded-full font-bold uppercase tracking-wider text-[9px] lg:text-xs">
-              🏠 Best Boarding House in Malang
-            </Badge>
-            <h1 className="text-3xl md:text-5xl lg:text-7xl font-extrabold leading-[1.15] mb-4 lg:mb-6 text-slate-900 dark:text-white">
-              Find Your Dream <br className="hidden md:block" />
-              <span className="text-amber-500">Home With Ease.</span>
-            </h1>
-            <p className="text-sm md:text-lg lg:text-xl text-slate-600 dark:text-slate-400 mb-6 lg:mb-10 max-w-xl leading-relaxed">
-              Temukan kenyamanan eksklusif dan fasilitas premium di Kos Putra
-              Rahmat ZAW.
-            </p>
-            <div className="flex flex-row gap-3 lg:gap-4">
-              <Button onClick={() => window.scrollTo({ top: 800, behavior: 'smooth' })} className="flex-1 md:flex-none bg-slate-900 hover:bg-slate-800 text-white px-6 lg:px-8 py-5 lg:py-6 rounded-xl lg:rounded-2xl text-base lg:text-lg font-bold shadow-xl">Explore</Button>
-              <Button variant="ghost" className="flex-1 md:flex-none px-6 lg:px-8 py-5 lg:py-6 rounded-xl lg:rounded-2xl text-base lg:text-lg font-bold border-2 border-slate-200">Learn</Button>
-            </div>
+            {isLoggedIn ? (
+              // Logged In View
+              <>
+                <Badge variant="outline" className="mb-4 lg:mb-6 px-3 lg:px-4 py-1 lg:py-1.5 text-emerald-600 border-emerald-200 bg-emerald-50 rounded-full font-bold uppercase tracking-wider text-[9px] lg:text-xs">
+                  👋 Welcome Back
+                </Badge>
+                <h1 className="text-3xl md:text-5xl lg:text-7xl font-extrabold leading-[1.15] mb-4 lg:mb-6 text-slate-900 dark:text-white">
+                  Hi, <span className="text-amber-500">{userName || 'User'}!</span> <br />
+                  <span className="text-slate-900 dark:text-white text-2xl md:text-4xl lg:text-5xl font-bold">Ready to relax?</span>
+                </h1>
+                <p className="text-sm md:text-lg lg:text-xl text-slate-600 dark:text-slate-400 mb-6 lg:mb-10 max-w-xl leading-relaxed">
+                  Kelola hunianmu, cek tagihan, atau cari kamar baru langsung dari sini. Nikmati kemudahan hidup di Rahmat ZAW.
+                </p>
+                <div className="flex flex-row gap-3 lg:gap-4">
+                  <Button 
+                    onClick={onViewHistory} 
+                    className="flex-1 md:flex-none bg-stone-900 hover:bg-stone-800 text-white px-6 lg:px-8 py-5 lg:py-6 rounded-xl lg:rounded-2xl text-base lg:text-lg font-bold shadow-xl"
+                  >
+                    Cek Tagihan & Pesanan
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => {
+                        const el = document.getElementById('featured-rooms');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="flex-1 md:flex-none px-6 lg:px-8 py-5 lg:py-6 rounded-xl lg:rounded-2xl text-base lg:text-lg font-bold border-2 border-slate-200"
+                  >
+                    Lihat Kamar
+                  </Button>
+                </div>
+              </>
+            ) : (
+              // Guest View
+              <>
+                <Badge variant="outline" className="mb-4 lg:mb-6 px-3 lg:px-4 py-1 lg:py-1.5 text-amber-600 border-amber-200 bg-amber-50 rounded-full font-bold uppercase tracking-wider text-[9px] lg:text-xs">
+                  🏠 Best Boarding House in Malang
+                </Badge>
+                <h1 className="text-3xl md:text-5xl lg:text-7xl font-extrabold leading-[1.15] mb-4 lg:mb-6 text-slate-900 dark:text-white">
+                  Find Your Dream <br className="hidden md:block" />
+                  <span className="text-amber-500">Home With Ease.</span>
+                </h1>
+                <p className="text-sm md:text-lg lg:text-xl text-slate-600 dark:text-slate-400 mb-6 lg:mb-10 max-w-xl leading-relaxed">
+                  Temukan kenyamanan eksklusif dan fasilitas premium di Kos Putra
+                  Rahmat ZAW.
+                </p>
+                <div className="flex flex-row gap-3 lg:gap-4">
+                  <Button onClick={() => window.scrollTo({ top: 800, behavior: 'smooth' })} className="flex-1 md:flex-none bg-slate-900 hover:bg-slate-800 text-white px-6 lg:px-8 py-5 lg:py-6 rounded-xl lg:rounded-2xl text-base lg:text-lg font-bold shadow-xl">Explore</Button>
+                  <Button variant="ghost" className="flex-1 md:flex-none px-6 lg:px-8 py-5 lg:py-6 rounded-xl lg:rounded-2xl text-base lg:text-lg font-bold border-2 border-slate-200">Learn</Button>
+                </div>
+              </>
+            )}
+            
           </motion.div>
 
           <motion.div
