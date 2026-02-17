@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
+import { getImageUrl } from '@/app/utils/api-url';
 import useSWR from 'swr';
 import { Calendar } from '@/app/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
@@ -146,7 +147,7 @@ export function SmartCalendar() {
                 <Card className="border-0 shadow-2xl bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
                   <div className="relative h-40">
                      <ImageWithFallback 
-                        src={activeBooking.kamar.image_url.startsWith('http') ? activeBooking.kamar.image_url : `http://localhost:8081${activeBooking.kamar.image_url}`}
+                        src={getImageUrl(activeBooking.kamar.image_url)}
                         alt="Room"
                         className="w-full h-full object-cover"
                      />

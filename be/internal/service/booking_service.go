@@ -21,8 +21,8 @@ type BookingResponse struct {
 type BookingService interface {
 	GetUserBookings(userID uint) ([]BookingResponse, error)
 	CreateBooking(userID uint, kamarID uint, tanggalMulai string, durasiSewa int) (*models.Pemesanan, error)
-	CancelBooking(id uint) error
-	ExtendBooking(bookingID uint, months int) (*models.Pembayaran, error)
+	CancelBooking(id uint, userID uint) error
+	ExtendBooking(bookingID uint, months int, userID uint) (*models.Pembayaran, error)
 	AutoCancelExpiredBookings() error
 }
 
@@ -131,10 +131,20 @@ func (s *bookingService) CreateBooking(userID uint, kamarID uint, tanggalMulai s
 	return &booking, nil
 }
 
-func (s *bookingService) CancelBooking(id uint) error {
+func (s *bookingService) CancelBooking(id uint, userID uint) error {
 	booking, err := s.repo.FindByID(id)
 	if err != nil {
 		return err
+	}
+
+	// SECURITY FIX: Verify user owns this booking (IDOR protection)
+	penyewa, err := s.penyewaRepo.FindByUserID(userID)
+	if err != nil {
+		return fmt.Errorf("penyewa profile not found")
+	}
+
+	if booking.PenyewaID != penyewa.ID {
+		return fmt.Errorf("unauthorized: you can only cancel your own bookings")
 	}
 
 	if booking.StatusPemesanan == "Cancelled" {
@@ -165,10 +175,20 @@ func (s *bookingService) CancelBooking(id uint) error {
 }
 
 // ExtendBooking creates a new payment for extending the lease
-func (s *bookingService) ExtendBooking(bookingID uint, months int) (*models.Pembayaran, error) {
+func (s *bookingService) ExtendBooking(bookingID uint, months int, userID uint) (*models.Pembayaran, error) {
 	booking, err := s.repo.FindByID(bookingID)
 	if err != nil {
 		return nil, err
+	}
+
+	// SECURITY FIX: Verify user owns this booking (IDOR protection)
+	penyewa, err := s.penyewaRepo.FindByUserID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("penyewa profile not found")
+	}
+
+	if booking.PenyewaID != penyewa.ID {
+		return nil, fmt.Errorf("unauthorized: you can only extend your own bookings")
 	}
 
 	if booking.StatusPemesanan != "Confirmed" {

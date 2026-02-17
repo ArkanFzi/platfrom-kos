@@ -19,6 +19,7 @@ type EmailSender interface {
 type GomailSender struct {
 	dialer *gomail.Dialer
 	from   string
+	cfg    *config.Config
 }
 
 func NewGomailSender(cfg *config.Config) *GomailSender {
@@ -27,6 +28,7 @@ func NewGomailSender(cfg *config.Config) *GomailSender {
 	return &GomailSender{
 		dialer: dialer,
 		from:   cfg.SMTPEmail,
+		cfg:    cfg,
 	}
 }
 
@@ -34,17 +36,21 @@ func (s *GomailSender) SendResetPasswordEmail(toEmail, token string) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.from)
 	m.SetHeader("To", toEmail)
-	m.SetHeader("Subject", "Reset Password Request")
-	
-	// Better to use a configurable frontend URL, but for now hardcode or assume localhost/production
-	// TODO: Add frontend URL to config
-	resetLink := fmt.Sprintf("http://localhost:3000/reset-password?token=%s", token)
+	m.SetHeader("Subject", "Password Reset Request")
+
+	// Use frontend URL from config
+	resetLink := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, token)
 
 	body := fmt.Sprintf(`
-		<h3>Reset Password Request</h3>
-		<p>You requested a password reset. Click the link below to reset your password:</p>
-		<p><a href="%s">Reset Password</a></p>
-		<p>If you did not request this, please ignore this email.</p>
+		<html>
+		<body>
+			<h2>Password Reset Request</h2>
+			<p>Click the link below to reset your password:</p>
+			<a href="%s">Reset Password</a>
+			<p>This link will expire in 1 hour.</p>
+			<p>If you didn't request this, please ignore this email.</p>
+		</body>
+		</html>
 	`, resetLink)
 
 	m.SetBody("text/html", body)

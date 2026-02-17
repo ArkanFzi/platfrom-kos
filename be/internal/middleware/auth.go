@@ -10,7 +10,7 @@ import (
 // AuthMiddleware verify JWT token dari cookie
 func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get token dari cookie
+		// Get token dari cookie (prioritas) atau Authorization header (fallback)
 		token, err := utils.GetAuthToken(c)
 		if err != nil {
 			utils.UnauthorizedError(c, "Missing authentication token")
@@ -18,8 +18,8 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		// Validate token - use config (already validated on startup)
-		claims, err := utils.ValidateToken(token, cfg.JWTSecret)
+		// Validate ACCESS token specifically (not refresh token)
+		claims, err := utils.ValidateAccessToken(token, cfg.JWTSecret)
 		if err != nil {
 			utils.GlobalLogger.Error("AuthMiddleware: Token validation failed: %v", err)
 			utils.UnauthorizedError(c, "Invalid or expired token")

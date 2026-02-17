@@ -97,7 +97,32 @@ func (h *BookingHandler) CancelBooking(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.CancelBooking(uint(id)); err != nil {
+	// SECURITY FIX: Get user ID from context to verify ownership
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	var userID uint
+	switch v := userIDRaw.(type) {
+	case float64:
+		userID = uint(v)
+	case int:
+		userID = uint(v)
+	case uint:
+		userID = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id type"})
+		return
+	}
+
+	// Pass userID to service for ownership validation
+	if err := h.service.CancelBooking(uint(id), userID); err != nil {
+		if err.Error() == "unauthorized: you can only cancel your own bookings" {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -113,6 +138,26 @@ func (h *BookingHandler) ExtendBooking(c *gin.Context) {
 		return
 	}
 
+	// SECURITY FIX: Get user ID from context to verify ownership
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	var userID uint
+	switch v := userIDRaw.(type) {
+	case float64:
+		userID = uint(v)
+	case int:
+		userID = uint(v)
+	case uint:
+		userID = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id type"})
+		return
+	}
+
 	var req struct {
 		Months int `json:"months" binding:"required,min=1"`
 	}
@@ -122,8 +167,13 @@ func (h *BookingHandler) ExtendBooking(c *gin.Context) {
 		return
 	}
 
-	payment, err := h.service.ExtendBooking(uint(id), req.Months)
+	// Pass userID to service for ownership validation
+	payment, err := h.service.ExtendBooking(uint(id), req.Months, userID)
 	if err != nil {
+		if err.Error() == "unauthorized: you can only extend your own bookings" {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

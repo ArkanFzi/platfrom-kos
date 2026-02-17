@@ -75,6 +75,7 @@ export interface Tenant {
   alamat_asal: string;
   jenis_kelamin: string;
   foto_profil: string;
+  role?: 'guest' | 'tenant' | 'former_tenant';
   created_at?: string;
   status?: string; 
   kamar?: { nomor_kamar: string }; 
@@ -222,13 +223,30 @@ const safeJson = async (res: Response) => {
   }
 };
 
+// Auto-refresh token helper
+const refreshAccessToken = async (): Promise<boolean> => {
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+};
+
+// === Internal Helper ===
 const apiCall = async <T>(method: string, endpoint: string, body?: unknown): Promise<T> => {
-  const headers = getHeaders();
-  const config: RequestInit = { method, headers };
+  const config: RequestInit = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // IMPORTANT: Send HttpOnly cookies with requests
+  };
 
   if (body) {
     if (body instanceof FormData) {
-      // Jika FormData, biarkan browser set boundary secara otomatis
+      // If FormData, let browser set boundary automatically
       delete (config.headers as Record<string, string>)['Content-Type'];
       config.body = body;
     } else {
@@ -237,22 +255,33 @@ const apiCall = async <T>(method: string, endpoint: string, body?: unknown): Pro
   }
 
   const res = await fetch(`${API_URL}${endpoint}`, config);
+  
+  // Handle token refresh on 401
+  if (res.status === 401 && endpoint !== '/auth/refresh' && endpoint !== '/auth/login') {
+    // Try to refresh token
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      // Retry original request
+      return apiCall<T>(method, endpoint, body);
+    }
+    // Refresh failed, redirect to login
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+  }
+  
   return safeJson(res);
 };
 
 // 3. Objek API Utama (Satu fungsi untuk satu kegunaan)
 export const api = {
   // --- AUTH ---
-  login: async (credentials: { username: string; password: string }, rememberMe: boolean = true) => {
+  login: async (credentials: { username: string; password: string }) => {
     const data = await apiCall<LoginResponse>('POST', '/auth/login', credentials);
-    if (data.token) {
-      if (rememberMe) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-      } else {
-        sessionStorage.setItem('token', data.token);
-        sessionStorage.setItem('user', JSON.stringify(data.user));
-      }
+    // Store user data only (token is in HttpOnly cookie)
+    if (data.user) {
+      localStorage.setItem('user', JSON.stringify(data.user));
     }
     return data;
   },
@@ -260,8 +289,8 @@ export const api = {
   googleLogin: async (code: string) => {
     // Mengirim code dari Google ke backend
     const data = await apiCall<LoginResponse>('GET', `/auth/google/callback?code=${code}`);
-    if (data.token) {
-      localStorage.setItem('token', data.token);
+    // Store user data only (token is in HttpOnly cookie)
+    if (data.user) {
       localStorage.setItem('user', JSON.stringify(data.user));
     }
     return data;
@@ -281,14 +310,20 @@ export const api = {
     return apiCall<MessageResponse>('POST', '/auth/reset-password', { token, new_password: newPassword });
   },
 
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('app_view_mode');
+  logout: async () => {
+    // Call backend to clear HttpOnly cookies
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
-    // Consider calling a backend logout endpoint if dealing with server-side sessions/cookies blacklist
+    // Clear local storage (user data only, no tokens)
+    localStorage.clear();
+    sessionStorage.clear();
   },
 
   // --- PROFILE ---

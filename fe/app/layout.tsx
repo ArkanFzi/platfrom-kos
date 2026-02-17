@@ -59,7 +59,7 @@ export default function RootLayout({
         />
         <Script
           src="https://app.sandbox.midtrans.com/snap/snap.js"
-          data-client-key="Mid-client-RmKI74k1AouHJ6eA"
+          data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "Mid-client-RmKI74k1AouHJ6eA"}
         />
       </body>
     </html>

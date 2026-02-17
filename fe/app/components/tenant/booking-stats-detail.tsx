@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, MessageCircle, TrendingUp, DollarSign, Home, Clock, CheckCircle2 } from 'lucide-react';
@@ -5,6 +7,7 @@ import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { api } from '@/app/services/api';
+import { getImageUrl } from '@/app/utils/api-url';
 
 interface Booking {
   id: string;
@@ -59,7 +62,7 @@ export function BookingStatsDetail({ bookings: initialBookings, onBack }: Bookin
           return {
             id: b.id.toString(),
             roomName: room.nomor_kamar + " - " + room.tipe_kamar,
-            roomImage: room.image_url ? (room.image_url.startsWith('http') ? room.image_url : `http://localhost:8081${room.image_url}`) : '',
+            roomImage: getImageUrl(room.image_url) || '',
             location: `Floor ${room.floor}`,
             status: b.status_bayar === 'Confirmed' ? 'Confirmed' : (b.status_bayar === 'Pending' ? 'Pending' : 'Completed'),
             moveInDate: b.tanggal_mulai,

@@ -11,11 +11,12 @@ import (
 )
 
 type ProfileHandler struct {
-	service service.ProfileService
+	service    service.ProfileService
+	cloudinary *utils.CloudinaryService
 }
 
-func NewProfileHandler(s service.ProfileService) *ProfileHandler {
-	return &ProfileHandler{s}
+func NewProfileHandler(s service.ProfileService, cld *utils.CloudinaryService) *ProfileHandler {
+	return &ProfileHandler{s, cld}
 }
 
 func (h *ProfileHandler) GetProfile(c *gin.Context) {
@@ -93,9 +94,20 @@ func (h *ProfileHandler) UpdateProfile(c *gin.Context) {
 		file, err := c.FormFile("foto_profil")
 		if err == nil {
 			if utils.IsImageFile(file) {
-				filename, err := utils.SaveFile(file, "uploads/profiles")
-				if err == nil {
-					input.FotoProfil = "/uploads/profiles/" + filename
+				if h.cloudinary != nil {
+					src, err := file.Open()
+					if err == nil {
+						defer src.Close()
+						url, err := h.cloudinary.UploadImage(src, "koskosan/profiles")
+						if err == nil {
+							input.FotoProfil = url
+						}
+					}
+				} else {
+					filename, err := utils.SaveFile(file, "uploads/profiles")
+					if err == nil {
+						input.FotoProfil = "/uploads/profiles/" + filename
+					}
 				}
 			}
 		}

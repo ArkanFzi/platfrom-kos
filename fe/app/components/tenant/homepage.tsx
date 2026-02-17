@@ -38,6 +38,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { api, Room as ApiRoom, Review as ApiReview } from '@/app/services/api';
+import { getImageUrl } from '@/app/utils/api-url';
 import {
   Select,
   SelectContent,
@@ -209,11 +210,7 @@ export function Homepage({
         name: r.nomor_kamar || 'Kamar Tanpa Nama',
         type: r.tipe_kamar || 'Standard',
         price: numericPrice,
-        image: r.image_url
-          ? r.image_url.startsWith("http")
-            ? r.image_url
-            : `http://localhost:8081${r.image_url}`
-          : "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=1080",
+        image: getImageUrl(r.image_url) || "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=1080",
         location: "Kota Malang, Jawa Timur",
         rating:  r.rating || 4.8,
         reviews: r.reviews || 12,
@@ -235,9 +232,7 @@ export function Homepage({
       name: r.user?.username || "Anonymous",
       role: "Resident",
       review: r.comment,
-      image: r.Penyewa?.foto_profil 
-          ? (r.Penyewa.foto_profil.startsWith("http") ? r.Penyewa.foto_profil : `http://localhost:8081${r.Penyewa.foto_profil}`)
-          : "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400",
+      image: getImageUrl(r.Penyewa?.foto_profil) || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400",
       stayDuration: "Verified",
       rating: r.rating,
     }));
@@ -803,7 +798,7 @@ export function Homepage({
                     <div className="mt-auto flex items-center gap-3 lg:gap-5 border-t dark:border-slate-800 pt-4 lg:pt-8">
                       <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-full overflow-hidden border border-slate-100">
                         <ImageWithFallback
-                          src={r.image}
+                          src={getImageUrl(r.image)}
                           alt={r.name}
                           className="w-full h-full object-cover"
                         />

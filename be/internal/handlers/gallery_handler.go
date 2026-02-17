@@ -11,11 +11,12 @@ import (
 )
 
 type GalleryHandler struct {
-	service service.GalleryService
+	service    service.GalleryService
+	cloudinary *utils.CloudinaryService
 }
 
-func NewGalleryHandler(s service.GalleryService) *GalleryHandler {
-	return &GalleryHandler{s}
+func NewGalleryHandler(s service.GalleryService, cld *utils.CloudinaryService) *GalleryHandler {
+	return &GalleryHandler{s, cld}
 }
 
 func (h *GalleryHandler) GetGalleries(c *gin.Context) {
@@ -47,16 +48,34 @@ func (h *GalleryHandler) CreateGallery(c *gin.Context) {
 		return
 	}
 
-	filename, err := utils.SaveFile(file, "uploads/gallery")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
-		return
+	var imageURL string
+	if h.cloudinary != nil {
+		src, err := file.Open()
+		if err == nil {
+			defer src.Close()
+			url, err := h.cloudinary.UploadImage(src, "koskosan/gallery")
+			if err == nil {
+				imageURL = url
+			} else {
+				utils.GlobalLogger.Error("Cloudinary upload failed: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
+				return
+			}
+		}
+	} else {
+		// Local fallback
+		filename, err := utils.SaveFile(file, "uploads/gallery")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+			return
+		}
+		imageURL = "/uploads/gallery/" + filename
 	}
 
 	gallery := models.Gallery{
 		Title:    title,
 		Category: category,
-		ImageURL: "/uploads/gallery/" + filename,
+		ImageURL: imageURL,
 	}
 
 	if err := h.service.CreateGallery(&gallery); err != nil {

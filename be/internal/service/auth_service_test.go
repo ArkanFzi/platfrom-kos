@@ -87,6 +87,14 @@ func (m *MockPenyewaRepository) FindByEmail(email string) (*models.Penyewa, erro
 	return args.Get(0).(*models.Penyewa), args.Error(1)
 }
 
+func (m *MockPenyewaRepository) FindByRole(role string) ([]models.Penyewa, error) {
+	args := m.Called(role)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Penyewa), args.Error(1)
+}
+
 // MockEmailSender implements utils.EmailSender interface
 type MockEmailSender struct {
 	mock.Mock

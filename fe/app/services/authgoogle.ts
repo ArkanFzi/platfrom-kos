@@ -23,21 +23,17 @@ export const decodeGoogleToken = (credential: string): GoogleUser | null => {
     }
 };
 
-export const handleGoogleLogin = async (credential: string) => {
-    const user = decodeGoogleToken(credential);
-    if (!user) throw new Error('Invalid Google credential');
-
-    // Send decoded info to backend
-    // In a high-security app, you'd send ONLY the credential token and verify it in Go
-    // But for this implementation, we send the info to our new Go endpoint
+// Remove client-side decoding - let backend verify the token
+export const handleGoogleLogin = async (credential: string) =>{
+    // Send raw ID token to backend for server-side verification
     try {
-        const res = await fetch('http://localhost:8081/api/auth/google-login', {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
+        const res = await fetch(`${apiUrl}/api/auth/google-login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // Send cookies with request
             body: JSON.stringify({
-                email: user.email,
-                username: user.name,
-                picture: user.picture
+                id_token: credential, // Send raw ID token, not decoded data
             }),
         });
 
@@ -48,12 +44,9 @@ export const handleGoogleLogin = async (credential: string) => {
 
         const data = await res.json();
         
-        // Save token to localStorage like normal login
-        if (data.token) {
-            localStorage.setItem('token', data.token);
-            if (data.user) {
-                localStorage.setItem('user', JSON.stringify(data.user));
-            }
+        // Save user data only (token is in HttpOnly cookie)
+        if (data.user) {
+            localStorage.setItem('user', JSON.stringify(data.user));
         }
         
         return data;

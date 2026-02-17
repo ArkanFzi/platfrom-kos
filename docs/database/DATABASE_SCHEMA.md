@@ -4,7 +4,7 @@
 
 Database schema untuk aplikasi Kos-Kosan menggunakan PostgreSQL dengan GORM sebagai ORM.
 
-**Database Name**: `tugas_arkan`  
+**Database Name**: `koskosan_db`  
 **DBMS**: PostgreSQL 15  
 **Port**: 5432  
 **Encoding**: UTF8
@@ -393,7 +393,7 @@ INSERT INTO kamar (nama, tipe, harga, lokasi, deskripsi, status) VALUES
 ### Daily Backups
 
 ```bash
-pg_dump -U postgres -d tugas_arkan > backup_$(date +%Y%m%d).sql
+pg_dump -U postgres -d koskosan_db > backup_$(date +%Y%m%d).sql
 ```
 
 ### Point-in-Time Recovery

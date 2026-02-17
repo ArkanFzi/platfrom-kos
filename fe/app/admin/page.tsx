@@ -5,6 +5,7 @@ import { LuxuryDashboard } from "@/app/components/admin/LuxuryDashboard";
 import { LuxuryReports } from "@/app/components/admin/LuxuryReports";
 import { LuxuryRoomManagement } from "@/app/components/admin/LuxuryRoomManagement";
 import { TenantData } from "@/app/components/admin/TenantData";
+import { UserManagement } from "@/app/components/admin/UserManagement";
 import { LuxuryPaymentConfirmation } from "@/app/components/admin/LuxuryPaymentConfirmation";
 import { GalleryData } from "@/app/components/admin/GalleryData";
 import { AdminLogin } from "@/app/components/shared/AdminLogin";
@@ -55,6 +56,8 @@ export default function AdminPage() {
         return <LuxuryRoomManagement key="rooms" />;
       case "tenants":
         return <TenantData key="tenants" />;
+      case "users":
+        return <UserManagement key="users" />;
       case "payments":
         return <LuxuryPaymentConfirmation key="payments" />;
       case "reports":

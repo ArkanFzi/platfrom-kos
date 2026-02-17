@@ -20,6 +20,7 @@ export function AdminSidebar({ currentPage, onNavigate }: AdminSidebarProps) {
     { id: 'dashboard', label: 'Beranda', icon: LayoutDashboard },
     { id: 'rooms', label: 'Data Kamar', icon: Home },
     { id: 'tenants', label: 'Data Penyewa', icon: Users },
+    { id: 'users', label: 'User Management', icon: Users },
     { id: 'payments', label: 'Pembayaran', icon: CreditCard },
     { id: 'reports', label: 'Laporan', icon: TrendingUp },
     { id: 'gallery', label: 'Galeri', icon: ImageIcon }

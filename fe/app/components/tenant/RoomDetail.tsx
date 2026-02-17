@@ -4,6 +4,7 @@ import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { ImageWithFallback } from "@/app/components/shared/ImageWithFallback";
 import { SkeletonDetail } from "@/app/components/ui/loading-screen";
+import { getImageUrl } from '@/app/utils/api-url';
 import { motion } from "framer-motion";
 import { Textarea } from "@/app/components/ui/textarea";
 import {
@@ -140,9 +141,9 @@ export function RoomDetail({
             })),
             features: fasilitasArray,
             images: [
-              roomData.image_url ? (roomData.image_url.startsWith('http') ? roomData.image_url : `http://localhost:8081${roomData.image_url}`) : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=1080',
-              // Add more fallback images or gallery images here if available in Room interface
-              ...(roomData.Gallery?.map(g => g.image_url.startsWith('http') ? g.image_url : `http://localhost:8081${g.image_url}`) || 
+              roomData.image_url ? getImageUrl(roomData.image_url) : 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=1080',
+              // Gallery
+              ...(roomData.Gallery?.map(g => getImageUrl(g.image_url)) || 
                  ['https://images.unsplash.com/photo-1662454419736-de132ff75638?q=80&w=1080',
                   'https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=1080'])
             ]

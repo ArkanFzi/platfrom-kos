@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from 'react';
 import { Search, Trash2, Plus, Download, Eye } from 'lucide-react';
 import Image from 'next/image';
@@ -6,6 +8,7 @@ import { Button } from '@/app/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/app/components/ui/dialog';
 import { Label } from '@/app/components/ui/label';
 import { api } from '@/app/services/api';
+import { getImageUrl } from '@/app/utils/api-url';
 
 interface Gallery {
   id: number;
@@ -194,7 +197,7 @@ export function GalleryData() {
           <div key={image.id} className="bg-slate-900/40 rounded-2xl border border-slate-800 overflow-hidden hover:border-amber-500/30 transition-all duration-300 group">
             <div className="aspect-[4/3] overflow-hidden relative">
               <Image
-                src={image.image_url.startsWith('http') ? image.image_url : `http://localhost:8081${image.image_url}`}
+                src={getImageUrl(image.image_url)}
                 alt={image.title}
                 width={400}
                 height={300}

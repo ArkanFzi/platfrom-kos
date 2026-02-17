@@ -11,11 +11,12 @@ import (
 )
 
 type KamarHandler struct {
-	service service.KamarService
+	service    service.KamarService
+	cloudinary *utils.CloudinaryService
 }
 
-func NewKamarHandler(s service.KamarService) *KamarHandler {
-	return &KamarHandler{s}
+func NewKamarHandler(s service.KamarService, cld *utils.CloudinaryService) *KamarHandler {
+	return &KamarHandler{s, cld}
 }
 
 func (h *KamarHandler) GetKamars(c *gin.Context) {
@@ -69,9 +70,27 @@ func (h *KamarHandler) CreateKamar(c *gin.Context) {
 	if err == nil {
 		// If file is provided, validate and save
 		if utils.IsImageFile(file) {
-			filename, err := utils.SaveFile(file, "uploads/rooms")
-			if err == nil {
-				imageURL = "/uploads/rooms/" + filename
+			// Phase 3: Cloudinary Upload
+			if h.cloudinary != nil {
+				src, err := file.Open()
+				if err == nil {
+					defer src.Close()
+					url, err := h.cloudinary.UploadImage(src, "koskosan/rooms")
+					if err == nil {
+						imageURL = url
+					} else {
+						// Log error but verify if we should fail request
+						utils.GlobalLogger.Error("Failed to upload to Cloudinary: %v", err)
+						// Fallback to local? No, just fail or default.
+						imageURL = "https://via.placeholder.com/400?text=Upload+Failed"
+					}
+				}
+			} else {
+				// Fallback to local if cloudinary not configured (dev mode without creds)
+				filename, err := utils.SaveFile(file, "uploads/rooms")
+				if err == nil {
+					imageURL = "/uploads/rooms/" + filename
+				}
 			}
 		}
 	} else {
@@ -150,9 +169,24 @@ func (h *KamarHandler) UpdateKamar(c *gin.Context) {
 	file, err := c.FormFile("image")
 	if err == nil {
 		if utils.IsImageFile(file) {
-			filename, err := utils.SaveFile(file, "uploads/rooms")
-			if err == nil {
-				kamar.ImageURL = "/uploads/rooms/" + filename
+			// Phase 3: Cloudinary Upload
+			if h.cloudinary != nil {
+				src, err := file.Open()
+				if err == nil {
+					defer src.Close()
+					url, err := h.cloudinary.UploadImage(src, "koskosan/rooms")
+					if err == nil {
+						kamar.ImageURL = url
+					} else {
+						utils.GlobalLogger.Error("Failed to upload to Cloudinary: %v", err)
+					}
+				}
+			} else {
+				// Fallback to local
+				filename, err := utils.SaveFile(file, "uploads/rooms")
+				if err == nil {
+					kamar.ImageURL = "/uploads/rooms/" + filename
+				}
 			}
 		}
 	}

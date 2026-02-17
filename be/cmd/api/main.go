@@ -39,11 +39,26 @@ func main() {
 	emailSender := utils.NewEmailSender(cfg)
 	waSender := utils.NewWhatsAppSender(cfg)
 
+	// Cloudinary Service
+	var cloudinaryService *utils.CloudinaryService
+	if cfg.CloudinaryURL != "" {
+		var err error
+		cloudinaryService, err = utils.NewCloudinaryService(cfg.CloudinaryURL)
+		if err != nil {
+			utils.GlobalLogger.Error("Failed to initialize Cloudinary: %v", err)
+			log.Println("Warning: Cloudinary initialization failed, falling back to local storage")
+		} else {
+			utils.GlobalLogger.Info("Cloudinary service initialized successfully")
+		}
+	} else {
+		utils.GlobalLogger.Info("Cloudinary URL not set, using local storage")
+	}
+
 	authService := service.NewAuthService(userRepo, penyewaRepo, cfg, emailSender)
 	kamarService := service.NewKamarService(kamarRepo)
 	galleryService := service.NewGalleryService(galleryRepo)
 	dashboardService := service.NewDashboardService(db)
-	reviewService := service.NewReviewService(reviewRepo)
+	reviewService := service.NewReviewService(reviewRepo, bookingRepo, penyewaRepo)
 	profileService := service.NewProfileService(userRepo, penyewaRepo)
 	bookingService := service.NewBookingService(bookingRepo, penyewaRepo, kamarRepo, paymentRepo)
 	paymentService := service.NewPaymentService(paymentRepo, bookingRepo, kamarRepo, penyewaRepo, db, emailSender, waSender)
@@ -53,13 +68,13 @@ func main() {
 
 	// 5. Initialize Handlers
 	authHandler := handlers.NewAuthHandler(authService, cfg)
-	kamarHandler := handlers.NewKamarHandler(kamarService)
-	galleryHandler := handlers.NewGalleryHandler(galleryService)
+	kamarHandler := handlers.NewKamarHandler(kamarService, cloudinaryService)
+	galleryHandler := handlers.NewGalleryHandler(galleryService, cloudinaryService)
 	dashboardHandler := handlers.NewDashboardHandler(dashboardService)
 	reviewHandler := handlers.NewReviewHandler(reviewService)
-	profileHandler := handlers.NewProfileHandler(profileService)
+	profileHandler := handlers.NewProfileHandler(profileService, cloudinaryService)
 	bookingHandler := handlers.NewBookingHandler(bookingService)
-	paymentHandler := handlers.NewPaymentHandler(paymentService)
+	paymentHandler := handlers.NewPaymentHandler(paymentService, cloudinaryService)
 	tenantHandler := handlers.NewTenantHandler(tenantService)
 	contactHandler := handlers.NewContactHandler(contactService)
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { getImageUrl } from '@/app/utils/api-url';
 import { Check, X, Eye, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/app/services/api';
@@ -56,7 +57,7 @@ export function PaymentConfirmation() {
         date: new Date(p.tanggal_bayar).toLocaleDateString('id-ID'),
         method: 'Transfer Bank',
         status: p.status_pembayaran as Payment['status'],
-        receiptUrl: p.bukti_transfer ? (p.bukti_transfer.startsWith('http') ? p.bukti_transfer : `http://localhost:8081${p.bukti_transfer}`) : '',
+        receiptUrl: getImageUrl(p.bukti_transfer) || '',
       }));
       setPayments(mapped);
     } catch (e) {

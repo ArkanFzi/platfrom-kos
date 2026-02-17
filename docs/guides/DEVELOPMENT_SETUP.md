@@ -58,7 +58,7 @@ curl http://localhost:3000
 curl http://localhost:8080/api/kamar
 
 # Check database
-docker compose exec db psql -U postgres -d tugas_arkan -c "\dt"
+docker compose exec db psql -U postgres -d koskosan_db -c "\dt"
 ```
 
 ---
@@ -97,9 +97,9 @@ Download installer dari [postgresql.org](https://www.postgresql.org/download/win
 sudo -u postgres psql
 
 # Buat database dan user
-CREATE DATABASE tugas_arkan;
+CREATE DATABASE koskosan_db;
 CREATE USER postgres WITH PASSWORD '12345678';
-GRANT ALL PRIVILEGES ON DATABASE tugas_arkan TO postgres;
+GRANT ALL PRIVILEGES ON DATABASE koskosan_db TO postgres;
 
 # Exit
 \q
@@ -108,7 +108,7 @@ GRANT ALL PRIVILEGES ON DATABASE tugas_arkan TO postgres;
 #### Verify Database Connection
 
 ```bash
-psql -h localhost -U postgres -d tugas_arkan
+psql -h localhost -U postgres -d koskosan_db
 ```
 
 ### Step 2: Setup Backend
@@ -131,7 +131,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=12345678
-DB_NAME=tugas_arkan
+DB_NAME=koskosan_db
 
 # Server Configuration
 SERVER_PORT=8080
@@ -313,7 +313,7 @@ npm run build
 
 ```bash
 # Connect to database
-psql -h localhost -U postgres -d tugas_arkan
+psql -h localhost -U postgres -d koskosan_db
 
 # View tables
 \dt
@@ -322,13 +322,13 @@ psql -h localhost -U postgres -d tugas_arkan
 \d kamar
 
 # Run SQL file
-psql -h localhost -U postgres -d tugas_arkan < script.sql
+psql -h localhost -U postgres -d koskosan_db < script.sql
 
 # Backup database
-pg_dump -U postgres tugas_arkan > backup.sql
+pg_dump -U postgres koskosan_db > backup.sql
 
 # Restore database
-psql -U postgres tugas_arkan < backup.sql
+psql -U postgres koskosan_db < backup.sql
 ```
 
 ### 5. Testing
@@ -375,7 +375,7 @@ sudo systemctl status postgresql
 sudo systemctl restart postgresql
 
 # Check connection
-psql -h localhost -U postgres -d tugas_arkan
+psql -h localhost -U postgres -d koskosan_db
 ```
 
 ### Go Module Issues
@@ -430,7 +430,7 @@ make run
 | `DB_PORT`         | Database port            | 5432        | Yes      |
 | `DB_USER`         | Database username        | postgres    | Yes      |
 | `DB_PASSWORD`     | Database password        | -           | Yes      |
-| `DB_NAME`         | Database name            | tugas_arkan | Yes      |
+| `DB_NAME`         | Database name            | koskosan_db | Yes      |
 | `SERVER_PORT`     | API server port          | 8080        | Yes      |
 | `GIN_MODE`        | Gin mode (debug/release) | debug       | No       |
 | `JWT_SECRET`      | JWT signing key          | -           | Yes      |

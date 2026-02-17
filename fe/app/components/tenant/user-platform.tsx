@@ -14,7 +14,8 @@ import { Home, History, User, Menu, LogOut, Mail, Phone, MapPin, CreditCard, X, 
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
-import { Card } from '@/app/components/ui/card';
+import { Card, CardContent } from "@/app/components/ui/card";
+import { getImageUrl } from "@/app/utils/api-url";
 import { Badge } from '@/app/components/ui/badge';
 import { ThemeToggleButton } from '@/app/components/ui/ThemeToggleButton';
 import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
@@ -199,7 +200,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
         roomNumber: currentRoomNumber,
         isGoogleUser: data.is_google_user,
         profileImage: data.penyewa?.foto_profil
-          ? (data.penyewa.foto_profil.startsWith('http') ? data.penyewa.foto_profil : `http://localhost:8081${data.penyewa.foto_profil}`)
+          ? getImageUrl(data.penyewa.foto_profil)
           : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NzIyNDZ8MHwxfHNlYXJjaHwxfHx1c2VyJTIwYXZhdGFyfGVufDB8fHx8fDE3MDAwMDAwMDB|&ixlib=rb-4.0.3&q=80&w=400',
       });
       setEditData({
@@ -281,7 +282,7 @@ export function UserPlatform({ onLogout }: UserPlatformProps) {
       setUserData({
         ...editData,
         profileImage: res.penyewa?.foto_profil
-          ? (res.penyewa.foto_profil.startsWith('http') ? res.penyewa.foto_profil : `http://localhost:8081${res.penyewa.foto_profil}`)
+          ? getImageUrl(res.penyewa.foto_profil)
           : editData.profileImage
       });
       setIsEditingProfile(false);

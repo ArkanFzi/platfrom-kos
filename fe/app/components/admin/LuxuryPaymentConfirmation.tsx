@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react';
+"use client";
+
+import { useState, useMemo, useEffect } from 'react';
+import { getImageUrl } from '@/app/utils/api-url';
 import { Check, X, Eye, Clock, CheckCircle2, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { api, Payment as ApiPayment } from '@/app/services/api';
 import { Button } from '@/app/components/ui/button';
@@ -39,7 +42,7 @@ export function LuxuryPaymentConfirmation() {
       date: new Date(p.tanggal_bayar).toLocaleDateString('id-ID'),
       method: 'Transfer Bank',
       status: p.status_pembayaran as Payment['status'],
-      receiptUrl: p.bukti_transfer ? (p.bukti_transfer.startsWith('http') ? p.bukti_transfer : `http://localhost:8081${p.bukti_transfer}`) : '',
+      receiptUrl: getImageUrl(p.bukti_transfer) || '',
     }));
     
     setPayments(mapped);

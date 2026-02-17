@@ -4,19 +4,22 @@ import (
 	"fmt"
 	"koskosan-be/internal/models"
 	"koskosan-be/internal/service"
+	"koskosan-be/internal/utils"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 type PaymentHandler struct {
-	service service.PaymentService
+	service    service.PaymentService
+	cloudinary *utils.CloudinaryService
 }
 
-func NewPaymentHandler(s service.PaymentService) *PaymentHandler {
-	return &PaymentHandler{s}
+func NewPaymentHandler(s service.PaymentService, cld *utils.CloudinaryService) *PaymentHandler {
+	return &PaymentHandler{s, cld}
 }
 
 func (h *PaymentHandler) GetAllPayments(c *gin.Context) {
@@ -80,35 +83,76 @@ func (h *PaymentHandler) UploadPaymentProof(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"}) // Changed error message
 		return
 	}
 
-	// Handle file upload
-	file, err := c.FormFile("proof")
+	// Get file from form
+	file, err := c.FormFile("proof") // Changed form field name
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Proof file is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Payment proof file is required"}) // Changed error message
 		return
 	}
 
-	// Generate filename
-	filename := fmt.Sprintf("proof_%d_%s", id, file.Filename)
-	filepath := "uploads/proofs/" + filename
-
-	// Ensure directory exists
-	if err := os.MkdirAll("uploads/proofs", os.ModePerm); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create directory"})
+	// Validate file (size and type)
+	// Assuming utils.IsImageFile checks for image extensions.
+	// If we support PDF, we might need a broader check.
+	// Assuming image for now as Cloudinary handles images best.
+	if !utils.IsImageFile(file) { // Changed validation
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file type. Only images are allowed."}) // Changed error message
 		return
 	}
 
-	// Save file
-	if err := c.SaveUploadedFile(file, filepath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
-		return
+	var proofURL string
+	if h.cloudinary != nil {
+		src, err := file.Open()
+		if err == nil {
+			defer src.Close()
+			url, err := h.cloudinary.UploadImage(src, "koskosan/proofs")
+			if err == nil {
+				proofURL = url
+			} else {
+				utils.GlobalLogger.Error("Cloudinary upload failed: %v", err)
+				// Fallback to local if upload failed?
+				// Better to fail safely or try local.
+				// Let's rely on error handling.
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload proof to cloud"})
+				return
+			}
+		}
 	}
 
-	// Update record with file path (relative for URL access)
-	proofURL := "/uploads/proofs/" + filename
+	if proofURL == "" {
+		// Local fallback
+		// SECURITY FIX: Use UUID for filename to prevent path traversal attacks
+		// Extract file extension safely
+		fileExt := ""
+		if len(file.Filename) > 0 {
+			for i := len(file.Filename) - 1; i >= 0 && i > len(file.Filename)-6; i-- {
+				if file.Filename[i] == '.' {
+					fileExt = file.Filename[i:]
+					break
+				}
+			}
+		}
+
+		// Generate secure UUID-based filename
+		filename := fmt.Sprintf("proof_%d_%s%s", id, generateUUID(), fileExt)
+		filepath := "uploads/proofs/" + filename
+
+		// Ensure directory exists
+		if err := os.MkdirAll("uploads/proofs", os.ModePerm); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create directory"})
+			return
+		}
+
+		// Save file
+		if err := c.SaveUploadedFile(file, filepath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+			return
+		}
+		proofURL = "/uploads/proofs/" + filename
+	}
 
 	if err := h.service.UploadPaymentProof(uint(id), proofURL); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -119,6 +163,12 @@ func (h *PaymentHandler) UploadPaymentProof(c *gin.Context) {
 		"message": "Payment proof uploaded successfully",
 		"url": proofURL,
 	})
+}
+
+// generateUUID creates a unique identifier for file naming
+func generateUUID() string {
+	// Simple UUID generation (you could use github.com/google/uuid for production)
+	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
 // ConfirmCashPayment untuk mengkonfirmasi pembayaran cash

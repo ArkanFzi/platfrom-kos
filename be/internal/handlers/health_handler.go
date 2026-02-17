@@ -1,12 +1,21 @@
 package handlers
 
 import (
+	"koskosan-be/internal/config"
 	"koskosan-be/internal/database"
 	"koskosan-be/internal/utils"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+type HealthHandler struct {
+	cfg *config.Config
+}
+
+func NewHealthHandler(cfg *config.Config) *HealthHandler {
+	return &HealthHandler{cfg: cfg}
+}
 
 type HealthResponse struct {
 	Status      string `json:"status"`
@@ -18,7 +27,7 @@ type HealthResponse struct {
 
 var startTime = time.Now()
 
-func HealthCheck(c *gin.Context) {
+func (h *HealthHandler) HealthCheck(c *gin.Context) {
 	db := database.GetDB()
 
 	// Check database connection
@@ -33,7 +42,7 @@ func HealthCheck(c *gin.Context) {
 		Status:    "ok",
 		Timestamp: time.Now().Format(time.RFC3339),
 		Database:  dbStatus,
-		Version:   "1.0.0", // TODO: Read dari config
+		Version:   h.cfg.AppVersion,
 		Uptime:    int64(time.Since(startTime).Seconds()),
 	}
 

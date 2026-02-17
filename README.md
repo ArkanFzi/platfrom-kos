@@ -92,7 +92,7 @@ graph TD
 - Go 1.24+
 
 ### Setup Local
-1. **Database**: Buat database bernama `tugas_arkan`.
+1. **Database**: Buat database bernama `koskosan_db`.
 2. **Backend**: 
    ```bash
    cd be && go mod tidy

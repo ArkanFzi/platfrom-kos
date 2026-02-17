@@ -58,7 +58,7 @@ DB_HOST=db
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=STRONG_PASSWORD_HERE
-DB_NAME=tugas_arkan
+DB_NAME=koskosan_db
 
 SERVER_PORT=8080
 GIN_MODE=release
@@ -91,7 +91,7 @@ services:
     image: postgres:15-alpine
     container_name: koskosan_db_prod
     environment:
-      POSTGRES_DB: tugas_arkan
+      POSTGRES_DB: koskosan_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
@@ -306,7 +306,7 @@ spec:
           image: postgres:15
           env:
             - name: POSTGRES_DB
-              value: tugas_arkan
+              value: koskosan_db
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -337,7 +337,7 @@ kubectl apply -f k8s/
 
 ```bash
 # Connect to production database
-psql -h your-db-host -U postgres -d tugas_arkan
+psql -h your-db-host -U postgres -d koskosan_db
 
 # Run migration scripts
 \i schema.sql
@@ -348,7 +348,7 @@ psql -h your-db-host -U postgres -d tugas_arkan
 
 ```bash
 # Backup first!
-pg_dump -h your-db-host -U postgres tugas_arkan > backup_$(date +%Y%m%d).sql
+pg_dump -h your-db-host -U postgres koskosan_db > backup_$(date +%Y%m%d).sql
 
 # Run migration
 \i migration_v2.sql
@@ -417,7 +417,7 @@ DATE=$(date +%Y%m%d_%H%M%S)
 FILENAME="koskosan_backup_$DATE.sql"
 
 # Create backup
-docker exec koskosan_db_prod pg_dump -U postgres tugas_arkan > "$BACKUP_DIR/$FILENAME"
+docker exec koskosan_db_prod pg_dump -U postgres koskosan_db > "$BACKUP_DIR/$FILENAME"
 
 # Compress
 gzip "$BACKUP_DIR/$FILENAME"
@@ -502,7 +502,7 @@ In case of deployment failure:
 docker compose down
 
 # Restore database
-gunzip < backup_YYYYMMDD.sql.gz | psql -h db -U postgres tugas_arkan
+gunzip < backup_YYYYMMDD.sql.gz | psql -h db -U postgres koskosan_db
 
 # Checkout previous version
 git checkout <previous-commit-hash>

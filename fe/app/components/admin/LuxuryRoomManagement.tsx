@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react';
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
+import { getImageUrl } from '@/app/utils/api-url';
 import { Search, Plus, Edit, Trash2, Eye, Download, ChevronUp, ChevronDown } from 'lucide-react';
 import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
 import { Button } from '@/app/components/ui/button';
@@ -84,7 +87,7 @@ export function LuxuryRoomManagement() {
         bedrooms: r.bedrooms || 1,
         bathrooms: r.bathrooms || 1,
         description: r.description || '',
-        image: r.image_url ? (r.image_url.startsWith('http') ? r.image_url : `http://localhost:8081${r.image_url}`) : 'https://via.placeholder.com/300',
+        image: getImageUrl(r.image_url) || 'https://via.placeholder.com/300',
         facilities: r.fasilitas ? r.fasilitas.split(',').map(f => f.trim()) : []
       }));
       setRooms(mapped);

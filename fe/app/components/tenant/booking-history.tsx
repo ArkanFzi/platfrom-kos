@@ -1,7 +1,10 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
+import { getImageUrl } from '@/app/utils/api-url';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { ExtendBooking } from './extend-booking';
@@ -108,7 +111,7 @@ export function BookingHistory({ onViewRoom }: BookingHistoryProps) {
         return {
           id: b.id.toString(),
           roomName: b.kamar.nomor_kamar + " - " + b.kamar.tipe_kamar,
-          roomImage: b.kamar.image_url.startsWith('http') ? b.kamar.image_url : `http://localhost:8081${b.kamar.image_url}`,
+          roomImage: getImageUrl(b.kamar.image_url),
           location: `Floor ${b.kamar.floor}`,
           status: b.status_pemesanan === 'Confirmed' ? 'Confirmed' : (b.status_pemesanan === 'Pending' ? 'Pending' : (b.status_pemesanan === 'Cancelled' ? 'Cancelled' : 'Completed')),
           status_pemesanan: b.status_pemesanan,

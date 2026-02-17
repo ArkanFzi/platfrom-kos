@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useMemo } from 'react';
+import { Card } from '@/app/components/ui/card';
 import useSWR from 'swr';
+import { getImageUrl } from '@/app/utils/api-url';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
 import { SkeletonGrid } from '@/app/components/ui/loading-screen';
-import { api } from '@/app/services/api';
+import { api, type Gallery as GalleryType } from '@/app/services/api';
 
 // --- Data Kos-Kosan Fallback ---
 const fallbackKosData = [
@@ -41,13 +43,13 @@ export function Gallery() {
   const displayItems = useMemo<GalleryItem[]>(() => {
     if (!galleryData || !Array.isArray(galleryData) || galleryData.length === 0) return fallbackKosData;
 
-    const mapped = galleryData.map((item: any) => ({
+    const mapped = galleryData.map((item: GalleryType) => ({
       id: item.id,
       title: item.title || "Elite Room",
       category: item.category || "Premium",
       year: item.created_at ? new Date(item.created_at).getFullYear().toString() : "2024",
       imageUrl: item.image_url 
-        ? (item.image_url.startsWith('http') ? item.image_url : `http://localhost:8081${item.image_url}`) 
+        ? getImageUrl(item.image_url) 
         : "https://via.placeholder.com/800"
     }));
 
