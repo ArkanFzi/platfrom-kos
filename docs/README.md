@@ -1,29 +1,55 @@
 # Platform Kos: Official Documentation
 
-Welcome to the comprehensive technical documentation for **Platform Kos**. This center serves as the one-stop resource for understanding, maintaining, and scaling the application.
+Dokumentasi teknis lengkap untuk **Platform Kos** — sistem manajemen kos-kosan modern yang dibangun dengan Go + Next.js.
 
-## 🗺️ Documentation Modules
+## 🚀 Getting Started
 
-We have organized our documentation into a structured modular format, ideal for **GitBook** integration:
+| Modul | Deskripsi |
+|-------|-----------|
+| [Introduction](getting-started/introduction.md) | Visi, fitur utama, dan overview proyek |
+| [Technical Stack](getting-started/tech-stack.md) | Teknologi yang digunakan beserta versi |
+| [Project Setup](getting-started/project-setup.md) | Tutorial setup dari nol (clone → run) |
 
-1. **[Introduction](module/1-introduction.md)**: Vision, goals, and project overview.
-2. **[Technical Stack](module/2-tech-stack.md)**: Why we chose Go, Next.js, and Cloudinary.
-3. **[Architecture](module/3-architecture.md)**: Deep dive into Clean Architecture and Modular UI patterns.
-4. **[Security & Authentication](module/4-security-auth.md)**: Understanding our security-first approach.
-5. **[Core Features](module/5-core-features.md)**: How Room and Booking functions work under the hood.
-6. **[DevOps & Infrastructure](module/6-devops.md)**: Deployment, Monitoring, and CI/CD.
-7. **[Conclusion & Roadmap](module/7-conclusion.md)**: Future vision and support.
+## 🏗️ Architecture
+
+| Modul | Deskripsi |
+|-------|-----------|
+| [System Overview](architecture/overview.md) | Clean Architecture backend & modular frontend |
+| [Database](architecture/database.md) | Model GORM, ERD, migration |
+| [System Architecture Map](architecture/system-architecture.md) | Diagram arsitektur lengkap |
+
+## 🔐 Security
+
+| Modul | Deskripsi |
+|-------|-----------|
+| [Authentication & Authorization](security/authentication.md) | HttpOnly cookies, JWT, RBAC, rate limiting |
+| [Security Guidelines](security/guidelines.md) | Panduan keamanan untuk developer |
+
+## ⚡ Features
+
+| Modul | Deskripsi |
+|-------|-----------|
+| [API Reference](features/api-reference.md) | Daftar 30+ endpoint lengkap |
+| [Core Features](features/core-features.md) | Room, Booking, Payment dengan kode nyata |
+| [Frontend Architecture](features/frontend.md) | Arsitektur komponen, SWR, Context API |
+
+## 🐳 DevOps & Deployment
+
+| Modul | Deskripsi |
+|-------|-----------|
+| [Infrastructure & Monitoring](devops/infrastructure.md) | Docker, CI/CD, Prometheus |
+| [Deployment Guide](devops/deployment.md) | Panduan deployment ke production |
+| [Development Setup](devops/development-setup.md) | Setup environment development |
+
+## 📖 Reference
+
+| Modul | Deskripsi |
+|-------|-----------|
+| [Database Schema](reference/database-schema.md) | Skema database lengkap |
 
 ---
 
-## 🗄️ Reference Documents
+* [Conclusion & Roadmap](conclusion.md)
 
-For specific technical references, consult the following maps:
-- **[System Architecture Map](architecture/SYSTEM_ARCHITECTURE.md)**
-- **[Full Database Schema](database/DATABASE_SCHEMA.md)**
-- **[Local Development Setup](guides/DEVELOPMENT_SETUP.md)**
-
----
-
-> [!IMPORTANT]
-> This documentation is synchronized with the GitHub repository. To contribute, please follow the guidelines in the [Conclusion](module/7-conclusion.md) section.
+> [!TIP]
+> Untuk memulai development, langsung ke [Project Setup](getting-started/project-setup.md).

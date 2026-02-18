@@ -1,14 +1,38 @@
 # Table of contents
 
-* [Introduction](module/1-introduction.md)
-* [Technical Stack](module/2-tech-stack.md)
-* [Architecture](module/3-architecture.md)
-* [Security & Authentication](module/4-security-auth.md)
-* [Core Features](module/5-core-features.md)
-* [DevOps & Infrastructure](module/6-devops.md)
-* [Conclusion](module/7-conclusion.md)
+## Getting Started
+
+* [Introduction](getting-started/introduction.md)
+* [Technical Stack](getting-started/tech-stack.md)
+* [Project Setup](getting-started/project-setup.md)
+
+## Architecture
+
+* [System Overview](architecture/overview.md)
+* [Database](architecture/database.md)
+* [System Architecture Map](architecture/system-architecture.md)
+
+## Security
+
+* [Authentication & Authorization](security/authentication.md)
+* [Security Guidelines](security/guidelines.md)
+
+## Features
+
+* [API Reference](features/api-reference.md)
+* [Core Features](features/core-features.md)
+* [Frontend Architecture](features/frontend.md)
+
+## DevOps & Deployment
+
+* [Infrastructure & Monitoring](devops/infrastructure.md)
+* [Deployment Guide](devops/deployment.md)
+* [Development Setup](devops/development-setup.md)
+
+## Reference
+
+* [Database Schema](reference/database-schema.md)
 
 ---
 
-* [System Architecture](architecture/SYSTEM_ARCHITECTURE.md)
-* [Database Schema](database/DATABASE_SCHEMA.md)
+* [Conclusion & Roadmap](conclusion.md)

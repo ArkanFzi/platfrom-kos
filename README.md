@@ -1,124 +1,236 @@
-# 🏡 Kost Putra Rahmat ZAW - Management System
+<p align="center">
+  <h1 align="center">🏡 Platform Kos</h1>
+  <p align="center">
+    <strong>Sistem Manajemen Kos-Kosan Modern — Full-Stack, Aman, dan Siap Produksi</strong>
+  </p>
+  <p align="center">
+    <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.24-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go"/></a>
+    <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js"/></a>
+    <a href="https://www.postgresql.org"><img src="https://img.shields.io/badge/PostgreSQL-15-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL"/></a>
+    <a href="https://docker.com"><img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/></a>
+    <a href="https://tailwindcss.com"><img src="https://img.shields.io/badge/Tailwind_CSS-4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind"/></a>
+  </p>
+</p>
 
-> _Sistem Manajemen Kos Putra Premium: Modern, Cepat, dan Skalabel._
+---
 
-[![Go](https://img.shields.io/badge/Backend-Go_1.24-blue?style=for-the-badge&logo=go)](https://golang.org)
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js_15-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
-[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791?style=for-the-badge&logo=postgresql)](https://www.postgresql.org)
-[![SWR](https://img.shields.io/badge/Caching-SWR-000000?style=for-the-badge&logo=vercel)](https://swr.vercel.app)
-[![Docker](https://img.shields.io/badge/Deployment-Docker-2496ED?style=for-the-badge&logo=docker)](https://docker.com)
-[![Tailwind](https://img.shields.io/badge/Styling-Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com)
+**Platform Kos** adalah aplikasi manajemen kos-kosan full-stack yang memadukan backend **Go (Gin + GORM)** dengan Clean Architecture dan frontend **Next.js (App Router)** yang modern. Dirancang untuk pengelola kos yang ingin mendigitalkan operasionalnya — dari pengelolaan kamar, booking, pembayaran, hingga dashboard analitik.
 
-**Kost Putra Rahmat ZAW** adalah platform manajemen kos terintegrasi yang dirancang untuk memberikan pengalaman terbaik bagi penghuni dan efisiensi maksimal bagi manajemen. Memadukan arsitektur **Clean Architecture (Golang)** yang tangguh dengan antarmuka **Next.js** yang elegan.
+## ✨ Fitur Utama
+
+### 🔐 Security & Authentication
+- **HttpOnly Cookie JWT** — Token tidak bisa diakses JavaScript (anti-XSS)
+- **Refresh Token Rotation** — Auto-rotate tanpa logout
+- **Google OAuth 2.0** — Login cepat via akun Google
+- **Role-Based Access Control** — Admin & Penyewa dengan permission terpisah
+- **Rate Limiting** — Brute-force protection pada endpoint sensitif
+- **IDOR Protection** — Ownership check pada setiap resource
+
+### 🏠 Room Management
+- CRUD kamar dengan upload gambar via **Cloudinary CDN**
+- Status tracking: `Tersedia` → `Booked` → `Terisi` → `Perbaikan`
+- Detail kamar lengkap: tipe, fasilitas, lantai, ukuran, harga
+
+### 📋 Booking System
+- Booking flow intuitif dengan **atomic database transactions**
+- Auto-cancel booking yang expired (background worker)
+- Perpanjangan sewa langsung dari dashboard
+- Status tracking: `Pending` → `Confirmed` → `Active` → `Completed`
+
+### � Payment
+- **Transfer Bank** — Upload bukti bayar + admin konfirmasi
+- **Cash** — Pencatatan pembayaran tunai oleh admin
+- Opsi **Full Payment** atau **DP (Down Payment)**
+- **Automated Payment Reminders** via email
+
+### 📊 Admin Dashboard
+- Revenue analytics & tren bulanan (Recharts)
+- Statistik okupansi real-time
+- Konfirmasi pembayaran & manajemen penyewa
+- Monitoring Prometheus terintegrasi
+
+### 🎨 User Experience
+- **SWR Caching** — Data tampil instan, refresh di background
+- **Glassmorphism + Dark Mode** — UI modern dan premium
+- **Fully Responsive** — Mobile-first design
+- **Framer Motion** — Micro-animations untuk interaksi halus
 
 ---
 
 ## 🏗️ Arsitektur Sistem
 
-Proyek ini mengimplementasikan **Decoupled Architecture** untuk memastikan skalabilitas dan performa tinggi.
-
 ```mermaid
 graph TD
-    User("👱 Penghuni/Admin") -->|HTTPS| FE["🏠 Frontend (Next.js + SWR)"]
-    FE -->|REST API| BE["🏢 Backend (Golang API)"]
-    BE -->|GORM| DB[("🗄️ Database PostgreSQL")]
-    BE -->|Payment SDK| Midtrans["💳 Midtrans Payment"]
-    BE -->|Auth| Security["🔐 JWT + Argon2"]
-    
-    subgraph "Frontend Layer"
-    FE --- Shadcn["Radix UI / Shadcn"]
-    FE --- Recharts["Recharts Analytics"]
-    FE --- Motion["Framer Motion"]
+    A["👤 User / Admin"] -->|HTTPS| B["Nginx Reverse Proxy"]
+    B --> C["🎨 Frontend - Next.js :3000"]
+    B --> D["⚙️ Backend - Go API :8080"]
+    D --> E[("🗄️ PostgreSQL")]
+    D --> F["☁️ Cloudinary CDN"]
+    D --> G["📧 SMTP Email"]
+    H["📈 Prometheus"] --> D
+
+    subgraph Frontend
+        C --- SWR["SWR Cache"]
+        C --- Shadcn["Shadcn UI"]
+        C --- Motion["Framer Motion"]
     end
 
-    subgraph "Backend Layer"
-    BE --- Gin["Gin Web Framework"]
-    BE --- Layer["Clean Arch (Repo Pattern)"]
+    subgraph Backend
+        D --- Handlers["Handlers"]
+        Handlers --- Services["Services"]
+        Services --- Repos["Repositories"]
     end
 ```
-
----
-
-## ✨ Fitur Utama
-
-### 🛡️ Keamanan & Autentikasi Modern
-- **Google OAuth 2.0 Integration**: Login cepat dan aman menggunakan akun Google.
-- **Robust JWT Auth**: Manajemen sesi yang aman dengan JSON Web Tokens.
-- **Secure Password Reset**: Sistem reset password berbasis email yang terenkripsi.
-- **Argon2 Hashing**: Standar hashing password tingkat industri.
-
-### 📊 Luxury Admin Dashboard
-- **Real-time Analytics**: Visualisasi tren pendapatan dan statistik okupansi menggunakan **Recharts**.
-- **Financial Reports**: Laporan keuangan mendetail (Total Revenue, Pending Payments, Potential Revenue).
-- **Metric Dashboard**: Monitoring penyewa aktif, kamar tersedia, dan performa pembayaran secara instan.
-- **Auto-Refresh**: Data yang selalu mutakhir dengan sistem sinkronisasi otomatis.
-
-### 💸 Sistem Pembayaran & Booking
-- **Midtrans Snap Integration**: Pembayaran otomatis melalui berbagai kanal (VA, E-Wallet, Kartu Kredit).
-- **Automated Status Update**: Status kamar otomatis berubah setelah pembayaran terkonfirmasi.
-- **Booking Flow**: Proses pemesanan kamar yang intuitif dengan validasi ketersediaan real-time.
-
-### 🎨 User Experience (UX)
-- **⚡ Zero-Loading UI**: Optimasi navigasi dengan caching **SWR**.
-- **💎 Glassmorphism Design**: Antarmuka modern dengan efek blur dan transparansi yang premium.
-- **📱 Responsive Layout**: Dioptimalkan secara penuh untuk perangkat mobile hingga desktop.
-- **🌙 Dynamic Theming**: Dukungan Dark Mode dan Light Mode yang elegan.
 
 ---
 
 ## 📁 Struktur Proyek
 
-```text
-/
-├── be/                 # 🏗️ Backend (Golang Engine)
-│   ├── cmd/            # Entry point aplikasi
-│   ├── internal/       # Business Logic (Handlers, Services, Repositories)
-│   └── utils/          # Helper & Validation tools
-├── fe/                 # 🎨 Frontend (Next.js Application)
-│   ├── app/            # App Router (Pages & Components)
-│   ├── context/        # State Management
-│   └── services/       # API Consumer Layer
-├── docs/               # 📍 Dokumentasi Teknis
-└── compose.yaml        # 🐳 Docker Infrastructure Blueprint
+```
+platfrom-kos/
+├── be/                          # Backend (Go)
+│   ├── cmd/api/main.go          # Entry point
+│   ├── internal/
+│   │   ├── config/              # Environment configuration
+│   │   ├── database/            # PostgreSQL + GORM setup
+│   │   ├── models/              # 8 GORM models
+│   │   ├── repository/          # Data access layer (7 repos)
+│   │   ├── service/             # Business logic (11 services)
+│   │   ├── handlers/            # HTTP transport (11 handlers)
+│   │   ├── middleware/          # Auth, rate limit, error handling
+│   │   ├── routes/              # Route registration
+│   │   ├── scheduler/           # Background jobs (cron)
+│   │   └── utils/               # JWT, Cloudinary, Email helpers
+│   ├── Dockerfile
+│   └── Makefile
+│
+├── fe/                          # Frontend (Next.js)
+│   ├── app/
+│   │   ├── components/
+│   │   │   ├── admin/           # Admin dashboard components
+│   │   │   ├── tenant/          # Tenant-facing components
+│   │   │   ├── shared/          # Reusable components
+│   │   │   └── ui/              # Shadcn UI (25+ components)
+│   │   ├── context/             # AppContext, ThemeContext
+│   │   ├── services/api.ts      # API client (single source of truth)
+│   │   └── ...pages
+│   └── middleware.ts            # Route protection
+│
+├── docs/                        # � Technical documentation (GitBook)
+│   ├── getting-started/         # Setup & intro
+│   ├── architecture/            # System design & database
+│   ├── security/                # Auth & security guidelines
+│   ├── features/                # API ref, core features, frontend
+│   ├── devops/                  # Docker, CI/CD, deployment
+│   └── reference/               # Database schema
+│
+├── nginx/                       # Nginx reverse proxy config
+├── docker-compose.yml           # Full stack orchestration
+└── deploy.sh                    # Production deployment script
 ```
 
 ---
 
-## 🚀 Instalasi Cepat
+## 🚀 Quick Start
 
 ### Prasyarat
-- PostgreSQL 15+
-- Node.js 18+
-- Go 1.24+
 
-### Setup Local
-1. **Database**: Buat database bernama `koskosan_db`.
-2. **Backend**: 
-   ```bash
-   cd be && go mod tidy
-   go run cmd/api/main.go
-   ```
-3. **Frontend**:
-   ```bash
-   cd fe && npm install
-   npm run dev
-   ```
+| Tool | Versi | Keterangan |
+|------|-------|------------|
+| **Go** | 1.24+ | Backend runtime |
+| **Node.js** | 18+ | Frontend runtime |
+| **PostgreSQL** | 15+ | Database |
+| **Docker** *(opsional)* | 24+ | Untuk deployment |
+
+### Option 1: Local Development
+
+```bash
+# 1. Clone
+git clone https://github.com/your-username/platfrom-kos.git
+cd platfrom-kos
+
+# 2. Setup Database
+createdb koskosan_db
+
+# 3. Backend
+cd be
+cp .env.example .env      # Edit: DB_PASSWORD, JWT_SECRET (min 32 chars)
+go mod tidy
+go run cmd/api/main.go     # → http://localhost:8081
+
+# 4. Frontend (terminal baru)
+cd fe
+cp .env.example .env.local # Edit: NEXT_PUBLIC_API_URL=http://localhost:8081/api
+npm install
+npm run dev                # → http://localhost:3000
+```
+
+### Option 2: Docker Compose
+
+```bash
+# Satu perintah untuk seluruh stack
+docker compose up --build -d
+
+# Akses
+# Frontend: http://localhost
+# Backend:  http://localhost:8080
+# Database: localhost:5432
+```
+
+> 📖 **Tutorial lengkap** → [docs/getting-started/project-setup.md](docs/getting-started/project-setup.md)
 
 ---
 
-## 🛣️ Roadmap Pengembangan
+## �️ Tech Stack
 
-- [x] 🏦 **Automated Payment**: Integrasi Midtrans (Selesai).
-- [x] 🔐 **Advanced Security**: JWT + Google OAuth + Password Reset (Selesai).
-- [x] 📊 **Luxury Dashboard**: Analytics & Financial Reporting (Selesai).
-- [ ] 💬 **Integrated Chat**: Sistem komunikasi in-app.
-- [ ] 📱 **Mobile App**: Versi native Android/iOS.
-- [ ] 🤖 **Smart Notifications**: Pengingat otomatis via WhatsApp/Email.
+| Layer | Teknologi |
+|-------|-----------|
+| **Backend** | Go 1.24, Gin, GORM, golang-jwt/v5 |
+| **Frontend** | Next.js 16, React 18, TypeScript, SWR |
+| **Database** | PostgreSQL 15 |
+| **Styling** | Tailwind CSS 4, Shadcn UI, Framer Motion |
+| **Auth** | JWT (HttpOnly Cookie), Google OAuth 2.0 |
+| **Storage** | Cloudinary CDN |
+| **Infra** | Docker, Nginx, Prometheus, GitHub Actions |
+
+---
+
+## 🗺️ Roadmap
+
+- [x] 🏠 Room Management (CRUD + Cloudinary)
+- [x] 📋 Booking System (Atomic Transactions)
+- [x] � Payment (Transfer + Cash + DP)
+- [x] 🔐 Enterprise Security (HttpOnly JWT + OAuth + RBAC)
+- [x] 📊 Admin Dashboard (Revenue Analytics)
+- [x] 📧 Payment Reminders (Email)
+- [x] 📚 Technical Documentation (GitBook)
+- [ ] 💬 In-App Chat System
+- [ ] 📱 Mobile Companion App (React Native)
+- [ ] 🤖 AI-Powered Pricing Recommendations
+- [ ] 🌐 Multi-Property Support
+
+---
+
+## 📚 Dokumentasi
+
+Dokumentasi lengkap tersedia di folder [`docs/`](docs/) dan didesain untuk integrasi **GitBook**:
+
+| Section | Konten |
+|---------|--------|
+| [Getting Started](docs/getting-started/) | Introduction, Tech Stack, Project Setup |
+| [Architecture](docs/architecture/) | Clean Architecture, Database & ERD |
+| [Security](docs/security/) | JWT, OAuth, RBAC, Rate Limiting |
+| [Features](docs/features/) | 30+ API Endpoints, Core Features, Frontend |
+| [DevOps](docs/devops/) | Docker, CI/CD, Prometheus, Deployment |
 
 ---
 
 ## 📄 Lisensi
 
-Didistribusikan di bawah **MIT License**.
+Didistribusikan di bawah **MIT License**. Lihat [LICENSE](LICENSE) untuk informasi lebih lanjut.
 
-> _Handcrafted with coffe in Malang. Kost Putra Rahmat ZAW - Home away from home._
+---
+
+<p align="center">
+  <sub>Built with ☕ in Malang — <strong>Platform Kos</strong>, Home Away from Home.</sub>
+</p>
