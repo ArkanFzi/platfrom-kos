@@ -7,6 +7,7 @@ import { AppProvider } from "./context";
 import { ThemeProvider } from "./context/ThemeContext";
 import { SWRProvider } from "@/app/components/providers/swr-provider";
 import { GoogleAuthProvider } from "@/app/components/providers/google-auth-provider";
+import { NotificationProvider } from "@/app/components/providers/notification-provider";
 import { ErrorBoundary } from "@/app/components/shared/ErrorBoundary";
 
 const geistSans = Geist({
@@ -46,9 +47,11 @@ export default function RootLayout({
           <AppProvider>
             <SWRProvider>
               <GoogleAuthProvider>
-                <ErrorBoundary>
-                    {children}
-                </ErrorBoundary>
+                <NotificationProvider>
+                  <ErrorBoundary>
+                      {children}
+                  </ErrorBoundary>
+                </NotificationProvider>
               </GoogleAuthProvider>
             </SWRProvider>
             <Toaster position="top-center" richColors />

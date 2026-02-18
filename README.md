@@ -121,4 +121,4 @@ graph TD
 
 Didistribusikan di bawah **MIT License**.
 
-> _Handcrafted with ❤️ in Malang. Kost Putra Rahmat ZAW - Home away from home._
+> _Handcrafted with coffe in Malang. Kost Putra Rahmat ZAW - Home away from home._
