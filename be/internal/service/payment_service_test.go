@@ -55,7 +55,6 @@ func (m *MockPaymentRepository) WithTx(tx *gorm.DB) repository.PaymentRepository
 	return m
 }
 
-
 // MockWhatsAppSender implements utils.WhatsAppSender interface
 type MockWhatsAppSender struct {
 	mock.Mock
@@ -197,17 +196,31 @@ func TestPaymentService_UploadPaymentProof_Success(t *testing.T) {
 		BuktiTransfer:    "",
 	}
 
+	booking := &models.Pemesanan{
+		ID:        1,
+		PenyewaID: 1,
+	}
+
+	penyewa := &models.Penyewa{
+		ID:     1,
+		UserID: 1,
+	}
+
 	buktiPath := "/uploads/proofs/proof_123.jpg"
 
 	mockRepo.On("FindByID", uint(1)).Return(payment, nil)
+	mockBookingRepo.On("FindByID", uint(1)).Return(booking, nil)
+	mockPenyewaRepo.On("FindByUserID", uint(1)).Return(penyewa, nil)
 	mockRepo.On("Update", mock.MatchedBy(func(p *models.Pembayaran) bool {
 		return p.ID == 1 && p.BuktiTransfer == buktiPath
 	})).Return(nil)
 
-	err := service.UploadPaymentProof(1, buktiPath)
+	err := service.UploadPaymentProof(1, buktiPath, 1)
 
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
+	mockBookingRepo.AssertExpectations(t)
+	mockPenyewaRepo.AssertExpectations(t)
 }
 
 // Test UploadPaymentProof - Payment Not Found
@@ -231,7 +244,7 @@ func TestPaymentService_UploadPaymentProof_NotFound(t *testing.T) {
 
 	mockRepo.On("FindByID", uint(999)).Return(nil, errors.New("record not found"))
 
-	err := service.UploadPaymentProof(999, "/path/to/proof.jpg")
+	err := service.UploadPaymentProof(999, "/path/to/proof.jpg", 1)
 
 	assert.Error(t, err)
 	assert.Equal(t, "record not found", err.Error())
@@ -259,17 +272,32 @@ func TestPaymentService_UploadPaymentProof_UpdateError(t *testing.T) {
 
 	payment := &models.Pembayaran{
 		ID:               1,
+		PemesananID:      1,
 		StatusPembayaran: "Pending",
 	}
 
+	booking := &models.Pemesanan{
+		ID:        1,
+		PenyewaID: 1,
+	}
+
+	penyewa := &models.Penyewa{
+		ID:     1,
+		UserID: 1,
+	}
+
 	mockRepo.On("FindByID", uint(1)).Return(payment, nil)
+	mockBookingRepo.On("FindByID", uint(1)).Return(booking, nil)
+	mockPenyewaRepo.On("FindByUserID", uint(1)).Return(penyewa, nil)
 	mockRepo.On("Update", mock.Anything).Return(errors.New("database update failed"))
 
-	err := service.UploadPaymentProof(1, "/path/to/proof.jpg")
+	err := service.UploadPaymentProof(1, "/path/to/proof.jpg", 1)
 
 	assert.Error(t, err)
 	assert.Equal(t, "database update failed", err.Error())
 	mockRepo.AssertExpectations(t)
+	mockBookingRepo.AssertExpectations(t)
+	mockPenyewaRepo.AssertExpectations(t)
 }
 
 func (m *MockPaymentRepository) CreateReminder(reminder *models.PaymentReminder) error {
@@ -289,4 +317,3 @@ func (m *MockPaymentRepository) FindByOrderID(orderID string) (*models.Pembayara
 	}
 	return args.Get(0).(*models.Pembayaran), args.Error(1)
 }
-

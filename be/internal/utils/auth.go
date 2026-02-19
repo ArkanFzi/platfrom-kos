@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"google.golang.org/api/idtoken"
 )
 
 // GoogleClaims structure for Google ID Token
@@ -21,18 +23,30 @@ type GoogleClaims struct {
 	jwt.RegisteredClaims
 }
 
+// IDTokenVerifier is an interface for validating Google ID tokens
+type IDTokenVerifier interface {
+	Verify(tokenString string, clientID string) (*GoogleClaims, error)
+}
+
+// RealIDTokenVerifier connects to Google's servers
+type RealIDTokenVerifier struct{}
+
+func (v *RealIDTokenVerifier) Verify(tokenString string, clientID string) (*GoogleClaims, error) {
+	return VerifyGoogleIDToken(tokenString, clientID)
+}
+
 // TokenClaims struktur untuk JWT claims
 type TokenClaims struct {
-	UserID   int    `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	UserID    int    `json:"user_id"`
+	Username  string `json:"username"`
+	Role      string `json:"role"`
 	TokenType string `json:"token_type"` // "access" or "refresh"
 	jwt.RegisteredClaims
 }
 
 // Token expiry durations
 const (
-	AccessTokenExpiry  = 15 * time.Minute  // Short-lived
+	AccessTokenExpiry  = 15 * time.Minute   // Short-lived
 	RefreshTokenExpiry = 7 * 24 * time.Hour // 7 days
 )
 
@@ -154,36 +168,36 @@ func ValidateRefreshToken(token string, jwtSecret string) (*TokenClaims, error) 
 func SetAuthCookies(c *gin.Context, accessToken, refreshToken string, isProduction bool) {
 	// Set SameSite mode for CSRF protection
 	sameSite := http.SameSiteStrictMode
-	
+
 	// Access Token Cookie (short-lived, all paths)
 	c.SetSameSite(sameSite)
 	c.SetCookie(
-		"access_token",                      // cookie name
-		accessToken,                         // cookie value
-		int(AccessTokenExpiry.Seconds()),    // maxAge in seconds (15 min)
-		"/",                                // path
-		"",                                 // domain (empty = current domain)
-		isProduction,                       // secure (HTTPS only in production)
-		true,                               // httpOnly - prevents JavaScript access (XSS protection)
+		"access_token",                   // cookie name
+		accessToken,                      // cookie value
+		int(AccessTokenExpiry.Seconds()), // maxAge in seconds (15 min)
+		"/",                              // path
+		"",                               // domain (empty = current domain)
+		isProduction,                     // secure (HTTPS only in production)
+		true,                             // httpOnly - prevents JavaScript access (XSS protection)
 	)
 
 	// Refresh Token Cookie (long-lived, limited path)
 	c.SetSameSite(sameSite)
 	c.SetCookie(
-		"refresh_token",                     // cookie name
-		refreshToken,                        // cookie value
-		int(RefreshTokenExpiry.Seconds()),   // maxAge in seconds (7 days)
-		"/api/auth",                        // limited path - only auth endpoints can access
-		"",                                 // domain
-		isProduction,                       // secure
-		true,                               // httpOnly
+		"refresh_token",                   // cookie name
+		refreshToken,                      // cookie value
+		int(RefreshTokenExpiry.Seconds()), // maxAge in seconds (7 days)
+		"/api/auth",                       // limited path - only auth endpoints can access
+		"",                                // domain
+		isProduction,                      // secure
+		true,                              // httpOnly
 	)
 }
 
 // ClearAuthCookies menghapus semua auth cookies (logout)
 func ClearAuthCookies(c *gin.Context) {
 	sameSite := http.SameSiteStrictMode
-	
+
 	// Clear access token
 	c.SetSameSite(sameSite)
 	c.SetCookie(
@@ -209,7 +223,28 @@ func ClearAuthCookies(c *gin.Context) {
 	)
 }
 
-// DecodeGoogleToken decodes a Google ID token without verification (TEMPORARY)
+// VerifyGoogleIDToken verifies a Google ID token with Google's public keys
+func VerifyGoogleIDToken(tokenString string, clientID string) (*GoogleClaims, error) {
+	if clientID == "" {
+		return nil, errors.New("google client id not configured")
+	}
+
+	payload, err := idtoken.Validate(context.Background(), tokenString, clientID)
+	if err != nil {
+		return nil, err
+	}
+
+	claims := &GoogleClaims{
+		Email:   payload.Claims["email"].(string),
+		Name:    payload.Claims["name"].(string),
+		Picture: payload.Claims["picture"].(string),
+		Sub:     payload.Subject,
+	}
+
+	return claims, nil
+}
+
+// DecodeGoogleToken decodes a Google ID token (keeping for compatibility if needed, but Verify is preferred)
 func DecodeGoogleToken(tokenString string) (*GoogleClaims, error) {
 	parts := strings.Split(tokenString, ".")
 	if len(parts) != 3 {

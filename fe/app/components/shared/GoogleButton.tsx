@@ -1,7 +1,7 @@
 "use client";
 
 import { GoogleLogin } from '@react-oauth/google';
-import { handleGoogleLogin } from '@/app/services/authgoogle';
+import { api } from '@/app/services/api';
 import { toast } from 'sonner';
 
 interface GoogleButtonProps {
@@ -24,8 +24,8 @@ export function GoogleButton({ onSuccess, isLoading }: GoogleButtonProps) {
                         onSuccess={async (credentialResponse) => {
                             if (credentialResponse.credential) {
                                 try {
-                                    const data = await handleGoogleLogin(credentialResponse.credential);
-                                    onSuccess(data);
+                                    const response = await api.googleLogin(credentialResponse.credential);
+                                    onSuccess(response);
                                     toast.success('Signed in with Google');
                                 } catch (error) {
                                     toast.error('Google login failed');

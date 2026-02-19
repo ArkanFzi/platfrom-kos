@@ -26,15 +26,18 @@ import { api, DashboardStats as DashboardStatResponse, Tenant, Payment } from "@
 import { useTranslations } from "next-intl";
 
 interface TooltipPayload {
-  payload: {
-    month: string;
-  };
+  name?: string;
   value: number;
+  color?: string;
+  payload: {
+    month?: string;
+    fill?: string;
+  };
 }
 
 interface CustomTooltipProps {
   active?: boolean;
-  payload?: any[];
+  payload?: TooltipPayload[];
   label?: string;
 }
 

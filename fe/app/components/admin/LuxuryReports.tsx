@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, Download, Calendar, DollarSign, Loader2, BarChart3, Activity } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { api, Room, Payment as ApiPayment, DashboardStats } from '@/app/services/api';
+import { api, Room, Payment as ApiPayment, DashboardStats, Tenant } from '@/app/services/api';
 import { Button } from '@/app/components/ui/button';
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
@@ -14,7 +14,7 @@ export function LuxuryReports() {
   const t = useTranslations('admin');
   const [payments, setPayments] = useState<ApiPayment[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [tenants, setTenants] = useState<any[]>([]); // Add tenants state
+  const [tenants, setTenants] = useState<Tenant[]>([]); // Add tenants state
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -31,10 +31,10 @@ export function LuxuryReports() {
         setRooms(rData);
         setStats(sData);
         // Handle paginated response for tenants
-        if ('data' in tData) {
-            setTenants(tData.data);
-        } else {
-            setTenants(tData as any[]);
+        if (tData && 'data' in tData) {
+            setTenants(tData.data as Tenant[]);
+        } else if (Array.isArray(tData)) {
+            setTenants(tData as Tenant[]);
         }
       } catch (e) {
         console.error("Failed to fetch reports data:", e);
@@ -228,7 +228,7 @@ export function LuxuryReports() {
         }
       },
       // Add footer to each page
-      didDrawPage: function (data) {
+      didDrawPage: function () {
         const str = 'Page ' + doc.getNumberOfPages();
         doc.setFontSize(8);
         doc.setTextColor(150);
@@ -237,8 +237,6 @@ export function LuxuryReports() {
       }
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    
     // --- Page 2: Tenant & Guest Data ---
     doc.addPage();
     
@@ -259,7 +257,7 @@ export function LuxuryReports() {
     const tenantColumn = [t('id'), t('name'), t('role'), t('roomNo'), t('contact'), t('status')];
     const tenantRows: (string | number)[][] = [];
 
-    tenants.forEach((tenant: any) => {
+    tenants.forEach((tenant) => {
         const row = [
             tenant.id,
             tenant.nama_lengkap || tenant.user?.username || '-',
@@ -283,7 +281,7 @@ export function LuxuryReports() {
         },
         styles: { fontSize: 9, cellPadding: 3 },
         alternateRowStyles: { fillColor: [248, 250, 252] },
-        didDrawPage: function (data) {
+        didDrawPage: function () {
             const str = 'Page ' + doc.getNumberOfPages();
             doc.setFontSize(8);
             doc.setTextColor(150);

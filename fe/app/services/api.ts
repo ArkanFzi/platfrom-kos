@@ -192,7 +192,7 @@ class ApiErrorClass extends Error implements ApiError {
   }
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8087/api';
 
 // 2. Helper Functions
 
@@ -277,19 +277,23 @@ export const api = {
   // --- AUTH ---
   login: async (credentials: { username: string; password: string }) => {
     const data = await apiCall<LoginResponse>('POST', '/auth/login', credentials);
-    // Store user data only (token is in HttpOnly cookie)
+    // Store user data in localStorage and non-HttpOnly cookie for middleware
     if (data.user) {
       localStorage.setItem('user', JSON.stringify(data.user));
+      document.cookie = `user=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=86400; SameSite=Strict`;
     }
     return data;
   },
 
-  googleLogin: async (code: string) => {
-    // Mengirim code dari Google ke backend
-    const data = await apiCall<LoginResponse>('GET', `/auth/google/callback?code=${code}`);
-    // Store user data only (token is in HttpOnly cookie)
+  googleLogin: async (idToken: string) => {
+    // Send raw ID token to backend for server-side verification
+    const data = await apiCall<LoginResponse>('POST', '/auth/google-login', {
+      id_token: idToken,
+    });
+    // Store user data in localStorage and non-HttpOnly cookie for middleware
     if (data.user) {
       localStorage.setItem('user', JSON.stringify(data.user));
+      document.cookie = `user=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=86400; SameSite=Strict`;
     }
     return data;
   },
@@ -319,9 +323,10 @@ export const api = {
       console.error('Logout error:', error);
     }
     
-    // Clear local storage (user data only, no tokens)
+    // Clear local storage and cookies
     localStorage.clear();
     sessionStorage.clear();
+    document.cookie = 'user=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
   },
 
   // --- PROFILE ---

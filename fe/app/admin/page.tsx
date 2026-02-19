@@ -8,6 +8,7 @@ import { TenantData } from "@/app/components/admin/TenantData";
 import { LuxuryPaymentConfirmation } from "@/app/components/admin/LuxuryPaymentConfirmation";
 import { GalleryData } from "@/app/components/admin/GalleryData";
 import { AdminLogin } from "@/app/components/shared/AdminLogin";
+import { api } from "@/app/services/api";
 import { Button } from "@/app/components/ui/button";
 import { LanguageSwitcher } from "@/app/components/shared/LanguageSwitcher";
 import { ThemeToggle } from "@/app/components/shared/ThemeToggle";
@@ -24,18 +25,32 @@ export default function AdminPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
+    
+    const checkAdminAuth = async () => {
       try {
-        const user = JSON.parse(userStr);
-        if (user && user.role === 'admin') {
+        // 1. First check local for quick UX
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+          setIsAdminAuthenticated(false);
+          return;
+        }
+
+        // 2. Verify with Backend (Source of Truth)
+        const profile = await api.getProfile();
+        if (profile && profile.user && profile.user.role === 'admin') {
           setIsAdminAuthenticated(true);
+          // Sync local storage with latest backend data
+          localStorage.setItem('user', JSON.stringify(profile.user));
+        } else {
+          setIsAdminAuthenticated(false);
         }
       } catch (e) {
-        console.warn("Corrupted user data in localStorage, clearing...", e);
-        localStorage.removeItem('user');
+        console.error("Admin verification failed:", e);
+        setIsAdminAuthenticated(false);
       }
-    }
+    };
+
+    checkAdminAuth();
   }, []);
 
   if (!isMounted) return null;

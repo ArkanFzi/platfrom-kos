@@ -42,8 +42,8 @@ export function Header({
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setActiveView('home')}>
-            <div className="w-11 h-11 bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 rounded-xl flex items-center justify-center shadow-lg">
-              <Home className="w-6 h-6 text-white" />
+            <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-lg overflow-hidden border border-slate-200">
+              <img src="/logo.svg" alt="Rahmat ZAW Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-tighter">Rahmat ZAW</h1>

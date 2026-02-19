@@ -57,7 +57,7 @@ export function UserPlatform({ onLogout, onBackToAdmin }: UserPlatformProps) {
       try {
         const user = JSON.parse(userStr);
         if (user.role === 'admin') setIsAdmin(true);
-      } catch (e) {
+      } catch {
         // ignore
       }
     }

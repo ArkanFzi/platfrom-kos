@@ -124,14 +124,37 @@ func (h *PaymentHandler) UploadPaymentProof(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.UploadPaymentProof(uint(id), proofURL); err != nil {
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	var userID uint
+	switch v := userIDRaw.(type) {
+	case float64:
+		userID = uint(v)
+	case int:
+		userID = uint(v)
+	case uint:
+		userID = v
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
+	if err := h.service.UploadPaymentProof(uint(id), proofURL, userID); err != nil {
+		if err.Error() == "unauthorized: you can only upload proof for your own payments" {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Payment proof uploaded successfully",
-		"url": proofURL,
+		"url":     proofURL,
 	})
 }
 

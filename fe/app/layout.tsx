@@ -22,8 +22,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kos-kosan Management System",
-  description: "Sistem manajemen kos-kosan terpadu untuk pemilik dan penyewa",
+  title: "Rahmat ZAW Prime Stay | Luxury Guest House Malang",
+  description: "Exclusive and comfortable living spaces in Malang. Managed with excellence by Rahmat ZAW.",
+  icons: {
+    icon: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({
@@ -68,7 +72,7 @@ export default function RootLayout({
         />
         <Script
           src="https://app.sandbox.midtrans.com/snap/snap.js"
-          data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "Mid-client-RmKI74k1AouHJ6eA"}
+          data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
         />
       </body>
     </html>

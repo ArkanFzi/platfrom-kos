@@ -13,14 +13,16 @@ export function middleware(request: NextRequest) {
     }
 
     try {
-      const user = JSON.parse(userCookie);
+      const decodedUser = decodeURIComponent(userCookie);
+      const user = JSON.parse(decodedUser);
       
       // Check if user has admin role
       if (user.role !== 'admin') {
         // Not an admin, redirect to home
         return NextResponse.redirect(new URL('/', request.url));
       }
-    } catch {
+    } catch (e) {
+      console.error("Middleware Auth Error:", e);
       // Invalid user data, redirect to login
       return NextResponse.redirect(new URL('/login', request.url));
     }

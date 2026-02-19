@@ -17,17 +17,17 @@ type PaymentService interface {
 	ConfirmCashPayment(paymentID uint, buktiTransfer string) error
 	GetPaymentReminders(userID uint) ([]models.PaymentReminder, error)
 	CreatePaymentReminder(pembayaranID uint, jumlahBayar float64, daysUntilDue int) error
-	UploadPaymentProof(paymentID uint, buktiTransfer string) error
+	UploadPaymentProof(paymentID uint, buktiTransfer string, userID uint) error
 }
 
 type paymentService struct {
-	repo            repository.PaymentRepository
-	bookingRepo     repository.BookingRepository
-	kamarRepo       repository.KamarRepository
-	penyewaRepo     repository.PenyewaRepository
-	db              *gorm.DB
-	emailSender     utils.EmailSender
-	waSender        utils.WhatsAppSender
+	repo        repository.PaymentRepository
+	bookingRepo repository.BookingRepository
+	kamarRepo   repository.KamarRepository
+	penyewaRepo repository.PenyewaRepository
+	db          *gorm.DB
+	emailSender utils.EmailSender
+	waSender    utils.WhatsAppSender
 }
 
 func NewPaymentService(repo repository.PaymentRepository, bookingRepo repository.BookingRepository, kamarRepo repository.KamarRepository, penyewaRepo repository.PenyewaRepository, db *gorm.DB, emailSender utils.EmailSender, waSender utils.WhatsAppSender) PaymentService {
@@ -84,7 +84,7 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 							Joins("JOIN pemesanan ON pemesanan.id = pembayaran.pemesanan_id").
 							Where("pemesanan.penyewa_id = ? AND pembayaran.status_pembayaran = ?", booking.PenyewaID, "Confirmed").
 							Count(&confirmedPaymentCount)
-						
+
 						if confirmedPaymentCount <= 1 { // This is the first confirmed payment
 							if err := tx.Model(&penyewa).Update("role", "tenant").Error; err != nil {
 								return err
@@ -94,10 +94,10 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 				}
 			}
 		}
-		
+
 		// Send Notifications
 		go s.sendSuccessNotifications(payment.ID)
-		
+
 		return nil
 	})
 }
@@ -157,16 +157,31 @@ func (s *paymentService) CreatePaymentSession(pemesananID uint, paymentType stri
 	return &payment, nil
 }
 
-// UploadPaymentProof allows user to upload receipt
-func (s *paymentService) UploadPaymentProof(paymentID uint, buktiTransfer string) error {
+// UploadPaymentProof allows user to upload receipt with ownership check
+func (s *paymentService) UploadPaymentProof(paymentID uint, buktiTransfer string, userID uint) error {
 	payment, err := s.repo.FindByID(paymentID)
 	if err != nil {
 		return err
 	}
 
+	// SECURITY FIX: Verify ownership
+	booking, err := s.bookingRepo.FindByID(payment.PemesananID)
+	if err != nil {
+		return fmt.Errorf("failed to verify payment ownership: %v", err)
+	}
+
+	penyewa, err := s.penyewaRepo.FindByUserID(userID)
+	if err != nil {
+		return fmt.Errorf("user profile not found")
+	}
+
+	if booking.PenyewaID != penyewa.ID {
+		return fmt.Errorf("unauthorized: you can only upload proof for your own payments")
+	}
+
 	payment.BuktiTransfer = buktiTransfer
 	// We keep status as Pending, but now it has a proof. Admin will see it.
-	
+
 	return s.repo.Update(payment)
 }
 
@@ -174,7 +189,7 @@ func (s *paymentService) ConfirmCashPayment(paymentID uint, buktiTransfer string
 	// Reusing ConfirmPayment logic but allowing to set proof if provided
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		txRepo := s.repo.WithTx(tx)
-		
+
 		payment, err := txRepo.FindByID(paymentID)
 		if err != nil {
 			return err
@@ -183,11 +198,11 @@ func (s *paymentService) ConfirmCashPayment(paymentID uint, buktiTransfer string
 		if buktiTransfer != "" {
 			payment.BuktiTransfer = buktiTransfer
 		}
-		
+
 		if err := txRepo.Update(payment); err != nil {
 			return err
 		}
-		
+
 		// Use the main confirmation logic
 		return s.ConfirmPayment(paymentID)
 	})
@@ -236,15 +251,15 @@ func (s *paymentService) sendSuccessNotifications(paymentID uint) {
 	}
 
 	tenant := payment.Pemesanan.Penyewa
-	
+
 	// Email
 	if tenant.Email != "" {
 		s.emailSender.SendPaymentSuccessEmail(tenant.Email, tenant.NamaLengkap, payment.JumlahBayar, time.Now())
 	}
-	
+
 	// WhatsApp
 	if tenant.NomorHP != "" {
-		msg := fmt.Sprintf("Terima kasih %s! Pembayaran sebesar Rp %.0f untuk kamar %s telah kami terima.", 
+		msg := fmt.Sprintf("Terima kasih %s! Pembayaran sebesar Rp %.0f untuk kamar %s telah kami terima.",
 			tenant.NamaLengkap, payment.JumlahBayar, payment.Pemesanan.Kamar.NomorKamar)
 		s.waSender.SendWhatsApp(tenant.NomorHP, msg)
 	}

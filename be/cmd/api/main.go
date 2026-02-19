@@ -54,7 +54,7 @@ func main() {
 		utils.GlobalLogger.Info("Cloudinary URL not set, using local storage")
 	}
 
-	authService := service.NewAuthService(userRepo, penyewaRepo, cfg, emailSender)
+	authService := service.NewAuthService(userRepo, penyewaRepo, cfg, emailSender, &utils.RealIDTokenVerifier{})
 	kamarService := service.NewKamarService(kamarRepo)
 	galleryService := service.NewGalleryService(galleryRepo)
 	dashboardService := service.NewDashboardService(db)
@@ -70,7 +70,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize Socket.io: %v", err)
 	}
-
 
 	// 5. Initialize Handlers
 	authHandler := handlers.NewAuthHandler(authService, cfg)
@@ -135,17 +134,17 @@ func main() {
 	// 7. Start Background Workers
 	go func() {
 		utils.GlobalLogger.Info("Starting background workers...")
-		
+
 		// Reminder Service & Scheduler
 		reminderService := service.NewReminderService(paymentRepo, db, emailSender, waSender)
 		schedulerService := scheduler.NewScheduler(reminderService)
 		schedulerService.Start()
-		
+
 		// Run initial checks
 		if err := bookingService.AutoCancelExpiredBookings(); err != nil {
 			utils.GlobalLogger.Error("Failed to auto-cancel bookings: %v", err)
 		}
-		
+
 		// Tickers (Only for Cancel now, Reminder handled by Scheduler)
 		cancelTicker := time.NewTicker(1 * time.Hour)
 

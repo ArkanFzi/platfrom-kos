@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"koskosan-be/internal/config"
 	"koskosan-be/internal/models"
 	"koskosan-be/internal/repository"
@@ -22,14 +23,15 @@ type AuthService interface {
 }
 
 type authService struct {
-	repo        repository.UserRepository
-	penyewaRepo repository.PenyewaRepository
-	config      *config.Config
-	emailSender utils.EmailSender
+	repo           repository.UserRepository
+	penyewaRepo    repository.PenyewaRepository
+	config         *config.Config
+	emailSender    utils.EmailSender
+	googleVerifier utils.IDTokenVerifier
 }
 
-func NewAuthService(repo repository.UserRepository, penyewaRepo repository.PenyewaRepository, cfg *config.Config, emailSender utils.EmailSender) AuthService {
-	return &authService{repo, penyewaRepo, cfg, emailSender}
+func NewAuthService(repo repository.UserRepository, penyewaRepo repository.PenyewaRepository, cfg *config.Config, emailSender utils.EmailSender, googleVerifier utils.IDTokenVerifier) AuthService {
+	return &authService{repo, penyewaRepo, cfg, emailSender, googleVerifier}
 }
 
 func (s *authService) Login(username, password string) (string, *models.User, error) {
@@ -107,16 +109,14 @@ func (s *authService) Register(username, password, role, email, phone, address, 
 
 func (s *authService) GoogleLogin(idToken, username, picture string) (string, *models.User, error) {
 	// SECURITY FIX: Verify the ID token with Google's servers
-	// For now, we manually decode the token (TEMPORARY)
-	
-	claims, err := utils.DecodeGoogleToken(idToken)
+	claims, err := s.googleVerifier.Verify(idToken, s.config.GoogleClientID)
 	if err != nil {
-		return "", nil, errors.New("invalid google token")
+		return "", nil, fmt.Errorf("invalid google token: %v", err)
 	}
 
 	email := claims.Email
 	if email == "" {
-		return "", nil, errors.New("email not found in token")
+		return "", nil, fmt.Errorf("email not found in token")
 	}
 
 	// Use name/picture from token if not provided
@@ -126,16 +126,16 @@ func (s *authService) GoogleLogin(idToken, username, picture string) (string, *m
 	if picture == "" {
 		picture = claims.Picture
 	}
-	
+
 	// 2. Find or create user based on verified email
 	user, err := s.repo.FindByUsername(email)
-	
+
 	if err != nil {
 		// 3. If user not found, create new User
 		user = &models.User{
 			Username: email,
 			Password: "google-auth-placeholder-" + time.Now().String(), // Password dummy yang aman
-			Role:     "guest", // Google users start as guests until they book
+			Role:     "guest",                                          // Google users start as guests until they book
 		}
 		if err := s.repo.Create(user); err != nil {
 			return "", nil, err
@@ -143,20 +143,20 @@ func (s *authService) GoogleLogin(idToken, username, picture string) (string, *m
 
 		// 4. Create profile Penyewa for Google OAuth users
 		penyewa := &models.Penyewa{
-			UserID:       user.ID,
-			NamaLengkap:  username,
-			Role:         "guest", // Google OAuth users start as guest
+			UserID:      user.ID,
+			NamaLengkap: username,
+			Role:        "guest", // Google OAuth users start as guest
 		}
 		s.penyewaRepo.Create(penyewa)
 	}
 
-    // 5. Generate JWT Token
-    accessToken, _, err := utils.GenerateTokenPair(int(user.ID), user.Username, user.Role, s.config.JWTSecret)
-    if err != nil {
-        return "", nil, err
-    }
+	// 5. Generate JWT Token
+	accessToken, _, err := utils.GenerateTokenPair(int(user.ID), user.Username, user.Role, s.config.JWTSecret)
+	if err != nil {
+		return "", nil, err
+	}
 
-    return accessToken, user, nil
+	return accessToken, user, nil
 }
 
 func (s *authService) ForgotPassword(email string) error {
@@ -195,7 +195,7 @@ func (s *authService) ForgotPassword(email string) error {
 		log.Printf("Failed to send reset email to %s: %v", email, err)
 		// Don't return error to prevent enumeration
 	}
-	
+
 	return nil
 }
 

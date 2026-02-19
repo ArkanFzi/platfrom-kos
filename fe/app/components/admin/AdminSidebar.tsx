@@ -65,9 +65,9 @@ export function AdminSidebar({ currentPage, onNavigate }: AdminSidebarProps) {
       >
         {/* Logo Area */}
         <div className="p-8 border-b border-slate-200 dark:border-slate-800/50">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="size-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <Home className="size-7 text-white" />
+          <div className="flex items-center gap-3 mb-2 cursor-pointer" onClick={() => onNavigate('dashboard')}>
+            <div className="size-12 bg-white rounded-xl flex items-center justify-center shadow-lg border border-slate-200 overflow-hidden">
+              <img src="/logo.svg" alt="Rahmat ZAW Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-amber-500 to-amber-600 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent">
