@@ -32,9 +32,18 @@ type Kamar struct {
 	Bathrooms     int            `json:"bathrooms"`
 	Description   string         `json:"description"`
 	ImageURL      string         `json:"image_url"`
+	Images        []KamarImage   `gorm:"foreignKey:KamarID" json:"Images,omitempty"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type KamarImage struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	KamarID   uint           `json:"kamar_id"`
+	ImageURL  string         `json:"image_url"`
+	CreatedAt time.Time      `json:"created_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type Gallery struct {

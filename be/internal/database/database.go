@@ -51,6 +51,7 @@ func InitDB(cfg *config.Config) {
 		&models.Pembayaran{},
 
 		&models.Gallery{},
+		&models.KamarImage{},
 		&models.Review{},
 		&models.PaymentReminder{},
 	)

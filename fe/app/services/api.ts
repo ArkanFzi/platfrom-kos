@@ -45,6 +45,7 @@ export interface Room {
     nama_kategori: string;
   };
   Gallery?: { image_url: string }[];
+  Images?: { id: number; kamar_id: number; image_url: string }[];
   // derived fields for UI
   rating?: number;
   reviews?: number;
