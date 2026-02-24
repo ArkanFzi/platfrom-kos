@@ -4,7 +4,7 @@
 
 // Get the API base URL from environment
 export const getApiUrl = (): string => {
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8087/api';
+  return 'http://localhost:8080/api';
 };
 
 // Convert relative image URLs to absolute URLs
