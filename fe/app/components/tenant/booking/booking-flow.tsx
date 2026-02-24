@@ -23,13 +23,6 @@ import {
 import { api, Room } from "@/app/services/api";
 import { toast } from "sonner";
 
-declare global {
-  interface Window {
-    snap: {
-      pay: (token: string) => void;
-    };
-  }
-}
 
 interface BookingFlowProps {
   roomId: string;

@@ -103,7 +103,6 @@ export interface Payment {
   bukti_transfer: string;
   status_pembayaran: 'Pending' | 'Confirmed' | 'Failed' | 'Settled';
   order_id: string;
-  snap_token: string;
   metode_pembayaran: string;
   tipe_pembayaran: string;
   jumlah_dp: number;
@@ -193,7 +192,7 @@ class ApiErrorClass extends Error implements ApiError {
   }
 }
 
-const API_URL = 'http://localhost:8080/api';
+const API_URL = 'http://localhost:8081/api';
 
 // 2. Helper Functions
 

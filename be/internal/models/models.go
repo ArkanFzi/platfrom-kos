@@ -7,10 +7,10 @@ import (
 )
 
 type User struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	Username  string         `gorm:"uniqueIndex" json:"username"`
-	Password  string         `json:"-"`
-	Role      string         `json:"role"` // enum: admin, penyewa, etc.
+	ID               uint           `gorm:"primaryKey" json:"id"`
+	Username         string         `gorm:"uniqueIndex" json:"username"`
+	Password         string         `json:"-"`
+	Role             string         `json:"role"` // enum: admin, penyewa, etc.
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
 	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
@@ -27,7 +27,7 @@ type Kamar struct {
 	Status        string         `json:"status"` // enum
 	Capacity      int            `json:"capacity"`
 	Floor         int            `json:"floor"`
-	Size          string         `json:"size"`      // e.g. "3x4m" or "12m2"
+	Size          string         `json:"size"` // e.g. "3x4m" or "12m2"
 	Bedrooms      int            `json:"bedrooms"`
 	Bathrooms     int            `json:"bathrooms"`
 	Description   string         `json:"description"`
@@ -87,37 +87,36 @@ type Penyewa struct {
 }
 
 type Pemesanan struct {
-	ID              uint             `gorm:"primaryKey" json:"id"`
-	PenyewaID       uint             `json:"penyewa_id"`
-	Penyewa         Penyewa          `gorm:"foreignKey:PenyewaID" json:"penyewa"`
-	KamarID         uint             `json:"kamar_id"`
-	Kamar           Kamar            `gorm:"foreignKey:KamarID" json:"kamar"`
-	TanggalMulai    time.Time        `json:"tanggal_mulai"`
-	DurasiSewa      int              `json:"durasi_sewa"`
-	StatusPemesanan string           `json:"status_pemesanan"` // enum
-	Pembayaran      []Pembayaran     `gorm:"foreignKey:PemesananID" json:"-"` // Relation for eager loading
-	CreatedAt       time.Time        `json:"created_at"`
-	UpdatedAt       time.Time        `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt   `gorm:"index" json:"-"`
+	ID              uint           `gorm:"primaryKey" json:"id"`
+	PenyewaID       uint           `json:"penyewa_id"`
+	Penyewa         Penyewa        `gorm:"foreignKey:PenyewaID" json:"penyewa"`
+	KamarID         uint           `json:"kamar_id"`
+	Kamar           Kamar          `gorm:"foreignKey:KamarID" json:"kamar"`
+	TanggalMulai    time.Time      `json:"tanggal_mulai"`
+	DurasiSewa      int            `json:"durasi_sewa"`
+	StatusPemesanan string         `json:"status_pemesanan"`                // enum
+	Pembayaran      []Pembayaran   `gorm:"foreignKey:PemesananID" json:"-"` // Relation for eager loading
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type Pembayaran struct {
-	ID               uint           `gorm:"primaryKey" json:"id"`
-	PemesananID      uint           `json:"pemesanan_id"`
-	Pemesanan        Pemesanan      `gorm:"foreignKey:PemesananID" json:"pemesanan"`
-	JumlahBayar      float64        `json:"jumlah_bayar"`
-	TanggalBayar     time.Time      `json:"tanggal_bayar"`
-	BuktiTransfer    string         `json:"bukti_transfer"`
-	StatusPembayaran string         `json:"status_pembayaran"` // enum: Pending, Confirmed, Failed, Settled
-	OrderID          string         `json:"order_id"`
-	SnapToken        string         `json:"snap_token"`
-	MetodePembayaran string         `json:"metode_pembayaran"` // enum: midtrans, cash
-	TipePembayaran   string         `json:"tipe_pembayaran"`   // enum: full, dp (down payment)
-	JumlahDP         float64        `json:"jumlah_dp"`         // Jumlah DP jika tipe_pembayaran = dp
-	TanggalJatuhTempo time.Time     `json:"tanggal_jatuh_tempo"` // Tanggal pembayaran cicilan berikutnya
-	CreatedAt        time.Time      `json:"created_at"`
-	UpdatedAt        time.Time      `json:"updated_at"`
-	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                uint           `gorm:"primaryKey" json:"id"`
+	PemesananID       uint           `json:"pemesanan_id"`
+	Pemesanan         Pemesanan      `gorm:"foreignKey:PemesananID" json:"pemesanan"`
+	JumlahBayar       float64        `json:"jumlah_bayar"`
+	TanggalBayar      time.Time      `json:"tanggal_bayar"`
+	BuktiTransfer     string         `json:"bukti_transfer"`
+	StatusPembayaran  string         `json:"status_pembayaran"` // enum: Pending, Confirmed, Failed, Settled
+	OrderID           string         `json:"order_id"`
+	MetodePembayaran  string         `json:"metode_pembayaran"`   // enum: transfer, cash
+	TipePembayaran    string         `json:"tipe_pembayaran"`     // enum: full, dp (down payment)
+	JumlahDP          float64        `json:"jumlah_dp"`           // Jumlah DP jika tipe_pembayaran = dp
+	TanggalJatuhTempo time.Time      `json:"tanggal_jatuh_tempo"` // Tanggal pembayaran cicilan berikutnya
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // PaymentReminder untuk tracking pembayaran bulanan
@@ -133,5 +132,3 @@ type PaymentReminder struct {
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 }
-
-
