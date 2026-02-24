@@ -49,9 +49,11 @@ func InitDB(cfg *config.Config) {
 		&models.Penyewa{},
 		&models.Pemesanan{},
 		&models.Pembayaran{},
-		&models.Laporan{},
+
 		&models.Gallery{},
+		&models.KamarImage{},
 		&models.Review{},
+		&models.PaymentReminder{},
 	)
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)

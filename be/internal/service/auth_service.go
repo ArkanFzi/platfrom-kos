@@ -2,34 +2,36 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"koskosan-be/internal/config"
 	"koskosan-be/internal/models"
 	"koskosan-be/internal/repository"
 	"koskosan-be/internal/utils"
+	"log"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	github_uuid "github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService interface {
 	Login(username, password string) (string, *models.User, error)
-	Register(username, password, role, email, phone, address, birthdate string) (*models.User, error)
-	GoogleLogin(email, username, picture string) (string, *models.User, error)
+	Register(username, password, role, email, phone, address, birthdate, nik string) (*models.User, error)
+	GoogleLogin(idToken, username, picture string) (string, *models.User, error)
 	ForgotPassword(email string) error
 	ResetPassword(token, newPassword string) error
 }
 
 type authService struct {
-	repo        repository.UserRepository
-	penyewaRepo repository.PenyewaRepository
-	config      *config.Config
-	emailSender utils.EmailSender
+	repo           repository.UserRepository
+	penyewaRepo    repository.PenyewaRepository
+	config         *config.Config
+	emailSender    utils.EmailSender
+	googleVerifier utils.IDTokenVerifier
 }
 
-func NewAuthService(repo repository.UserRepository, penyewaRepo repository.PenyewaRepository, cfg *config.Config, emailSender utils.EmailSender) AuthService {
-	return &authService{repo, penyewaRepo, cfg, emailSender}
+func NewAuthService(repo repository.UserRepository, penyewaRepo repository.PenyewaRepository, cfg *config.Config, emailSender utils.EmailSender, googleVerifier utils.IDTokenVerifier) AuthService {
+	return &authService{repo, penyewaRepo, cfg, emailSender, googleVerifier}
 }
 
 func (s *authService) Login(username, password string) (string, *models.User, error) {
@@ -42,22 +44,18 @@ func (s *authService) Login(username, password string) (string, *models.User, er
 		return "", nil, errors.New("invalid credentials")
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id":  user.ID,
-		"username": user.Username,
-		"role":     user.Role,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(),
-	})
-
-	tokenString, err := token.SignedString([]byte(s.config.JWTSecret))
+	// Generate token pair (access + refresh)
+	accessToken, _, err := utils.GenerateTokenPair(int(user.ID), user.Username, user.Role, s.config.JWTSecret)
 	if err != nil {
 		return "", nil, err
 	}
 
-	return tokenString, user, nil
+	// For backward compatibility, return access token
+	// This will be used to set cookies in handler
+	return accessToken, user, nil
 }
 
-func (s *authService) Register(username, password, role, email, phone, address, birthdate string) (*models.User, error) {
+func (s *authService) Register(username, password, role, email, phone, address, birthdate, nik string) (*models.User, error) {
 	// Check if user already exists
 	_, err := s.repo.FindByUsername(username)
 	if err == nil {
@@ -79,8 +77,8 @@ func (s *authService) Register(username, password, role, email, phone, address, 
 		return nil, err
 	}
 
-	// Create blank Penyewa record for tenants
-	if role == "tenant" {
+	// Create blank Penyewa record for tenants or guests
+	if role == "tenant" || role == "guest" {
 		// Parse birthdate
 		var tglLahir time.Time
 		if birthdate != "" {
@@ -96,10 +94,11 @@ func (s *authService) Register(username, password, role, email, phone, address, 
 			NomorHP:      phone,
 			AlamatAsal:   address,
 			TanggalLahir: tglLahir,
+			NIK:          nik,
+			Role:         "guest", // New users start as guest
 		}
 		if err := s.penyewaRepo.Create(penyewa); err != nil {
-			// Note: We might want to handle this failure, maybe delete the user or just log it
-			// For now we just log it or ignore
+			log.Printf("Failed to create penyewa profile for user %s: %v", username, err)
 		}
 	}
 
@@ -108,45 +107,56 @@ func (s *authService) Register(username, password, role, email, phone, address, 
 
 //auth untuk google login (function nya)
 
-func (s *authService) GoogleLogin(email, username, picture string) (string, *models.User, error) {
-    // 1. Cari user berdasarkan email (karena kita pakai email sebagai username unik)
-    user, err := s.repo.FindByUsername(email)
-    
-    if err != nil {
-        // 2. Jika user tidak ditemukan, buat User baru
-        user = &models.User{
-            Username: email,
-            Password: "google-auth-placeholder-" + time.Now().String(), // Password dummy yang aman
-            Role:     "tenant",
-        }
-        if err := s.repo.Create(user); err != nil {
-            return "", nil, err
-        }
+func (s *authService) GoogleLogin(idToken, username, picture string) (string, *models.User, error) {
+	// SECURITY FIX: Verify the ID token with Google's servers
+	claims, err := s.googleVerifier.Verify(idToken, s.config.GoogleClientID)
+	if err != nil {
+		return "", nil, fmt.Errorf("invalid google token: %v", err)
+	}
 
-        // 3. Buat profile Penyewa
-        // SESUAIKAN: Cek file internal/models/penyewa.go. 
-        // Jika error "unknown field Nama", ganti 'Nama' di bawah dengan 'NamaLengkap'
-        penyewa := &models.Penyewa{
-            UserID:       user.ID,
-            NamaLengkap:  username, // Ubah ke NamaLengkap jika di modelnya begitu
-        }
-        s.penyewaRepo.Create(penyewa)
-    }
+	email := claims.Email
+	if email == "" {
+		return "", nil, fmt.Errorf("email not found in token")
+	}
 
-    // 4. Generate JWT Token
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "user_id":  user.ID,
-        "username": user.Username,
-        "role":     user.Role,
-        "exp":      time.Now().Add(time.Hour * 24).Unix(),
-    })
+	// Use name/picture from token if not provided
+	if username == "" {
+		username = claims.Name
+	}
+	if picture == "" {
+		picture = claims.Picture
+	}
 
-    tokenString, err := token.SignedString([]byte(s.config.JWTSecret))
-    if err != nil {
-        return "", nil, err
-    }
+	// 2. Find or create user based on verified email
+	user, err := s.repo.FindByUsername(email)
 
-    return tokenString, user, nil
+	if err != nil {
+		// 3. If user not found, create new User
+		user = &models.User{
+			Username: email,
+			Password: "google-auth-placeholder-" + time.Now().String(), // Password dummy yang aman
+			Role:     "guest",                                          // Google users start as guests until they book
+		}
+		if err := s.repo.Create(user); err != nil {
+			return "", nil, err
+		}
+
+		// 4. Create profile Penyewa for Google OAuth users
+		penyewa := &models.Penyewa{
+			UserID:      user.ID,
+			NamaLengkap: username,
+			Role:        "guest", // Google OAuth users start as guest
+		}
+		s.penyewaRepo.Create(penyewa)
+	}
+
+	// 5. Generate JWT Token
+	accessToken, _, err := utils.GenerateTokenPair(int(user.ID), user.Username, user.Role, s.config.JWTSecret)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return accessToken, user, nil
 }
 
 func (s *authService) ForgotPassword(email string) error {
@@ -156,15 +166,15 @@ func (s *authService) ForgotPassword(email string) error {
 		// 2. If not found, try to find penyewa by email
 		penyewa, err := s.penyewaRepo.FindByEmail(email)
 		if err != nil {
-			// User not found. To prevent enumeration, we could return nil.
-			// But for better UX during dev/MVP, we might want to return error.
-			// Let's return nil to be secure but log it.
-			// Or for now, legitimate error.
-			return errors.New("user with this email not found")
+			// SECURITY FIX: Return nil to prevent user enumeration
+			// Don't reveal whether email exists or not
+			log.Printf("Password reset requested for non-existent email: %s", email)
+			return nil
 		}
 		user, err = s.repo.FindByID(penyewa.UserID)
 		if err != nil {
-			return errors.New("user account not found")
+			log.Printf("Password reset: penyewa found but user not found for email: %s", email)
+			return nil
 		}
 	}
 
@@ -176,12 +186,17 @@ func (s *authService) ForgotPassword(email string) error {
 	user.ResetToken = token
 	user.ResetTokenExpiry = expiry
 	if err := s.repo.Update(user); err != nil {
-		return err
+		log.Printf("Failed to save reset token for user %s: %v", email, err)
+		return nil // Still return nil to prevent enumeration
 	}
 
-	// 5. Send Email
-	// We need to resolve which email to send to. Use the input email.
-	return s.emailSender.SendResetPasswordEmail(email, token)
+	// 5. Send Email (errors in email sending shouldn't reveal user existence)
+	if err := s.emailSender.SendResetPasswordEmail(email, token); err != nil {
+		log.Printf("Failed to send reset email to %s: %v", email, err)
+		// Don't return error to prevent enumeration
+	}
+
+	return nil
 }
 
 func (s *authService) ResetPassword(token, newPassword string) error {

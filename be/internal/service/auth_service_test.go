@@ -4,11 +4,15 @@ import (
 	"errors"
 	"koskosan-be/internal/config"
 	"koskosan-be/internal/models"
+	"koskosan-be/internal/repository"
+	"koskosan-be/internal/utils"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 // MockUserRepository implements repository.UserRepository interface
@@ -50,6 +54,14 @@ func (m *MockUserRepository) FindByResetToken(token string) (*models.User, error
 	return args.Get(0).(*models.User), args.Error(1)
 }
 
+func (m *MockUserRepository) WithTx(tx *gorm.DB) repository.UserRepository {
+	args := m.Called(tx)
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(repository.UserRepository)
+}
+
 // MockPenyewaRepository implements repository.PenyewaRepository interface
 type MockPenyewaRepository struct {
 	mock.Mock
@@ -86,6 +98,35 @@ func (m *MockPenyewaRepository) FindByEmail(email string) (*models.Penyewa, erro
 	return args.Get(0).(*models.Penyewa), args.Error(1)
 }
 
+func (m *MockPenyewaRepository) FindByRole(role string) ([]models.Penyewa, error) {
+	args := m.Called(role)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Penyewa), args.Error(1)
+}
+
+func (m *MockPenyewaRepository) UpdateRole(penyewaID uint, role string) error {
+	args := m.Called(penyewaID, role)
+	return args.Error(0)
+}
+
+func (m *MockPenyewaRepository) FindAllPaginated(pagination *utils.Pagination, search, role string) ([]models.Penyewa, int64, error) {
+	args := m.Called(pagination, search, role)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
+	}
+	return args.Get(0).([]models.Penyewa), int64(args.Int(1)), args.Error(2)
+}
+
+func (m *MockPenyewaRepository) WithTx(tx *gorm.DB) repository.PenyewaRepository {
+	args := m.Called(tx)
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(repository.PenyewaRepository)
+}
+
 // MockEmailSender implements utils.EmailSender interface
 type MockEmailSender struct {
 	mock.Mock
@@ -98,6 +139,29 @@ func (m *MockEmailSender) SendEmail(to, subject, body string) error {
 
 func (m *MockEmailSender) SendResetPasswordEmail(to, token string) error {
 	args := m.Called(to, token)
+	return args.Error(0)
+}
+
+// MockGoogleVerifier implements utils.IDTokenVerifier interface
+type MockGoogleVerifier struct {
+	mock.Mock
+}
+
+func (m *MockGoogleVerifier) Verify(tokenString string, clientID string) (*utils.GoogleClaims, error) {
+	args := m.Called(tokenString, clientID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*utils.GoogleClaims), args.Error(1)
+}
+
+func (m *MockEmailSender) SendPaymentSuccessEmail(toEmail, tenantName string, amount float64, date time.Time) error {
+	args := m.Called(toEmail, tenantName, amount, date)
+	return args.Error(0)
+}
+
+func (m *MockEmailSender) SendPaymentReminderEmail(toEmail, tenantName string, amount float64, dueDate time.Time, paymentLink string) error {
+	args := m.Called(toEmail, tenantName, amount, dueDate, paymentLink)
 	return args.Error(0)
 }
 
@@ -124,7 +188,7 @@ func TestLogin_Success(t *testing.T) {
 
 	mockUserRepo.On("FindByUsername", "testuser").Return(expectedUser, nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender, nil)
 
 	// Act
 	token, user, err := authService.Login("testuser", password)
@@ -147,7 +211,7 @@ func TestLogin_UserNotFound(t *testing.T) {
 
 	mockUserRepo.On("FindByUsername", "nonexistent").Return(nil, errors.New("user not found"))
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender, nil)
 
 	// Act
 	token, user, err := authService.Login("nonexistent", "password")
@@ -176,7 +240,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 
 	mockUserRepo.On("FindByUsername", "testuser").Return(user, nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender, nil)
 
 	// Act
 	token, returnedUser, err := authService.Login("testuser", "wrongPassword")
@@ -207,10 +271,10 @@ func TestRegister_Success(t *testing.T) {
 	})
 	mockPenyewaRepo.On("Create", mock.AnythingOfType("*models.Penyewa")).Return(nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender, nil)
 
 	// Act
-	user, err := authService.Register("newuser", "password", "tenant", "test@example.com", "08123456789", "Jl. Test", "2000-01-01")
+	user, err := authService.Register("newuser", "password", "tenant", "test@example.com", "08123456789", "Jl. Test", "2000-01-01", "1234567890")
 
 	// Assert
 	assert.NoError(t, err)
@@ -233,10 +297,10 @@ func TestRegister_UserAlreadyExists(t *testing.T) {
 	existingUser := &models.User{Username: "existinguser"}
 	mockUserRepo.On("FindByUsername", "existinguser").Return(existingUser, nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender, nil)
 
 	// Act
-	user, err := authService.Register("existinguser", "ValidPassword123", "tenant", "", "", "", "")
+	user, err := authService.Register("existinguser", "ValidPassword123", "tenant", "", "", "", "", "")
 
 	// Assert
 	assert.Error(t, err)
@@ -259,10 +323,10 @@ func TestRegister_AdminRole(t *testing.T) {
 	})
 	// Penyewa should NOT be created for admin role
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender, nil)
 
 	// Act
-	user, err := authService.Register("adminuser", "AdminPass123", "admin", "", "", "", "")
+	user, err := authService.Register("adminuser", "AdminPass123", "admin", "", "", "", "", "")
 
 	// Assert
 	assert.NoError(t, err)
@@ -281,11 +345,22 @@ func TestGoogleLogin_NewUser(t *testing.T) {
 	mockUserRepo := new(MockUserRepository)
 	mockPenyewaRepo := new(MockPenyewaRepository)
 	mockEmailSender := new(MockEmailSender)
-	cfg := &config.Config{JWTSecret: "test-secret-key-32-characters-long"}
+	mockGoogleVerifier := new(MockGoogleVerifier)
+	cfg := &config.Config{
+		JWTSecret:      "test-secret-key-32-characters-long",
+		GoogleClientID: "test-client-id",
+	}
 
+	idToken := "valid-id-token"
 	email := "newuser@gmail.com"
 	username := "New User"
 
+	claims := &utils.GoogleClaims{
+		Email: email,
+		Name:  username,
+	}
+
+	mockGoogleVerifier.On("Verify", idToken, cfg.GoogleClientID).Return(claims, nil)
 	mockUserRepo.On("FindByUsername", email).Return(nil, errors.New("not found"))
 	mockUserRepo.On("Create", mock.AnythingOfType("*models.User")).Return(nil).Run(func(args mock.Arguments) {
 		user := args.Get(0).(*models.User)
@@ -293,17 +368,18 @@ func TestGoogleLogin_NewUser(t *testing.T) {
 	})
 	mockPenyewaRepo.On("Create", mock.AnythingOfType("*models.Penyewa")).Return(nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender, mockGoogleVerifier)
 
 	// Act
-	token, user, err := authService.GoogleLogin(email, username, "")
+	token, user, err := authService.GoogleLogin(idToken, username, "")
 
 	// Assert
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token)
 	assert.NotNil(t, user)
 	assert.Equal(t, email, user.Username)
-	assert.Equal(t, "tenant", user.Role)
+	assert.Equal(t, "guest", user.Role)
+	mockGoogleVerifier.AssertExpectations(t)
 	mockUserRepo.AssertExpectations(t)
 	mockPenyewaRepo.AssertExpectations(t)
 }
@@ -313,27 +389,39 @@ func TestGoogleLogin_ExistingUser(t *testing.T) {
 	mockUserRepo := new(MockUserRepository)
 	mockPenyewaRepo := new(MockPenyewaRepository)
 	mockEmailSender := new(MockEmailSender)
-	cfg := &config.Config{JWTSecret: "test-secret-key-32-characters-long"}
+	mockGoogleVerifier := new(MockGoogleVerifier)
+	cfg := &config.Config{
+		JWTSecret:      "test-secret-key-32-characters-long",
+		GoogleClientID: "test-client-id",
+	}
 
+	idToken := "valid-id-token"
 	email := "existing@gmail.com"
+	claims := &utils.GoogleClaims{
+		Email: email,
+		Name:  "Some Name",
+	}
+
 	existingUser := &models.User{
 		Username: email,
 		Role:     "tenant",
 	}
 	existingUser.ID = 1
 
+	mockGoogleVerifier.On("Verify", idToken, cfg.GoogleClientID).Return(claims, nil)
 	mockUserRepo.On("FindByUsername", email).Return(existingUser, nil)
 
-	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
+	authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender, mockGoogleVerifier)
 
 	// Act
-	token, user, err := authService.GoogleLogin(email, "Some Name", "")
+	token, user, err := authService.GoogleLogin(idToken, "Some Name", "")
 
 	// Assert
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token)
 	assert.NotNil(t, user)
 	assert.Equal(t, email, user.Username)
+	mockGoogleVerifier.AssertExpectations(t)
 	mockUserRepo.AssertExpectations(t)
 	mockPenyewaRepo.AssertNotCalled(t, "Create") // Should not create new Penyewa
 }
@@ -395,7 +483,7 @@ func TestLogin_TableDriven(t *testing.T) {
 
 			tt.setupMock(mockUserRepo)
 
-			authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender)
+			authService := NewAuthService(mockUserRepo, mockPenyewaRepo, cfg, mockEmailSender, nil)
 			token, user, err := authService.Login(tt.username, tt.password)
 
 			if tt.expectError {

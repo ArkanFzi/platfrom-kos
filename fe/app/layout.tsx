@@ -7,6 +7,9 @@ import { AppProvider } from "./context";
 import { ThemeProvider } from "./context/ThemeContext";
 import { SWRProvider } from "@/app/components/providers/swr-provider";
 import { GoogleAuthProvider } from "@/app/components/providers/google-auth-provider";
+import { NotificationProvider } from "@/app/components/providers/notification-provider";
+import { ErrorBoundary } from "@/app/components/shared/ErrorBoundary";
+import { LanguageProvider } from "./context/LanguageContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,8 +22,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kos-kosan Management System",
-  description: "Sistem manajemen kos-kosan terpadu untuk pemilik dan penyewa",
+  title: "Rahmat ZAW Prime Stay | Luxury Guest House Malang",
+  description: "Exclusive and comfortable living spaces in Malang. Managed with excellence by Rahmat ZAW.",
+  icons: {
+    icon: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({
@@ -39,17 +46,23 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors duration-300`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors duration-500 ease-in-out`}
       >
         <ThemeProvider>
-          <AppProvider>
-            <SWRProvider>
-              <GoogleAuthProvider>
-                {children}
-              </GoogleAuthProvider>
-            </SWRProvider>
-            <Toaster position="top-center" richColors />
-          </AppProvider>
+          <LanguageProvider>
+            <AppProvider>
+              <SWRProvider>
+                <GoogleAuthProvider>
+                  <NotificationProvider>
+                    <ErrorBoundary>
+                        {children}
+                    </ErrorBoundary>
+                  </NotificationProvider>
+                </GoogleAuthProvider>
+              </SWRProvider>
+              <Toaster position="top-center" richColors />
+            </AppProvider>
+          </LanguageProvider>
         </ThemeProvider>
         <Script
           src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -59,7 +72,7 @@ export default function RootLayout({
         />
         <Script
           src="https://app.sandbox.midtrans.com/snap/snap.js"
-          data-client-key="Mid-client-RmKI74k1AouHJ6eA"
+          data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
         />
       </body>
     </html>

@@ -4,17 +4,33 @@ export interface User {
   id: number;
   username: string;
   role: 'admin' | 'penyewa' | 'calon_penyewa';
+  email?: string;
   token?: string;
   created_at?: string;
+  // For profile usage
+  penyewa?: Tenant;
+  is_google_user?: boolean;
+}
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total_rows: number;
+  total_pages: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T;
+  meta: Pagination;
 }
 
 export interface Room {
   id: number;
   nomor_kamar: string;
   tipe_kamar: string;
-  fasilitas: string;
+  fasilitas: string | string[]; // Supports both raw string or parsed array
   harga_per_bulan: number;
-  status: 'Tersedia' | 'Penuh' | 'Maintenance';
+  status: 'Tersedia' | 'Terisi' | 'Perbaikan' | 'Booked';
   capacity: number;
   floor: number;
   size: string;
@@ -24,6 +40,15 @@ export interface Room {
   image_url: string;
   created_at?: string;
   updated_at?: string;
+  kategori_id?: number;
+  Category?: {
+    nama_kategori: string;
+  };
+  Gallery?: { image_url: string }[];
+  Images?: { id: number; kamar_id: number; image_url: string }[];
+  // derived fields for UI
+  rating?: number;
+  reviews?: number;
 }
 
 export interface Gallery {
@@ -32,6 +57,8 @@ export interface Gallery {
   category: string;
   image_url: string;
   created_at?: string;
+  keti_id?: number;
+  Room?: Room;
 }
 
 export interface Review {
@@ -40,8 +67,13 @@ export interface Review {
   user?: User;
   kamar_id: number;
   rating: number;
-  comment: string;
+  comment: string; // Backend uses 'comment' or 'komentar'? Standardize to comment based on this file.
+  komentar?: string; // Alias if needed
   created_at?: string;
+  Penyewa?: {
+      nama_lengkap: string;
+      foto_profil: string;
+  };
 }
 
 export interface Tenant {
@@ -56,12 +88,16 @@ export interface Tenant {
   alamat_asal: string;
   jenis_kelamin: string;
   foto_profil: string;
+  role?: 'guest' | 'tenant' | 'former_tenant';
   created_at?: string;
+  status?: string; 
+  kamar?: { nomor_kamar: string }; 
 }
 
 export interface Payment {
   id: number;
   pemesanan_id: number;
+  pemesanan?: Booking;
   jumlah_bayar: number;
   tanggal_bayar: string;
   bukti_transfer: string;
@@ -75,31 +111,65 @@ export interface Payment {
   created_at?: string;
 }
 
+export interface PaymentReminder {
+  id: number;
+  pembayaran_id: number;
+  pembayaran?: Payment;
+  jumlah_bayar: number;
+  tanggal_reminder: string;
+  status_reminder: 'Pending' | 'Paid' | 'Expired';
+  is_sent: boolean;
+  created_at?: string;
+}
+
 export interface Booking {
   id: number;
   penyewa_id: number;
   penyewa?: Tenant;
   kamar_id: number;
-  kamar?: Room; // Preloaded
+  kamar?: Room;
   tanggal_mulai: string;
+  tanggal_keluar: string; // or moveOutDate
   durasi_sewa: number;
   status_pemesanan: 'Pending' | 'Confirmed' | 'Cancelled' | 'Active' | 'Completed';
-  pembayaran?: Payment[];
+  pembayaran?: Payment[]; // Standardize on lowercase
+  payments?: Payment[]; // Alias if needed
   created_at?: string;
+  // UI helpers
+  moveInDate?: string;
+  moveOutDate?: string;
+  roomName?: string;
+  roomImage?: string;
+  monthlyRent?: number;
+  status_bayar?: string; 
+  total_bayar?: number; 
 }
 
 export interface DashboardStats {
-  total_pemasukan: number;
-  jumlah_penghuni_aktif: number;
-  kamar_tersedia: number;
-  kamar_terisi: number;
-  occupancy_rate: number;
-  recent_activities: any[];
+  total_revenue: number;
+  active_tenants: number;
+  available_rooms: number;
+  occupied_rooms: number;
+  pending_payments: number;
+  pending_revenue: number;
+  rejected_payments: number;
+  potential_revenue: number;
+  monthly_trend: { month: string; revenue: number }[];
+  type_breakdown: { type: string; revenue: number; count: number; occupied: number }[];
+  demographics: { name: string; value: number; color: string }[];
+  recent_checkouts: {
+    room_name: string;
+    tenant_name: string;
+    checkout_date: string;
+    reason: string;
+  }[];
 }
 
 export interface LoginResponse {
-    token: string;
+    token?: string; // Token is now in HttpOnly cookie, but kept optional for compatibility
     user: User;
+    penyewa?: Tenant;
+    is_google_user?: boolean;
 }
 
 export interface MessageResponse {
@@ -123,24 +193,10 @@ class ApiErrorClass extends Error implements ApiError {
   }
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8087/api';
 
 // 2. Helper Functions
-// 2. Helper Functions
-const getHeaders = () => {
-  let token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  if (!token && typeof window !== 'undefined') {
-    token = sessionStorage.getItem('token');
-  }
-  
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
-};
+
 
 const safeJson = async (res: Response) => {
   const text = await res.text();
@@ -158,7 +214,7 @@ const safeJson = async (res: Response) => {
 
   try {
     return JSON.parse(text);
-  } catch (e) {
+  } catch (_e) { // eslint-disable-line @typescript-eslint/no-unused-vars
     // If empty response (e.g. 200 OK but no body), return empty object?
     // But safeJson usually expects JSON. If text is empty and status ok, maybe return null?
     if (!text) return {}; 
@@ -166,14 +222,31 @@ const safeJson = async (res: Response) => {
   }
 };
 
-const apiCall = async <T>(method: string, endpoint: string, body?: any): Promise<T> => {
-  const headers = getHeaders();
-  const config: RequestInit = { method, headers };
+// Auto-refresh token helper
+const refreshAccessToken = async (): Promise<boolean> => {
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+};
+
+// === Internal Helper ===
+const apiCall = async <T>(method: string, endpoint: string, body?: unknown): Promise<T> => {
+  const config: RequestInit = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // IMPORTANT: Send HttpOnly cookies with requests
+  };
 
   if (body) {
     if (body instanceof FormData) {
-      // Jika FormData, biarkan browser set boundary secara otomatis
-      delete (config.headers as any)['Content-Type'];
+      // If FormData, let browser set boundary automatically
+      delete (config.headers as Record<string, string>)['Content-Type'];
       config.body = body;
     } else {
       config.body = JSON.stringify(body);
@@ -181,37 +254,52 @@ const apiCall = async <T>(method: string, endpoint: string, body?: any): Promise
   }
 
   const res = await fetch(`${API_URL}${endpoint}`, config);
+  
+  // Handle token refresh on 401
+  if (res.status === 401 && endpoint !== '/auth/refresh' && endpoint !== '/auth/login') {
+    // Try to refresh token
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      // Retry original request
+      return apiCall<T>(method, endpoint, body);
+    }
+    // Refresh failed, redirect to login
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+  }
+  
   return safeJson(res);
 };
 
 // 3. Objek API Utama (Satu fungsi untuk satu kegunaan)
 export const api = {
   // --- AUTH ---
-  login: async (credentials: { username: string; password: string }, rememberMe: boolean = true) => {
+  login: async (credentials: { username: string; password: string }) => {
     const data = await apiCall<LoginResponse>('POST', '/auth/login', credentials);
-    if (data.token) {
-      if (rememberMe) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-      } else {
-        sessionStorage.setItem('token', data.token);
-        sessionStorage.setItem('user', JSON.stringify(data.user));
-      }
-    }
-    return data;
-  },
-
-  googleLogin: async (code: string) => {
-    // Mengirim code dari Google ke backend
-    const data = await apiCall<LoginResponse>('GET', `/auth/google/callback?code=${code}`);
-    if (data.token) {
-      localStorage.setItem('token', data.token);
+    // Store user data in localStorage and non-HttpOnly cookie for middleware
+    if (data.user) {
       localStorage.setItem('user', JSON.stringify(data.user));
+      document.cookie = `user=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=86400; SameSite=Strict`;
     }
     return data;
   },
 
-  register: async (userData: any) => {
+  googleLogin: async (idToken: string) => {
+    // Send raw ID token to backend for server-side verification
+    const data = await apiCall<LoginResponse>('POST', '/auth/google-login', {
+      id_token: idToken,
+    });
+    // Store user data in localStorage and non-HttpOnly cookie for middleware
+    if (data.user) {
+      localStorage.setItem('user', JSON.stringify(data.user));
+      document.cookie = `user=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=86400; SameSite=Strict`;
+    }
+    return data;
+  },
+
+  register: async (userData: Partial<Tenant> & { password?: string; username?: string }) => {
     // userData already includes birthdate from UserRegister.tsx
     // Returns created User object or message? Typically user object.
     return apiCall<User>('POST', '/auth/register', userData);
@@ -225,14 +313,21 @@ export const api = {
     return apiCall<MessageResponse>('POST', '/auth/reset-password', { token, new_password: newPassword });
   },
 
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('app_view_mode');
+  logout: async () => {
+    // Call backend to clear HttpOnly cookies
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
-    // Consider calling a backend logout endpoint if dealing with server-side sessions/cookies blacklist
+    // Clear local storage and cookies
+    localStorage.clear();
+    sessionStorage.clear();
+    document.cookie = 'user=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
   },
 
   // --- PROFILE ---
@@ -242,11 +337,11 @@ export const api = {
     return apiCall<{ user: User; tenant?: Tenant }>('GET', '/profile');
   },
 
-  updateProfile: async (data: Partial<Tenant>) => {
+  updateProfile: async (data: Partial<Tenant> | FormData) => {
     return apiCall<Tenant>('PUT', '/profile', data);
   },
 
-  changePassword: async (data: any) => {
+  changePassword: async (data: { old_password?: string; new_password?: string }) => {
     return apiCall<MessageResponse>('PUT', '/profile/change-password', data);
   },
 
@@ -282,8 +377,31 @@ export const api = {
     return apiCall<Booking>('POST', '/bookings', bookingData);
   },
 
-  createSnapToken: async (paymentData: { pemesanan_id: number; payment_type: string; payment_method: string }) => {
-    return apiCall<{ token: string; redirect_url: string }>('POST', '/payments/snap-token', paymentData);
+  createBookingWithProof: async (formData: FormData) => {
+    return apiCall<Booking>('POST', '/bookings/with-proof', formData);
+  },
+
+  cancelBooking: async (id: string) => {
+    return apiCall<MessageResponse>('POST', `/bookings/${id}/cancel`);
+  },
+
+  extendBooking: async (id: string, months: number) => {
+    return apiCall<Payment>('POST', `/bookings/${id}/extend`, { months });
+  },
+
+  // --- PAYMENTS (Manual Transfer) ---
+  createPayment: async (data: { pemesanan_id: number; payment_type: 'full' | 'dp' }) => {
+    return apiCall<{ message: string; payment: Payment }>('POST', '/payments', data);
+  },
+
+  uploadPaymentProof: async (paymentId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('proof', file);
+    return apiCall<{ message: string; url: string }>('POST', `/payments/${paymentId}/proof`, formData);
+  },
+
+  getPaymentReminders: async () => {
+    return apiCall<PaymentReminder[]>('GET', '/payments/reminders');
   },
 
   createReview: async (review: Partial<Review>) => {
@@ -312,8 +430,18 @@ export const api = {
   },
 
   // --- ADMIN ---
-  getAllTenants: async () => {
-    return apiCall<Tenant[]>('GET', '/tenants');
+  getAllTenants: async (params?: { page?: number; limit?: number; search?: string; role?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.search) query.append('search', params.search);
+    if (params?.role) query.append('role', params.role);
+    
+    return apiCall<PaginatedResponse<Tenant[]>>('GET', `/tenants?${query.toString()}`);
+  },
+
+  deleteTenant: async (id: string | number) => {
+    return apiCall<MessageResponse>('DELETE', `/tenants/${id}`);
   },
 
   getAllPayments: async () => {
@@ -321,16 +449,22 @@ export const api = {
   },
 
   confirmPayment: async (paymentId: string) => {
-    return apiCall<MessageResponse>('POST', `/payments/${paymentId}/confirm`);
+    // Admin confirmation
+    return apiCall<MessageResponse>('PUT', `/payments/${paymentId}/confirm`);
   },
   
+
   verifyPayment: async (orderId: string) => {
     // Returns { message: "Payment verified successfully" }
     return apiCall<MessageResponse>('POST', '/payments/verify', { order_id: orderId });
   },
 
+  getReminders: async () => {
+    return apiCall<PaymentReminder[]>('GET', '/payments/reminders');
+  },
+
   // --- OTHERS ---
-  sendContactForm: async (data: any) => {
+  sendContactForm: async (data: { name: string; email: string; message: string }) => {
     // Check contact_handler.go if needed, assume message
     return apiCall<MessageResponse>('POST', '/contact', data);
   },

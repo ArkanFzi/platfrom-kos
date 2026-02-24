@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"koskosan-be/internal/models"
 	"koskosan-be/internal/service"
 	"koskosan-be/internal/utils"
@@ -11,11 +12,12 @@ import (
 )
 
 type ProfileHandler struct {
-	service service.ProfileService
+	service    service.ProfileService
+	cloudinary *utils.CloudinaryService
 }
 
-func NewProfileHandler(s service.ProfileService) *ProfileHandler {
-	return &ProfileHandler{s}
+func NewProfileHandler(s service.ProfileService, cld *utils.CloudinaryService) *ProfileHandler {
+	return &ProfileHandler{s, cld}
 }
 
 func (h *ProfileHandler) GetProfile(c *gin.Context) {
@@ -93,9 +95,25 @@ func (h *ProfileHandler) UpdateProfile(c *gin.Context) {
 		file, err := c.FormFile("foto_profil")
 		if err == nil {
 			if utils.IsImageFile(file) {
-				filename, err := utils.SaveFile(file, "uploads/profiles")
-				if err == nil {
-					input.FotoProfil = "/uploads/profiles/" + filename
+				if h.cloudinary != nil {
+					src, err := file.Open()
+					if err == nil {
+						defer src.Close()
+						url, err := h.cloudinary.UploadImage(src, "koskosan/profiles")
+						if err == nil {
+							input.FotoProfil = url
+						} else {
+							utils.GlobalLogger.Error("Failed to upload to Cloudinary: %v", err)
+							c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to upload profile photo to cloud: %v", err)})
+							return
+						}
+					} else {
+						c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open profile photo"})
+						return
+					}
+				} else {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloud storage not configured"})
+					return
 				}
 			}
 		}

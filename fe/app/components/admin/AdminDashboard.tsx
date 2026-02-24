@@ -3,30 +3,10 @@
 import { Home, Users, CreditCard, TrendingUp, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { useEffect, useState } from 'react';
-import { api } from '@/app/services/api';
-
-interface Stats {
-  total_revenue: number;
-  active_tenants: number;
-  available_rooms: number;
-  occupied_rooms: number;
-  pending_payments: number;
-}
-
-interface Tenant {
-  id: string | number;
-  nama_lengkap: string;
-  status: string;
-  user?: { username: string };
-}
-
-interface Room {
-  id: string | number;
-  status: string;
-}
+import { api, DashboardStats, Tenant, Room } from '@/app/services/api';
 
 export function AdminDashboard() {
-  const [statsData, setStatsData] = useState<Stats | null>(null);
+  const [statsData, setStatsData] = useState<DashboardStats | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,7 +20,7 @@ export function AdminDashboard() {
           api.getRooms()
         ]);
         setStatsData(s);
-        setTenants(t);
+        setTenants(t.data);
         setRooms(r);
       } catch (e) {
         console.error(e);
@@ -55,7 +35,7 @@ export function AdminDashboard() {
     return (
       <div className="flex flex-col items-center justify-center p-20 gap-4">
         <Loader2 className="w-10 h-10 animate-spin text-amber-500" />
-        <p className="text-slate-400">Loading dashboard...</p>
+        <p className="text-slate-400">Memuat dashboard...</p>
       </div>
     );
   }
@@ -68,30 +48,30 @@ export function AdminDashboard() {
 
   const stats = [
     {
-      title: 'Total Rooms',
+      title: 'Total Kamar',
       value: rooms.length,
-      subtitle: `${availableRooms} Available`,
+      subtitle: `${availableRooms} Tersedia`,
       icon: Home,
       color: 'blue'
     },
     {
-      title: 'Active Bookings',
+      title: 'Penyewa Aktif',
       value: activeTenants,
-      subtitle: `${tenants.length} Registered`,
+      subtitle: `${tenants.length} Terdaftar`,
       icon: Users,
       color: 'green'
     },
     {
-      title: 'Pending Payments',
+      title: 'Pembayaran Menunggu',
       value: pendingPayments,
-      subtitle: 'Need confirmation',
+      subtitle: 'Perlu konfirmasi',
       icon: CreditCard,
       color: 'orange'
     },
     {
-      title: 'Total Revenue',
+      title: 'Total Pendapatan',
       value: `Rp ${totalRevenue.toLocaleString()}`,
-      subtitle: 'All time',
+      subtitle: 'Sepanjang masa',
       icon: TrendingUp,
       color: 'purple'
     }
@@ -108,7 +88,7 @@ export function AdminDashboard() {
     <div className="p-6 space-y-6">
       <div>
         <h2 className="text-3xl font-semibold">Dashboard</h2>
-        <p className="text-slate-600 mt-1">Welcome to Kos-kosan Management System</p>
+        <p className="text-slate-600 mt-1">Selamat Datang di Sistem Manajemen Kos-kosan</p>
       </div>
 
       {/* Stats Grid */}
@@ -138,7 +118,7 @@ export function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Recent Tenants</CardTitle>
+            <CardTitle>Penyewa Terbaru</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -165,13 +145,13 @@ export function AdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Room Occupancy</CardTitle>
+            <CardTitle>Okupansi Kamar</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-sm mb-2">
-                  <span>Occupied</span>
+                  <span>Terisi</span>
                   <span className="font-medium">{occupiedRooms}/{rooms.length}</span>
                 </div>
                 <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
@@ -185,17 +165,17 @@ export function AdminDashboard() {
               <div className="grid grid-cols-3 gap-4 mt-6">
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <p className="text-2xl font-semibold text-green-600">{availableRooms}</p>
-                  <p className="text-sm text-slate-600 mt-1">Available</p>
+                  <p className="text-sm text-slate-600 mt-1">Tersedia</p>
                 </div>
                 <div className="text-center p-4 bg-red-50 rounded-lg">
                   <p className="text-2xl font-semibold text-red-600">{occupiedRooms}</p>
-                  <p className="text-sm text-slate-600 mt-1">Occupied</p>
+                  <p className="text-sm text-slate-600 mt-1">Terisi</p>
                 </div>
                 <div className="text-center p-4 bg-orange-50 rounded-lg">
                   <p className="text-2xl font-semibold text-orange-600">
-                    {rooms.filter(r => r.status === 'Maintenance').length}
+                    {rooms.filter(r => r.status === 'Perbaikan').length}
                   </p>
-                  <p className="text-sm text-slate-600 mt-1">Maintenance</p>
+                  <p className="text-sm text-slate-600 mt-1">Perbaikan</p>
                 </div>
               </div>
             </div>

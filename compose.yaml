@@ -1,50 +1,56 @@
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: koskosan-db
-    environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-koskosan}
-    ports:
-      - "${DB_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   backend:
-    build: 
+    build:
       context: ./be
       dockerfile: Dockerfile
-    container_name: koskosan-backend
-    ports:
-      - "${PORT:-8080}:8080"
+    container_name: senvanda-app-rahmatzaw-backend
+    restart: unless-stopped
     environment:
-      DB_HOST: db
+      DB_HOST: postgres_db
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      DB_NAME: ${DB_NAME:-koskosan}
+      DB_NAME: ${DB_NAME:-koskosan_rahmat}
       DB_PORT: 5432
-      JWT_SECRET: ${JWT_SECRET:-secret}
-    depends_on:
-      db:
-        condition: service_healthy
+      JWT_SECRET: ${JWT_SECRET:-your_secret_here}
+      PORT: 8080
+      GIN_MODE: release
+      ALLOWED_ORIGINS: https://rahmadzaw.busines.biz.id
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+    ports:
+      - "8087:8080" # Diarahkan dari Apache (Ganti dari 8085 karena bentrok)
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
 
   frontend:
     build:
       context: ./fe
-      dockerfile: Dockerfile
-    container_name: koskosan-frontend
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: https://rahmadzaw.busines.biz.id/api
+        NEXT_PUBLIC_APP_NAME: "Rahmat ZAW Prime Stay"
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+        NEXT_PUBLIC_GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}
+        NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
+    container_name: senvanda-app-rahmatzaw-frontend
+    restart: unless-stopped
     ports:
-      - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8080/api
+      - "3007:3000"
     depends_on:
       - backend
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
 
-volumes:
-  postgres_data:
+networks:
+  app-network:
+    external: true
+    name: multyapp-project_app-network

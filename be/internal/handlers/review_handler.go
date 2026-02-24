@@ -56,7 +56,7 @@ func (h *ReviewHandler) CreateReview(c *gin.Context) {
 	}
 
 	// Extract UserID from context (set by AuthMiddleware)
-	userID, exists := c.Get("user_id")
+	userIDRaw, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
 		return
@@ -64,17 +64,25 @@ func (h *ReviewHandler) CreateReview(c *gin.Context) {
 
 	// Convert userID from interface{} to uint
 	// Depending on how jwt claims are parsed, it might be float64 or uint
-	switch v := userID.(type) {
+	var userID uint
+	switch v := userIDRaw.(type) {
 	case float64:
-		review.UserID = uint(v)
+		userID = uint(v)
 	case uint:
-		review.UserID = v
+		userID = v
+	case int:
+		userID = uint(v)
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id type in context"})
 		return
 	}
 
-	if err := h.service.CreateReview(&review); err != nil {
+	// Pass userID to service for verification
+	if err := h.service.CreateReview(&review, userID); err != nil {
+		if err.Error() == "unauthorized: you must have a confirmed booking for this room to review it" {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

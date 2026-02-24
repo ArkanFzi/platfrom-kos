@@ -6,6 +6,7 @@ import (
 	"koskosan-be/internal/middleware"
 
 	"github.com/gin-gonic/gin"
+	ginprometheus "github.com/zsais/go-gin-prometheus"
 )
 
 // Routes structure untuk organization yang lebih baik
@@ -54,8 +55,13 @@ func (r *Routes) Register(router *gin.Engine, cfg *config.Config) {
 	// Static files
 	router.Static("/uploads", "./uploads")
 
+	// Prometheus Monitoring
+	p := ginprometheus.NewPrometheus("gin")
+	p.Use(router)
+
 	api := router.Group("/api")
 	{
+		api.Static("/uploads", "./uploads")
 		// Public routes - tidak perlu auth
 		r.registerPublicRoutes(api)
 
@@ -70,14 +76,17 @@ func (r *Routes) Register(router *gin.Engine, cfg *config.Config) {
 
 // Public routes (no auth required)
 func (r *Routes) registerPublicRoutes(api *gin.RouterGroup) {
-	// Authentication
+	// Authentication - with rate limiting for security
 	auth := api.Group("/auth")
 	{
-		auth.POST("/login", r.authHandler.Login)
-		auth.POST("/register", r.authHandler.Register)
-		auth.POST("/google-login", r.authHandler.GoogleLogin)
-		auth.POST("/forgot-password", r.authHandler.ForgotPassword)
-		auth.POST("/reset-password", r.authHandler.ResetPassword)
+		// Strict rate limiting for login/register (prevent brute force)
+		auth.POST("/login", middleware.StrictRateLimit(), r.authHandler.Login)
+		auth.POST("/register", middleware.StrictRateLimit(), r.authHandler.Register)
+		auth.POST("/google-login", middleware.StrictRateLimit(), r.authHandler.GoogleLogin)
+		auth.POST("/forgot-password", middleware.StrictRateLimit(), r.authHandler.ForgotPassword)
+		auth.POST("/reset-password", middleware.ModerateRateLimit(), r.authHandler.ResetPassword)
+		auth.POST("/refresh", r.authHandler.RefreshToken) // New: Token refresh endpoint
+		auth.POST("/logout", r.authHandler.Logout)        // New: Logout endpoint
 	}
 
 	// Kamar/Room browsing
@@ -96,9 +105,6 @@ func (r *Routes) registerPublicRoutes(api *gin.RouterGroup) {
 
 	// Contact form
 	api.POST("/contact", r.contactHandler.HandleContactForm)
-
-	// Payment webhook (untuk Midtrans callback)
-	api.POST("/payments/webhook", r.paymentHandler.HandleMidtransWebhook)
 }
 
 // Protected routes (auth required)
@@ -116,13 +122,17 @@ func (r *Routes) registerProtectedRoutes(protected *gin.RouterGroup) {
 	{
 		bookings.GET("", r.bookingHandler.GetMyBookings) // GET /api/bookings
 		bookings.POST("", r.bookingHandler.CreateBooking) // POST /api/bookings
+		bookings.POST("/with-proof", r.bookingHandler.CreateBookingWithProof) // POST /api/bookings/with-proof
+		bookings.POST("/:id/cancel", r.bookingHandler.CancelBooking) // POST /api/bookings/:id/cancel
+		bookings.POST("/:id/extend", r.bookingHandler.ExtendBooking) // POST /api/bookings/:id/extend
 	}
 
 	// Payments
 	payments := protected.Group("/payments")
 	{
-		payments.POST("/snap-token", r.paymentHandler.CreateSnapToken)      // POST /api/payments/snap-token
-		payments.POST("/confirm-cash/:id", r.paymentHandler.ConfirmCashPayment) // POST /api/payments/confirm-cash/:id
+		payments.POST("", r.paymentHandler.CreatePayment)                  // POST /api/payments
+		payments.POST("/:id/proof", r.paymentHandler.UploadPaymentProof)   // POST /api/payments/:id/proof
+		payments.GET("/reminders", r.paymentHandler.GetReminders)             // GET /api/payments/reminders
 	}
 
 	// Reviews
@@ -160,6 +170,7 @@ func (r *Routes) registerAdminRoutes(protected *gin.RouterGroup) {
 		{
 			payments.GET("", r.paymentHandler.GetAllPayments)       // GET /api/payments
 			payments.PUT("/:id/confirm", r.paymentHandler.ConfirmPayment) // PUT /api/payments/:id/confirm
+			payments.POST("/confirm-cash/:id", r.paymentHandler.ConfirmCashPayment) // POST /api/payments/confirm-cash/:id (Admin only)
 		}
 
 		// Tenants management

@@ -1,19 +1,64 @@
 package utils
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
+	"google.golang.org/api/idtoken"
 )
 
-// ... existing code ...
+// GoogleClaims structure for Google ID Token
+type GoogleClaims struct {
+	Email   string `json:"email"`
+	Name    string `json:"name"`
+	Picture string `json:"picture"`
+	Sub     string `json:"sub"`
+	jwt.RegisteredClaims
+}
 
-// GetAuthToken mendapatkan token dari header Authorization atau cookie
+// IDTokenVerifier is an interface for validating Google ID tokens
+type IDTokenVerifier interface {
+	Verify(tokenString string, clientID string) (*GoogleClaims, error)
+}
+
+// RealIDTokenVerifier connects to Google's servers
+type RealIDTokenVerifier struct{}
+
+func (v *RealIDTokenVerifier) Verify(tokenString string, clientID string) (*GoogleClaims, error) {
+	return VerifyGoogleIDToken(tokenString, clientID)
+}
+
+// TokenClaims struktur untuk JWT claims
+type TokenClaims struct {
+	UserID    int    `json:"user_id"`
+	Username  string `json:"username"`
+	Role      string `json:"role"`
+	TokenType string `json:"token_type"` // "access" or "refresh"
+	jwt.RegisteredClaims
+}
+
+// Token expiry durations
+const (
+	AccessTokenExpiry  = 15 * time.Minute   // Short-lived
+	RefreshTokenExpiry = 7 * 24 * time.Hour // 7 days
+)
+
+// GetAuthToken mendapatkan token dari cookie (prioritas) atau Authorization header (fallback)
 func GetAuthToken(c *gin.Context) (string, error) {
-	// 1. Check Authorization header
+	// 1. Check Cookie first (more secure)
+	token, err := c.Cookie("access_token")
+	if err == nil && token != "" {
+		return token, nil
+	}
+
+	// 2. Fallback to Authorization header (for backward compatibility during migration)
 	authHeader := c.GetHeader("Authorization")
 	if authHeader != "" {
 		parts := strings.Split(authHeader, " ")
@@ -22,52 +67,141 @@ func GetAuthToken(c *gin.Context) (string, error) {
 		}
 	}
 
-	// 2. Check Cookie
-	token, err := c.Cookie("auth_token")
+	return "", errors.New("auth token not found")
+}
+
+// GenerateTokenPair generates both access and refresh tokens
+func GenerateTokenPair(userID int, username string, role string, jwtSecret string) (accessToken, refreshToken string, err error) {
+	// Generate access token (short-lived)
+	accessToken, err = GenerateToken(userID, username, role, "access", jwtSecret, AccessTokenExpiry)
 	if err != nil {
-		return "", errors.New("auth token not found")
+		return "", "", err
 	}
-	return token, nil
+
+	// Generate refresh token (long-lived)
+	refreshToken, err = GenerateToken(userID, username, role, "refresh", jwtSecret, RefreshTokenExpiry)
+	if err != nil {
+		return "", "", err
+	}
+
+	return accessToken, refreshToken, nil
 }
 
-// TokenClaims struktur untuk JWT claims
-type TokenClaims struct {
-	UserID   int    `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
-	jwt.RegisteredClaims
-}
-
-// SetAuthCookie set JWT token ke httpOnly cookie
-func SetAuthCookie(c *gin.Context, token string, expiresIn time.Duration) {
-	c.SetCookie(
-		"auth_token",           // cookie name
-		token,                  // cookie value
-		int(expiresIn.Seconds()), // maxAge in seconds
-		"/",                    // path
-		"",                     // domain (empty = current domain)
-		false,                  // secure (set true in production with HTTPS)
-		true,                   // httpOnly - CRITICAL for security
-	)
-	
-	// Also set expiry cookie untuk frontend reference
+// GenerateToken generate JWT token with type
+func GenerateToken(userID int, username string, role string, tokenType string, jwtSecret string, expiresIn time.Duration) (string, error) {
 	expiresAt := time.Now().Add(expiresIn)
+
+	claims := &TokenClaims{
+		UserID:    userID,
+		Username:  username,
+		Role:      role,
+		TokenType: tokenType,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(jwtSecret))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+// ValidateToken validate JWT token
+func ValidateToken(token string, jwtSecret string) (*TokenClaims, error) {
+	claims := &TokenClaims{}
+
+	parsedToken, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !parsedToken.Valid {
+		return nil, errors.New("invalid token")
+	}
+
+	// Check if token expired
+	if time.Now().After(claims.ExpiresAt.Time) {
+		return nil, errors.New("token expired")
+	}
+
+	return claims, nil
+}
+
+// ValidateAccessToken validates access token specifically
+func ValidateAccessToken(token string, jwtSecret string) (*TokenClaims, error) {
+	claims, err := ValidateToken(token, jwtSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	if claims.TokenType != "access" {
+		return nil, errors.New("invalid token type: expected access token")
+	}
+
+	return claims, nil
+}
+
+// ValidateRefreshToken validates refresh token specifically
+func ValidateRefreshToken(token string, jwtSecret string) (*TokenClaims, error) {
+	claims, err := ValidateToken(token, jwtSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	if claims.TokenType != "refresh" {
+		return nil, errors.New("invalid token type: expected refresh token")
+	}
+
+	return claims, nil
+}
+
+// SetAuthCookies sets both access and refresh token cookies with security flags
+func SetAuthCookies(c *gin.Context, accessToken, refreshToken string, isProduction bool) {
+	// Set SameSite mode for CSRF protection
+	sameSite := http.SameSiteStrictMode
+
+	// Access Token Cookie (short-lived, all paths)
+	c.SetSameSite(sameSite)
 	c.SetCookie(
-		"token_expires",
-		expiresAt.Format(time.RFC3339),
-		int(expiresIn.Seconds()),
-		"/",
-		"",
-		false,
-		false, // tidak httpOnly - frontend boleh baca
+		"access_token",                   // cookie name
+		accessToken,                      // cookie value
+		int(AccessTokenExpiry.Seconds()), // maxAge in seconds (15 min)
+		"/",                              // path
+		"",                               // domain (empty = current domain)
+		isProduction,                     // secure (HTTPS only in production)
+		true,                             // httpOnly - prevents JavaScript access (XSS protection)
+	)
+
+	// Refresh Token Cookie (long-lived, limited path)
+	c.SetSameSite(sameSite)
+	c.SetCookie(
+		"refresh_token",                   // cookie name
+		refreshToken,                      // cookie value
+		int(RefreshTokenExpiry.Seconds()), // maxAge in seconds (7 days)
+		"/api/auth",                       // limited path - only auth endpoints can access
+		"",                                // domain
+		isProduction,                      // secure
+		true,                              // httpOnly
 	)
 }
 
+// ClearAuthCookies menghapus semua auth cookies (logout)
+func ClearAuthCookies(c *gin.Context) {
+	sameSite := http.SameSiteStrictMode
 
-// ClearAuthCookie menghapus auth cookie (logout)
-func ClearAuthCookie(c *gin.Context) {
+	// Clear access token
+	c.SetSameSite(sameSite)
 	c.SetCookie(
-		"auth_token",
+		"access_token",
 		"",
 		-1,
 		"/",
@@ -75,61 +209,63 @@ func ClearAuthCookie(c *gin.Context) {
 		false,
 		true,
 	)
+
+	// Clear refresh token
+	c.SetSameSite(sameSite)
 	c.SetCookie(
-		"token_expires",
+		"refresh_token",
 		"",
 		-1,
-		"/",
+		"/api/auth",
 		"",
 		false,
-		false,
+		true,
 	)
 }
 
-// ValidateToken validate JWT token
-func ValidateToken(token string, jwtSecret string) (*TokenClaims, error) {
-	claims := &TokenClaims{}
-	
-	parsedToken, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
-	})
-	
+// VerifyGoogleIDToken verifies a Google ID token with Google's public keys
+func VerifyGoogleIDToken(tokenString string, clientID string) (*GoogleClaims, error) {
+	if clientID == "" {
+		return nil, errors.New("google client id not configured")
+	}
+
+	payload, err := idtoken.Validate(context.Background(), tokenString, clientID)
 	if err != nil {
 		return nil, err
 	}
-	
-	if !parsedToken.Valid {
-		return nil, errors.New("invalid token")
+
+	claims := &GoogleClaims{
+		Email:   payload.Claims["email"].(string),
+		Name:    payload.Claims["name"].(string),
+		Picture: payload.Claims["picture"].(string),
+		Sub:     payload.Subject,
 	}
-	
-	// Check if token expired
-	if time.Now().After(claims.ExpiresAt.Time) {
-		return nil, errors.New("token expired")
-	}
-	
+
 	return claims, nil
 }
 
-// GenerateToken generate JWT token
-func GenerateToken(userID int, username string, role string, jwtSecret string, expiresIn time.Duration) (string, error) {
-	expiresAt := time.Now().Add(expiresIn)
-	
-	claims := &TokenClaims{
-		UserID:   userID,
-		Username: username,
-		Role:     role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-		},
+// DecodeGoogleToken decodes a Google ID token (keeping for compatibility if needed, but Verify is preferred)
+func DecodeGoogleToken(tokenString string) (*GoogleClaims, error) {
+	parts := strings.Split(tokenString, ".")
+	if len(parts) != 3 {
+		return nil, errors.New("invalid token format")
 	}
-	
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+
+	payload := parts[1]
+	// Add padding if needed
+	if l := len(payload) % 4; l > 0 {
+		payload += strings.Repeat("=", 4-l)
+	}
+
+	decoded, err := base64.URLEncoding.DecodeString(payload)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	
-	return tokenString, nil
+
+	var claims GoogleClaims
+	if err := json.Unmarshal(decoded, &claims); err != nil {
+		return nil, err
+	}
+
+	return &claims, nil
 }

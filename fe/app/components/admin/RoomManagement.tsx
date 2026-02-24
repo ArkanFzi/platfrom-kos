@@ -1,10 +1,11 @@
 "use client";
 // Force update
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
+import { getImageUrl } from '@/app/utils/api-url';
 import { toast } from 'sonner';
 import Image from 'next/image';
-import { Search, Plus, Edit, Trash2, Eye, Loader2 } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Eye, Loader2, X, ImageIcon } from 'lucide-react';
 import { api } from '@/app/services/api';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -59,7 +60,8 @@ export function RoomManagement() {
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [viewingRoom, setViewingRoom] = useState<Room | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
   const fetchRooms = async () => {
     setIsLoading(true);
@@ -77,7 +79,7 @@ export function RoomManagement() {
         bedrooms: r.bedrooms || 1,
         bathrooms: r.bathrooms || 1,
         description: r.description || '',
-        image: r.image_url ? (r.image_url.startsWith('http') ? r.image_url : `http://localhost:8081${r.image_url}`) : 'https://via.placeholder.com/300',
+        image: getImageUrl(r.image_url) || 'https://via.placeholder.com/300',
         facilities: r.fasilitas ? r.fasilitas.split(',').map((f: string) => f.trim()) : []
       }));
       setRooms(mapped);
@@ -126,9 +128,9 @@ export function RoomManagement() {
     // Handle facilities array to string
     data.append('fasilitas', Array.isArray(formData.facilities) ? formData.facilities.join(', ') : formData.facilities || '');
     
-    if (imageFile) {
-      data.append('image', imageFile);
-    }
+    imageFiles.forEach((file) => {
+      data.append('images', file);
+    });
 
     try {
       if (editingRoom) {
@@ -139,7 +141,7 @@ export function RoomManagement() {
       await fetchRooms();
       setIsDialogOpen(false);
       resetForm();
-    } catch (e) {
+    } catch {
         toast.error("Failed to save room");
     }
   };
@@ -150,7 +152,7 @@ export function RoomManagement() {
           await api.deleteRoom(id);
           await fetchRooms();
           toast.success("Room deleted");
-      } catch (e) {
+      } catch {
           toast.error("Failed to delete room");
       }
     }
@@ -177,6 +179,8 @@ export function RoomManagement() {
       description: ''
     });
     setEditingRoom(null);
+    setImageFiles([]);
+    setImagePreviews([]);
     setIsDialogOpen(false);
   };
 
@@ -333,14 +337,85 @@ export function RoomManagement() {
                 />
               </div>
 
-              <div>
-                <Label>Room Image</Label>
-                <Input type="file" onChange={e => setImageFile(e.target.files?.[0] || null)} className="mt-1" />
+              <div className="space-y-3">
+                <Label>Foto Kamar <span className="text-red-500">*</span> <span className="text-slate-500 font-normal">(Minimal 3 foto)</span></Label>
+                <label
+                  htmlFor="room-images"
+                  className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                    imageFiles.length >= 3
+                      ? 'border-green-400 bg-green-50 hover:bg-green-100'
+                      : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-1 text-slate-500">
+                    <ImageIcon className="w-6 h-6" />
+                    <p className="text-sm">
+                      {imageFiles.length === 0
+                        ? 'Klik untuk pilih foto'
+                        : `${imageFiles.length} foto dipilih ${imageFiles.length < 3 ? `(butuh ${3 - imageFiles.length} lagi)` : '✓'}`}
+                    </p>
+                    <p className="text-xs text-slate-400">PNG, JPG, WEBP</p>
+                  </div>
+                  <Input
+                    id="room-images"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      const combined = [...imageFiles, ...files].slice(0, 10);
+                      setImageFiles(combined);
+                      // Generate previews
+                      const previews = combined.map(f => URL.createObjectURL(f));
+                      setImagePreviews(prev => {
+                        prev.forEach(url => URL.revokeObjectURL(url));
+                        return previews;
+                      });
+                    }}
+                  />
+                </label>
+
+                {/* Preview thumbnails */}
+                {imagePreviews.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2">
+                    {imagePreviews.map((src, idx) => (
+                      <div key={idx} className="relative group h-20 rounded-lg overflow-hidden border border-slate-200">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={src} alt={`foto-${idx + 1}`} className="w-full h-full object-cover" />
+                        {idx === 0 && (
+                          <span className="absolute top-1 left-1 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-medium">Utama</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newFiles = imageFiles.filter((_, i) => i !== idx);
+                            const newPreviews = imagePreviews.filter((_, i) => i !== idx);
+                            URL.revokeObjectURL(src);
+                            setImageFiles(newFiles);
+                            setImagePreviews(newPreviews);
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {imageFiles.length > 0 && imageFiles.length < 3 && (
+                  <p className="text-sm text-red-500">⚠️ Upload minimal {3 - imageFiles.length} foto lagi</p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 mt-6">
                 <Button variant="outline" onClick={resetForm}>Cancel</Button>
-                <Button onClick={handleSubmit}>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!editingRoom && imageFiles.length < 3}
+                  title={!editingRoom && imageFiles.length < 3 ? 'Upload minimal 3 foto terlebih dahulu' : ''}
+                >
                   {editingRoom ? 'Update' : 'Create'}
                 </Button>
               </div>

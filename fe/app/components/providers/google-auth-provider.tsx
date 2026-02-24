@@ -3,8 +3,11 @@
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
 export function GoogleAuthProvider({ children }: { children: React.ReactNode }) {
-    // Google OAuth Client ID from Google Cloud Console
-    const clientId = "794235091181-rf8vr0e1hp9cse4h9m3pkoega2toji8g.apps.googleusercontent.com";
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+
+    if (!clientId && process.env.NODE_ENV === 'production') {
+        console.error("GOOGLE_CLIENT_ID is missing in environment variables!");
+    }
 
     return (
         <GoogleOAuthProvider clientId={clientId}>

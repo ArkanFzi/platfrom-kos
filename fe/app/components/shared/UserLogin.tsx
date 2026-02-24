@@ -6,12 +6,14 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Home, ArrowLeft } from 'lucide-react';
-import { api } from '@/app/services/api';
+import { api, LoginResponse } from '@/app/services/api';
 import { ImageWithFallback } from './ImageWithFallback';
-import { GoogleButton } from '../tenant/GoogleButton';
+import { GoogleButton } from './GoogleButton';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { useTranslations } from 'next-intl';
 
 interface UserLoginProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (user: LoginResponse) => void;
   onBack: () => void;
   onRegisterClick: () => void;
   onForgotPassword: () => void;
@@ -20,22 +22,25 @@ interface UserLoginProps {
 export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPassword }: UserLoginProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const t = useTranslations('auth');
+  const tc = useTranslations('common');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     try {
-      await api.login({ username, password }, rememberMe);
-      onLoginSuccess();
+      const response = await api.login({ username, password });
+      const loginData = response as unknown as LoginResponse;
+      onLoginSuccess(loginData);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Login failed');
+        setError(t('loginFailed'));
       }
     } finally {
       setIsLoading(false);
@@ -46,7 +51,6 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
     <div className="flex flex-col md:flex-row min-h-screen bg-white overflow-auto md:overflow-hidden">
       {/* Left Side: Visual Feature Section */}
       <div className="flex-shrink-0 md:w-1/2 lg:w-[55%] relative overflow-hidden bg-stone-900 min-h-[400px] md:min-h-0">
-        {/* Background Image with animated zoom effect */}
         <motion.div
           initial={{ scale: 1.1 }}
           animate={{ scale: 1 }}
@@ -59,12 +63,10 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
             className="w-full h-full object-cover opacity-50"
             priority
           />
-          {/* Elegant Gradient Overlays */}
           <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/60 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-stone-900/80 to-transparent" />
         </motion.div>
 
-        {/* Content Container - Perfectly Centered */}
         <div className="relative z-10 flex flex-col items-center justify-center w-full h-full p-8 md:p-16 text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -77,18 +79,18 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
             </div>
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 md:mb-6 leading-tight tracking-tight">
-              Welcome <span className="text-amber-400">Back</span>
+              {t('welcomeBack')} <span className="text-amber-400">{t('welcomeBackHighlight')}</span>
             </h1>
 
             <p className="text-lg md:text-xl text-stone-300 font-medium leading-relaxed max-w-lg mx-auto mb-6 md:mb-10 opacity-90">
-              Access your premium dashboard to manage bookings and experience world-class comfort.
+              {t('loginSubtitle')}
             </p>
 
             <div className="flex items-center justify-center gap-6 pt-6 border-t border-white/10">
               <div className="text-center">
                 <p className="text-xl md:text-2xl font-bold text-white">500+</p>
                 <p className="text-stone-400 text-[10px] md:text-sm uppercase tracking-wider font-semibold">
-                  Active Tenants
+                  {t('activeTenants')}
                 </p>
               </div>
               <div className="w-px h-8 md:h-10 bg-white/20" />
@@ -97,23 +99,24 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
                   4.9/5
                 </p>
                 <p className="text-stone-400 text-[10px] md:text-sm uppercase tracking-wider font-semibold">
-                  User Rating
+                  {t('userRating')}
                 </p>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Branding/Logo floating at top left */}
+        {/* Branding */}
         <div className="absolute top-6 left-6 md:top-12 md:left-12 z-20 flex items-center gap-3">
           <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-lg md:rounded-xl flex items-center justify-center shadow-lg">
-            <span className="font-bold text-stone-900 text-lg md:text-xl">
-              R
-            </span>
+            <span className="font-bold text-stone-900 text-lg md:text-xl">R</span>
           </div>
-          <span className="text-white font-bold text-base md:text-lg tracking-tight">
-            Rahmat ZAW
-          </span>
+          <span className="text-white font-bold text-base md:text-lg tracking-tight">Rahmat ZAW</span>
+        </div>
+
+        {/* Language Switcher on visual side */}
+        <div className="absolute top-6 right-6 md:top-12 md:right-12 z-20">
+          <LanguageSwitcher className="bg-white/10 border-white/20 text-white hover:bg-white/20" />
         </div>
       </div>
 
@@ -129,12 +132,12 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
              onClick={onBack}
              className="mb-10 p-0 hover:bg-transparent text-slate-500 hover:text-stone-900 transition-colors group"
            >
-            <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Back
+            <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> {tc('back')}
           </Button>
 
           <div className="mb-10">
-            <h2 className="text-4xl font-bold text-stone-900 tracking-tight mb-3">Tenant Login</h2>
-            <p className="text-slate-500 font-medium leading-relaxed">Enter your credentials to access your portal.</p>
+            <h2 className="text-4xl font-bold text-stone-900 tracking-tight mb-3">{t('tenantLogin')}</h2>
+            <p className="text-slate-500 font-medium leading-relaxed">{t('enterCredentials')}</p>
           </div>
 
           {error && (
@@ -145,18 +148,18 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">{t('username')}</Label>
               <Input
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                placeholder={t('usernamePlaceholder')}
                 className="mt-1"
                 required
               />
             </div>
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('password')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -181,7 +184,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
                   htmlFor="remember"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-600"
                 >
-                  Remember me
+                  {t('rememberMe')}
                 </label>
               </div>
               <button
@@ -189,7 +192,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
                 onClick={onForgotPassword}
                 className="text-sm font-medium text-amber-600 hover:underline"
               >
-                Forgot password?
+                {t('forgotPassword')}
               </button>
             </div>
 
@@ -198,29 +201,28 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
               disabled={isLoading}
               className="w-full bg-stone-900 hover:bg-stone-800 text-white h-11 font-semibold mt-6"
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? t('loggingIn') : t('loginButton')}
             </Button>
           </form>
 
           <GoogleButton
             isLoading={isLoading}
             onSuccess={(data) => {
-              // Standard behavior for Google Login is usually Session persistence or same as unchecked.
-              // We'll treat it as session storage by default unless we add logic, but code assumes explicit choice.
-              // Let's default Google Login to LocalStorage (Persistent) as is common for OAuth
-              localStorage.setItem('token', data.token);
-              localStorage.setItem('user', JSON.stringify(data.user));
-              onLoginSuccess();
+              const loginData = data as LoginResponse;
+              if (loginData.user) {
+                localStorage.setItem('user', JSON.stringify(loginData.user));
+              }
+              onLoginSuccess(loginData);
             }}
           />
 
           <p className="mt-8 text-center text-slate-600">
-            Don&apos;t have an account?{' '}
+            {t('noAccount')}{' '}
             <button
               onClick={onRegisterClick}
               className="text-amber-600 font-semibold hover:underline"
             >
-              Register here
+              {t('registerHere')}
             </button>
           </p>
         </motion.div>

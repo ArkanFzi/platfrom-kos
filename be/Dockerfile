@@ -1,5 +1,5 @@
 # Build Stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
@@ -20,6 +20,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api
 FROM alpine:latest
 
 WORKDIR /app
+
+# Install tzdata for timezone support
+RUN apk add --no-cache tzdata
 
 # Copy binary from builder
 COPY --from=builder /app/main .

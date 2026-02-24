@@ -19,6 +19,10 @@ type Config struct {
 	AllowedOrigins string
 	IsProduction   bool
 	
+	// Application Config
+	FrontendURL string
+	AppVersion  string
+	
 	// Google OAuth
 	GoogleClientID     string
 	GoogleClientSecret string
@@ -29,6 +33,9 @@ type Config struct {
 	SMTPPort     string
 	SMTPEmail    string
 	SMTPPassword string
+
+	// Cloudinary Config
+	CloudinaryURL string
 }
 
 func LoadConfig() *Config {
@@ -41,12 +48,16 @@ func LoadConfig() *Config {
 		DBHost:         getEnv("DB_HOST", "localhost"),
 		DBUser:         getEnv("DB_USER", "postgres"),
 		DBPassword:     getEnv("DB_PASSWORD", ""),
-		DBName:         getEnv("DB_NAME", "koskosan"),
+		DBName:         getEnv("DB_NAME", "koskosan_db"),
 		DBPort:         getEnv("DB_PORT", "5432"),
 		JWTSecret:      os.Getenv("JWT_SECRET"), // NO FALLBACK - must be set!
 		Port:           getEnv("PORT", "8080"),
 		AllowedOrigins: getEnv("ALLOWED_ORIGINS", "http://localhost:3000"),
 		IsProduction:   getEnv("GIN_MODE", "debug") == "release",
+		
+		// Application Config
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
+		AppVersion:  getEnv("APP_VERSION", "1.0.0"),
 		
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
@@ -57,6 +68,9 @@ func LoadConfig() *Config {
 		SMTPPort:     getEnv("SMTP_PORT", "587"),
 		SMTPEmail:    getEnv("SMTP_EMAIL", ""),
 		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
+
+		// Cloudinary Config
+		CloudinaryURL: getEnv("CLOUDINARY_URL", ""),
 	}
 
 	// Validate required environment variables

@@ -1,8 +1,10 @@
 package service
 
 import (
+	"fmt"
 	"koskosan-be/internal/models"
 	"koskosan-be/internal/repository"
+	"koskosan-be/internal/utils"
 	"time"
 
 	"gorm.io/gorm"
@@ -11,24 +13,25 @@ import (
 type PaymentService interface {
 	GetAllPayments() ([]models.Pembayaran, error)
 	ConfirmPayment(paymentID uint) error
-	CreatePaymentSession(pemesananID uint, paymentType string, paymentMethod string) (string, string, error)
-	HandleWebhook(payload map[string]interface{}) error
+	CreatePaymentSession(pemesananID uint, paymentType string) (*models.Pembayaran, error)
 	ConfirmCashPayment(paymentID uint, buktiTransfer string) error
-	GetPaymentReminders() ([]models.PaymentReminder, error)
+	GetPaymentReminders(userID uint) ([]models.PaymentReminder, error)
 	CreatePaymentReminder(pembayaranID uint, jumlahBayar float64, daysUntilDue int) error
-	VerifyPayment(orderID string) error
+	UploadPaymentProof(paymentID uint, buktiTransfer string, userID uint) error
 }
 
 type paymentService struct {
-	repo            repository.PaymentRepository
-	bookingRepo     repository.BookingRepository
-	kamarRepo       repository.KamarRepository
-	midtransService MidtransService
-	db              *gorm.DB
+	repo        repository.PaymentRepository
+	bookingRepo repository.BookingRepository
+	kamarRepo   repository.KamarRepository
+	penyewaRepo repository.PenyewaRepository
+	db          *gorm.DB
+	emailSender utils.EmailSender
+	waSender    utils.WhatsAppSender
 }
 
-func NewPaymentService(repo repository.PaymentRepository, bookingRepo repository.BookingRepository, kamarRepo repository.KamarRepository, midtransService MidtransService, db *gorm.DB) PaymentService {
-	return &paymentService{repo, bookingRepo, kamarRepo, midtransService, db}
+func NewPaymentService(repo repository.PaymentRepository, bookingRepo repository.BookingRepository, kamarRepo repository.KamarRepository, penyewaRepo repository.PenyewaRepository, db *gorm.DB, emailSender utils.EmailSender, waSender utils.WhatsAppSender) PaymentService {
+	return &paymentService{repo, bookingRepo, kamarRepo, penyewaRepo, db, emailSender, waSender}
 }
 
 func (s *paymentService) GetAllPayments() ([]models.Pembayaran, error) {
@@ -47,6 +50,8 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 		}
 
 		payment.StatusPembayaran = "Confirmed"
+		payment.TanggalBayar = time.Now() // Set payment date to now if not set
+
 		if err := txRepo.Update(payment); err != nil {
 			return err
 		}
@@ -67,23 +72,46 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 					return err
 				}
 			}
+
+			// Update penyewa role from guest to tenant on first confirmed payment
+			if s.penyewaRepo != nil {
+				var penyewa models.Penyewa
+				if err := tx.Where("id = ?", booking.PenyewaID).First(&penyewa).Error; err == nil {
+					if penyewa.Role == "guest" {
+						// Check if this is the first confirmed payment
+						var confirmedPaymentCount int64
+						tx.Table("pembayaran").
+							Joins("JOIN pemesanan ON pemesanan.id = pembayaran.pemesanan_id").
+							Where("pemesanan.penyewa_id = ? AND pembayaran.status_pembayaran = ?", booking.PenyewaID, "Confirmed").
+							Count(&confirmedPaymentCount)
+
+						if confirmedPaymentCount <= 1 { // This is the first confirmed payment
+							if err := tx.Model(&penyewa).Update("role", "tenant").Error; err != nil {
+								return err
+							}
+						}
+					}
+				}
+			}
 		}
+
+		// Send Notifications
+		go s.sendSuccessNotifications(payment.ID)
+
 		return nil
 	})
 }
 
-// CreatePaymentSession mendukung multiple payment types dan methods
-// paymentType: "full" atau "dp" (down payment)
-// paymentMethod: "midtrans" atau "cash"
-func (s *paymentService) CreatePaymentSession(pemesananID uint, paymentType string, paymentMethod string) (string, string, error) {
+// CreatePaymentSession now only creates a Pending Manual payment
+func (s *paymentService) CreatePaymentSession(pemesananID uint, paymentType string) (*models.Pembayaran, error) {
 	booking, err := s.bookingRepo.FindByID(pemesananID)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	kamar, err := s.kamarRepo.FindByID(booking.KamarID)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	// Hitung total amount
@@ -101,32 +129,14 @@ func (s *paymentService) CreatePaymentSession(pemesananID uint, paymentType stri
 		dpAmount = 0
 	}
 
-	var token string
-	var redirectURL string
-
-	// Jika cash, tidak perlu create Midtrans transaction
-	if paymentMethod == "cash" {
-		token = "CASH_PAYMENT"
-		redirectURL = ""
-	} else {
-		// Create Midtrans Transaction untuk midtrans payment
-		snapResp, _, err := s.midtransService.CreateTransaction(booking, finalAmount)
-		if err != nil {
-			return "", "", err
-		}
-		token = snapResp.Token
-		redirectURL = snapResp.RedirectURL
-	}
-
 	// Save payment record
 	payment := models.Pembayaran{
 		PemesananID:      pemesananID,
 		JumlahBayar:      finalAmount,
 		StatusPembayaran: "Pending",
-		MetodePembayaran: paymentMethod,
+		MetodePembayaran: "manual", // Forced to manual
 		TipePembayaran:   paymentType,
 		JumlahDP:         dpAmount,
-		SnapToken:        token,
 	}
 
 	// Set jatuh tempo untuk pembayaran cicilan
@@ -136,111 +146,82 @@ func (s *paymentService) CreatePaymentSession(pemesananID uint, paymentType stri
 	}
 
 	if err := s.repo.Create(&payment); err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	// Create payment reminder untuk dp
 	if paymentType == "dp" {
-		s.CreatePaymentReminder(payment.ID, totalAmount-dpAmount, 30)
+		s.CreatePaymentReminder(payment.ID, totalAmount-dpAmount, 30) // Assuming 30 days later
 	}
 
-	return token, redirectURL, nil
+	return &payment, nil
+}
+
+// UploadPaymentProof allows user to upload receipt with ownership check
+func (s *paymentService) UploadPaymentProof(paymentID uint, buktiTransfer string, userID uint) error {
+	payment, err := s.repo.FindByID(paymentID)
+	if err != nil {
+		return err
+	}
+
+	// SECURITY FIX: Verify ownership
+	booking, err := s.bookingRepo.FindByID(payment.PemesananID)
+	if err != nil {
+		return fmt.Errorf("failed to verify payment ownership: %v", err)
+	}
+
+	penyewa, err := s.penyewaRepo.FindByUserID(userID)
+	if err != nil {
+		return fmt.Errorf("user profile not found")
+	}
+
+	if booking.PenyewaID != penyewa.ID {
+		return fmt.Errorf("unauthorized: you can only upload proof for your own payments")
+	}
+
+	payment.BuktiTransfer = buktiTransfer
+	// We keep status as Pending, but now it has a proof. Admin will see it.
+
+	return s.repo.Update(payment)
 }
 
 func (s *paymentService) ConfirmCashPayment(paymentID uint, buktiTransfer string) error {
+	// Reusing ConfirmPayment logic but allowing to set proof if provided
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		txRepo := s.repo.WithTx(tx)
-		txBookingRepo := s.bookingRepo.WithTx(tx)
-		txKamarRepo := s.kamarRepo.WithTx(tx)
 
 		payment, err := txRepo.FindByID(paymentID)
 		if err != nil {
 			return err
 		}
 
-		payment.StatusPembayaran = "Confirmed"
-		payment.BuktiTransfer = buktiTransfer
-		payment.TanggalBayar = time.Now()
+		if buktiTransfer != "" {
+			payment.BuktiTransfer = buktiTransfer
+		}
 
 		if err := txRepo.Update(payment); err != nil {
 			return err
 		}
 
-		// Update booking status
-		booking, err := txBookingRepo.FindByID(payment.PemesananID)
-		if err == nil {
-			booking.StatusPemesanan = "Confirmed"
-			if err := txBookingRepo.Update(booking); err != nil {
-				return err
-			}
-
-			// Update room status
-			kamar, err := txKamarRepo.FindByID(booking.KamarID)
-			if err == nil {
-				kamar.Status = "Penuh"
-				if err := txKamarRepo.Update(kamar); err != nil {
-					return err
-				}
-			}
-		}
-
-		return nil
+		// Use the main confirmation logic
+		return s.ConfirmPayment(paymentID)
 	})
 }
 
-func (s *paymentService) HandleWebhook(payload map[string]interface{}) error {
-	orderID, status, err := s.midtransService.VerifyNotification(payload)
-	if err != nil {
-		return err
-	}
+func (s *paymentService) GetPaymentReminders(userID uint) ([]models.PaymentReminder, error) {
+	var reminders []models.PaymentReminder
+	// Join tables to find reminders for the specific user
+	// User -> Penyewa -> Pemesanan -> Pembayaran -> PaymentReminder
+	err := s.db.Table("payment_reminders").
+		Joins("JOIN pembayarans ON pembayarans.id = payment_reminders.pembayaran_id").
+		Joins("JOIN pemesanans ON pemesanans.id = pembayarans.pemesanan_id").
+		Joins("JOIN penyewas ON penyewas.id = pemesanans.penyewa_id").
+		Where("penyewas.user_id = ?", userID).
+		Preload("Pembayaran.Pemesanan.Kamar").
+		Order("payment_reminders.tanggal_reminder ASC").
+		Find(&reminders).Error
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		txRepo := s.repo.WithTx(tx)
-		txBookingRepo := s.bookingRepo.WithTx(tx)
-		txKamarRepo := s.kamarRepo.WithTx(tx)
-
-		payment, err := txRepo.FindByOrderID(orderID)
-		if err != nil {
-			return err
-		}
-
-		switch status {
-		case "settlement", "capture":
-			payment.StatusPembayaran = "Settled"
-			if err := txRepo.Update(payment); err != nil {
-				return err
-			}
-
-			// Update booking status
-			booking, err := txBookingRepo.FindByID(payment.PemesananID)
-			if err == nil {
-				booking.StatusPemesanan = "Confirmed"
-				if err := txBookingRepo.Update(booking); err != nil {
-					return err
-				}
-
-				// Update room status
-				kamar, err := txKamarRepo.FindByID(booking.KamarID)
-				if err == nil {
-					kamar.Status = "Penuh"
-					if err := txKamarRepo.Update(kamar); err != nil {
-						return err
-					}
-				}
-			}
-		case "expire", "cancel", "deny":
-			payment.StatusPembayaran = "Failed"
-			if err := txRepo.Update(payment); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
-
-func (s *paymentService) GetPaymentReminders() ([]models.PaymentReminder, error) {
-	// Note: Implementasi repository method GetPaymentReminders() sesuai kebutuhan
-	return []models.PaymentReminder{}, nil
+	return reminders, err
 }
 
 func (s *paymentService) CreatePaymentReminder(pembayaranID uint, jumlahBayar float64, daysUntilDue int) error {
@@ -255,64 +236,31 @@ func (s *paymentService) CreatePaymentReminder(pembayaranID uint, jumlahBayar fl
 		IsSent:          false,
 	}
 
-	// Note: Implementasi repository method CreateReminder sesuai kebutuhan
-	_ = reminder
+	if err := s.db.Create(&reminder).Error; err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func (s *paymentService) VerifyPayment(orderID string) error {
-	// 1. Check status real-time ke Midtrans
-	statusResp, err := s.midtransService.CheckTransaction(orderID)
-	if err != nil {
-		return err
+// Helper to send notifications
+func (s *paymentService) sendSuccessNotifications(paymentID uint) {
+	var payment models.Pembayaran
+	if err := s.db.Preload("Pemesanan.Penyewa").Preload("Pemesanan.Kamar").First(&payment, paymentID).Error; err != nil {
+		return
 	}
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		txRepo := s.repo.WithTx(tx)
-		txBookingRepo := s.bookingRepo.WithTx(tx)
-		txKamarRepo := s.kamarRepo.WithTx(tx)
+	tenant := payment.Pemesanan.Penyewa
 
-		// 2. Cari pembayaran di DB
-		payment, err := txRepo.FindByOrderID(orderID)
-		if err != nil {
-			return err
-		}
+	// Email
+	if tenant.Email != "" {
+		s.emailSender.SendPaymentSuccessEmail(tenant.Email, tenant.NamaLengkap, payment.JumlahBayar, time.Now())
+	}
 
-		status := statusResp.TransactionStatus
-
-		// 3. Update status jika settled/capture
-		switch status {
-		case "settlement", "capture":
-			payment.StatusPembayaran = "Settled"
-			if err := txRepo.Update(payment); err != nil {
-				return err
-			}
-
-			// Update booking status
-			booking, err := txBookingRepo.FindByID(payment.PemesananID)
-			if err == nil {
-				booking.StatusPemesanan = "Confirmed"
-				if err := txBookingRepo.Update(booking); err != nil {
-					return err
-				}
-
-				// Update room status
-				kamar, err := txKamarRepo.FindByID(booking.KamarID)
-				if err == nil {
-					kamar.Status = "Penuh"
-					if err := txKamarRepo.Update(kamar); err != nil {
-						return err
-					}
-				}
-			}
-		case "expire", "cancel", "deny":
-			payment.StatusPembayaran = "Failed"
-			if err := txRepo.Update(payment); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
+	// WhatsApp
+	if tenant.NomorHP != "" {
+		msg := fmt.Sprintf("Terima kasih %s! Pembayaran sebesar Rp %.0f untuk kamar %s telah kami terima.",
+			tenant.NamaLengkap, payment.JumlahBayar, payment.Pemesanan.Kamar.NomorKamar)
+		s.waSender.SendWhatsApp(tenant.NomorHP, msg)
+	}
 }

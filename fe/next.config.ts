@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output: 'standalone', // Required for Docker deployment
   images: {
     remotePatterns: [
       {
@@ -17,12 +17,12 @@ const nextConfig: NextConfig = {
         protocol: "http",
         hostname: "localhost",
         port: "8081",
+      },
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        port: "",
       }
-      // TODO: Tambahkan domain production Anda di sini sebelum deploy
-      // {
-      //   protocol: "https",
-      //   hostname: "yourdomain.com",
-      // }
     ],
     // Hanya unoptimized di development, di production akan dioptimasi
     unoptimized: process.env.NODE_ENV === 'development',

@@ -7,6 +7,7 @@ import (
 	"koskosan-be/internal/middleware"
 	"koskosan-be/internal/repository"
 	"koskosan-be/internal/routes"
+	"koskosan-be/internal/scheduler"
 	"koskosan-be/internal/service"
 	"koskosan-be/internal/utils"
 	"log"
@@ -36,28 +37,49 @@ func main() {
 
 	// 4. Initialize Services
 	emailSender := utils.NewEmailSender(cfg)
-	authService := service.NewAuthService(userRepo, penyewaRepo, cfg, emailSender)
+	waSender := utils.NewWhatsAppSender(cfg)
+
+	// Cloudinary Service
+	var cloudinaryService *utils.CloudinaryService
+	if cfg.CloudinaryURL != "" {
+		var err error
+		cloudinaryService, err = utils.NewCloudinaryService(cfg.CloudinaryURL)
+		if err != nil {
+			utils.GlobalLogger.Error("Failed to initialize Cloudinary: %v", err)
+			log.Println("Warning: Cloudinary initialization failed, falling back to local storage")
+		} else {
+			utils.GlobalLogger.Info("Cloudinary service initialized successfully")
+		}
+	} else {
+		utils.GlobalLogger.Info("Cloudinary URL not set, using local storage")
+	}
+
+	authService := service.NewAuthService(userRepo, penyewaRepo, cfg, emailSender, &utils.RealIDTokenVerifier{})
 	kamarService := service.NewKamarService(kamarRepo)
 	galleryService := service.NewGalleryService(galleryRepo)
 	dashboardService := service.NewDashboardService(db)
-	reviewService := service.NewReviewService(reviewRepo)
+	reviewService := service.NewReviewService(reviewRepo, bookingRepo, penyewaRepo)
 	profileService := service.NewProfileService(userRepo, penyewaRepo)
-	midtransService := service.NewMidtransService()
-	bookingService := service.NewBookingService(bookingRepo, penyewaRepo)
-	paymentService := service.NewPaymentService(paymentRepo, bookingRepo, kamarRepo, midtransService, db)
+	bookingService := service.NewBookingService(bookingRepo, userRepo, penyewaRepo, kamarRepo, paymentRepo, db)
+	paymentService := service.NewPaymentService(paymentRepo, bookingRepo, kamarRepo, penyewaRepo, db, emailSender, waSender)
 	tenantService := service.NewTenantService(penyewaRepo)
 	contactService := service.NewContactService()
 
+	// 4.1 Initialize Socket.io
+	socketServer, err := utils.InitSocketServer()
+	if err != nil {
+		log.Fatalf("Failed to initialize Socket.io: %v", err)
+	}
 
 	// 5. Initialize Handlers
 	authHandler := handlers.NewAuthHandler(authService, cfg)
-	kamarHandler := handlers.NewKamarHandler(kamarService)
-	galleryHandler := handlers.NewGalleryHandler(galleryService)
+	kamarHandler := handlers.NewKamarHandler(kamarService, cloudinaryService)
+	galleryHandler := handlers.NewGalleryHandler(galleryService, cloudinaryService)
 	dashboardHandler := handlers.NewDashboardHandler(dashboardService)
 	reviewHandler := handlers.NewReviewHandler(reviewService)
-	profileHandler := handlers.NewProfileHandler(profileService)
-	bookingHandler := handlers.NewBookingHandler(bookingService)
-	paymentHandler := handlers.NewPaymentHandler(paymentService)
+	profileHandler := handlers.NewProfileHandler(profileService, cloudinaryService)
+	bookingHandler := handlers.NewBookingHandler(bookingService, cloudinaryService)
+	paymentHandler := handlers.NewPaymentHandler(paymentService, cloudinaryService)
 	tenantHandler := handlers.NewTenantHandler(tenantService)
 	contactHandler := handlers.NewContactHandler(contactService)
 
@@ -96,25 +118,37 @@ func main() {
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Cookie"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Cookie", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
 
+	// Socket.io mount
+	r.GET("/socket.io/*any", gin.WrapH(socketServer.Server))
+	r.POST("/socket.io/*any", gin.WrapH(socketServer.Server))
+	r.Handle("ANY", "/socket.io/*any", gin.WrapH(socketServer.Server))
+
 	// API Routes
 	appRoutes.Register(r, cfg)
 
-	// 7. Start Background Worker for Auto-Cancellation
+	// 7. Start Background Workers
 	go func() {
-		utils.GlobalLogger.Info("Starting auto-cancellation background worker...")
-		// Run once on startup
+		utils.GlobalLogger.Info("Starting background workers...")
+
+		// Reminder Service & Scheduler
+		reminderService := service.NewReminderService(paymentRepo, db, emailSender, waSender)
+		schedulerService := scheduler.NewScheduler(reminderService)
+		schedulerService.Start()
+
+		// Run initial checks
 		if err := bookingService.AutoCancelExpiredBookings(); err != nil {
 			utils.GlobalLogger.Error("Failed to auto-cancel bookings: %v", err)
 		}
 
-		// Run every 1 hour
-		ticker := time.NewTicker(1 * time.Hour)
-		for range ticker.C {
+		// Tickers (Only for Cancel now, Reminder handled by Scheduler)
+		cancelTicker := time.NewTicker(1 * time.Hour)
+
+		for range cancelTicker.C {
 			if err := bookingService.AutoCancelExpiredBookings(); err != nil {
 				utils.GlobalLogger.Error("Failed to auto-cancel bookings: %v", err)
 			}

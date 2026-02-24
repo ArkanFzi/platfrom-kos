@@ -32,9 +32,18 @@ type Kamar struct {
 	Bathrooms     int            `json:"bathrooms"`
 	Description   string         `json:"description"`
 	ImageURL      string         `json:"image_url"`
+	Images        []KamarImage   `gorm:"foreignKey:KamarID" json:"Images,omitempty"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type KamarImage struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	KamarID   uint           `json:"kamar_id"`
+	ImageURL  string         `json:"image_url"`
+	CreatedAt time.Time      `json:"created_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type Gallery struct {
@@ -71,6 +80,7 @@ type Penyewa struct {
 	AlamatAsal   string         `json:"alamat_asal"`
 	JenisKelamin string         `json:"jenis_kelamin"` // enum
 	FotoProfil   string         `json:"foto_profil"`
+	Role         string         `gorm:"default:guest" json:"role"` // guest, tenant, former_tenant
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
@@ -79,9 +89,9 @@ type Penyewa struct {
 type Pemesanan struct {
 	ID              uint             `gorm:"primaryKey" json:"id"`
 	PenyewaID       uint             `json:"penyewa_id"`
-	Penyewa         Penyewa          `gorm:"foreignKey:PenyewaID" json:"-"`
+	Penyewa         Penyewa          `gorm:"foreignKey:PenyewaID" json:"penyewa"`
 	KamarID         uint             `json:"kamar_id"`
-	Kamar           Kamar            `gorm:"foreignKey:KamarID" json:"-"`
+	Kamar           Kamar            `gorm:"foreignKey:KamarID" json:"kamar"`
 	TanggalMulai    time.Time        `json:"tanggal_mulai"`
 	DurasiSewa      int              `json:"durasi_sewa"`
 	StatusPemesanan string           `json:"status_pemesanan"` // enum
@@ -94,7 +104,7 @@ type Pemesanan struct {
 type Pembayaran struct {
 	ID               uint           `gorm:"primaryKey" json:"id"`
 	PemesananID      uint           `json:"pemesanan_id"`
-	Pemesanan        Pemesanan      `gorm:"foreignKey:PemesananID" json:"-"`
+	Pemesanan        Pemesanan      `gorm:"foreignKey:PemesananID" json:"pemesanan"`
 	JumlahBayar      float64        `json:"jumlah_bayar"`
 	TanggalBayar     time.Time      `json:"tanggal_bayar"`
 	BuktiTransfer    string         `json:"bukti_transfer"`
@@ -124,12 +134,4 @@ type PaymentReminder struct {
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
-type Laporan struct {
-	ID                  uint           `gorm:"primaryKey" json:"id"`
-	Periode             string         `json:"periode"`
-	TotalPemasukan      float64        `json:"total_pemasukan"`
-	JumlahPenghuniAktif int            `json:"jumlah_penghuni_aktif"`
-	CreatedAt           time.Time      `json:"created_at"`
-	UpdatedAt           time.Time      `json:"updated_at"`
-	DeletedAt           gorm.DeletedAt `gorm:"index" json:"-"`
-}
+
