@@ -139,7 +139,7 @@ func (s *LogSender) SendResetPasswordEmail(toEmail, token string) error {
 	log.Printf("[EMAIL SIMULATION] To: %s", toEmail)
 	log.Printf("[EMAIL SIMULATION] Subject: Reset Password Request")
 	log.Printf("[EMAIL SIMULATION] Token: %s", token)
-	log.Printf("[EMAIL SIMULATION] Link: http://localhost:3000/reset-password?token=%s", token)
+	log.Printf("[EMAIL SIMULATION] Link: https://rahmadzaw.busines.biz.id/reset-password?token=%s", token)
 	log.Printf("---------------------------------------------------------")
 	return nil
 }
