@@ -17,6 +17,7 @@ export function LuxuryReports() {
   const [tenants, setTenants] = useState<Tenant[]>([]); // Add tenants state
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -73,10 +74,12 @@ export function LuxuryReports() {
   ];
 
   const handleExport = async () => {
-    const jsPDF = (await import('jspdf')).default;
-    const autoTable = (await import('jspdf-autotable')).default;
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.width;
+    setIsExporting(true);
+    try {
+      const jsPDF = (await import('jspdf')).default;
+      const autoTable = (await import('jspdf-autotable')).default;
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
     
     // --- Header Section ---
@@ -291,6 +294,11 @@ export function LuxuryReports() {
     });
 
     doc.save(`Financial_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const formatPrice = (price: number) => {
@@ -364,10 +372,11 @@ export function LuxuryReports() {
           </Button>
           <Button
             onClick={handleExport}
+            disabled={isExporting}
             className="flex-1 sm:flex-none bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/20 text-xs md:text-sm"
           >
-            <Download className="size-4 mr-2" />
-            {t('exportReport')}
+            {isExporting ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Download className="size-4 mr-2" />}
+            {isExporting ? t('processing') || 'Memproses...' : t('exportReport')}
           </Button>
         </div>
       </motion.div>

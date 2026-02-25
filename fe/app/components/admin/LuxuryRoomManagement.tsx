@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { getImageUrl } from '@/app/utils/api-url';
-import { Search, Plus, Edit, Trash2, Eye, Download, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Eye, Download, ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
 import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -57,8 +57,10 @@ export function LuxuryRoomManagement() {
   const [viewingRoom, setViewingRoom] = useState<Room | null>(null);
   const [sortField, setSortField] = useState<'name' | 'price' | 'floor'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFiles, setImageFiles] = useState<(File | null)[]>([null, null, null]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<Room>>({
     name: '',
@@ -125,24 +127,57 @@ export function LuxuryRoomManagement() {
     });
 
   const handleSubmit = async () => {
+    // Validation
+    if (!formData.name?.trim()) {
+      toast.error('Nama atau nomor kamar wajib diisi');
+      return;
+    }
+    if (!formData.price || formData.price <= 0) {
+      toast.error('Harga per bulan wajib diisi dengan format yang benar');
+      return;
+    }
+    if (!formData.size?.trim()) {
+      toast.error('Ukuran kamar wajib diisi (contoh: 3x4m)');
+      return;
+    }
+    if (!formData.facilities || formData.facilities.length === 0) {
+      toast.error('Fasilitas wajib diisi minimal satu');
+      return;
+    }
+    if (!formData.description?.trim()) {
+      toast.error('Deskripsi kamar wajib diisi');
+      return;
+    }
+
     const data = new FormData();
-    data.append('nomor_kamar', formData.name || '');
+    data.append('nomor_kamar', formData.name.trim());
     data.append('tipe_kamar', formData.type || 'Standard');
     data.append('harga_per_bulan', String(formData.price));
     data.append('status', formData.status || 'Tersedia');
     data.append('capacity', String(formData.capacity));
     data.append('floor', String(formData.floor));
-    data.append('size', formData.size || '');
+    data.append('size', formData.size.trim());
     data.append('bedrooms', String(formData.bedrooms));
     data.append('bathrooms', String(formData.bathrooms));
-    data.append('description', formData.description || '');
+    data.append('description', formData.description.trim());
     // Handle facilities array to string
     data.append('fasilitas', Array.isArray(formData.facilities) ? formData.facilities.join(', ') : formData.facilities || '');
 
-    if (imageFile) {
-      data.append('image', imageFile);
+    const newImages = imageFiles.filter(f => f !== null);
+    if (newImages.length > 0 && newImages.length < 3) {
+      toast.error('Minimal 3 foto kamar diperlukan');
+      return;
+    }
+    if (!editingRoom && newImages.length < 3) {
+      toast.error('Minimal 3 foto kamar diperlukan untuk kamar baru');
+      return;
     }
 
+    newImages.forEach(file => {
+      data.append('images', file as File);
+    });
+
+    setIsSubmitting(true);
     try {
       if (editingRoom) {
         await api.updateRoom(editingRoom.id, data);
@@ -155,17 +190,23 @@ export function LuxuryRoomManagement() {
     } catch (e) {
       console.error(e);
       toast.error(editingRoom ? t('failedToUpdate') : t('failedToCreate'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm(t('deleteRoomConfirmation'))) {
+      setDeletingId(id);
       try {
         await api.deleteRoom(id);
         await fetchRooms();
+        toast.success(t('roomDeletedSuccess') || 'Kamar berhasil dihapus');
       } catch (e) {
         console.error(e);
         toast.error(t('failedToDelete'));
+      } finally {
+        setDeletingId(null);
       }
     }
   };
@@ -192,7 +233,7 @@ export function LuxuryRoomManagement() {
     });
     setEditingRoom(null);
     setIsDialogOpen(false);
-    setImageFile(null);
+    setImageFiles([null, null, null]);
   };
 
   const formatPrice = (price: number) => {
@@ -391,78 +432,141 @@ export function LuxuryRoomManagement() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-slate-600 dark:text-slate-300">{t('roomImage')}</Label>
-                  <div className="flex flex-col gap-4">
-                    {/* Image Preview Area */}
-                    {(imageFile || formData.image) && (
-                      <div className="relative w-full h-48 md:h-56 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 group">
-                        <ImageWithFallback
-                          src={imageFile ? URL.createObjectURL(imageFile) : formData.image}
-                          alt="Room Preview"
-                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <p className="text-white font-medium text-sm">{t('currentPreview')}</p>
+                  <Label className="text-slate-600 dark:text-slate-300">{t('roomImage')} (Wajib 3 Gambar)</Label>
+                  
+                  {/* Image Previews */}
+                  {(imageFiles.some(f => f !== null) || (editingRoom && formData.image)) && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      {imageFiles.some(f => f !== null) ? (
+                        imageFiles.map((file, idx) => {
+                          if (!file) return null;
+                          return (
+                            <div key={idx} className="relative w-full h-32 md:h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 group">
+                              <ImageWithFallback
+                                src={URL.createObjectURL(file)}
+                                alt={`New Room Preview ${idx + 1}`}
+                                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <p className="text-white font-medium text-xs">Gambar Baru</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  const newFiles = [...imageFiles];
+                                  newFiles[idx] = null;
+                                  setImageFiles(newFiles);
+                                }}
+                                className="absolute top-2 right-2 p-1.5 bg-red-500/80 text-white rounded-full hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                              >
+                                <Trash2 className="size-3" />
+                              </button>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="relative w-full h-32 md:h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 group">
+                          <ImageWithFallback
+                            src={formData.image!}
+                            alt={`Current Room Preview`}
+                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <p className="text-white font-medium text-xs">Gambar Saat Ini (1 dari 3)</p>
+                          </div>
                         </div>
-                        {imageFile && (
-                          <button
-                            onClick={() => setImageFile(null)}
-                            className="absolute top-2 right-2 p-1.5 bg-red-500/80 text-white rounded-full hover:bg-red-600 transition-colors"
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        )}
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  )}
 
-                    {/* Styled Upload Button */}
+                  {/* Single Upload Area */}
+                  {imageFiles.filter(f => f !== null).length < 3 && (
                     <div className="relative">
                       <input
                         type="file"
-                        id="image-upload"
+                        id="image-upload-multiple"
                         className="hidden"
                         accept="image/*"
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImageFile(e.target.files?.[0] || null)}
+                        multiple
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          if (e.target.files) {
+                            const files = Array.from(e.target.files);
+                            const currentFiles = [...imageFiles];
+                            let added = 0;
+                            
+                            for (const file of files) {
+                              const emptyIndex = currentFiles.findIndex(f => f === null);
+                              if (emptyIndex !== -1) {
+                                currentFiles[emptyIndex] = file;
+                                added++;
+                              }
+                            }
+                            
+                            if (added < files.length) {
+                              toast.warning(`Hanya dapat mengunggah maksimal 3 gambar. Gambar selebihnya diabaikan.`);
+                            }
+                            
+                            setImageFiles(currentFiles);
+                            e.target.value = '';
+                          }
+                        }}
                       />
                       <label
-                        htmlFor="image-upload"
+                        htmlFor="image-upload-multiple"
                         className={`
-                          flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-xl cursor-pointer transition-all
-                          ${imageFile 
-                            ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10' 
-                            : 'border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-amber-500/50'
-                          }
+                          flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-xl cursor-pointer transition-all border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-amber-500/50
                         `}
                       >
-                        <div className={`
-                          p-4 rounded-full mb-3 transition-colors
-                          ${imageFile ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-200 dark:bg-slate-800 text-amber-500 group-hover:scale-110'}
-                        `}>
-                          {imageFile ? <Eye className="size-6" /> : <Download className="size-6 rotate-180" />} 
+                        <div className="p-4 rounded-full mb-3 transition-colors bg-slate-200 dark:bg-slate-800 text-amber-500 group-hover:scale-110">
+                          <Download className="size-6 rotate-180" />
                         </div>
                         <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">
-                          {imageFile ? t('changeImage') : t('clickToUpload')}
+                          {imageFiles.some(f => f !== null) ? 'Tambah Gambar' : 'Pilih Gambar'}
                         </p>
                         <p className="text-xs text-slate-400 dark:text-slate-500 text-center max-w-xs">
-                          {imageFile 
-                            ? t('selectedFile', { filename: imageFile.name })
-                            : t('imageFormatHelp')
+                          {imageFiles.some(f => f !== null)
+                            ? `Telah memilih ${imageFiles.filter(f => f !== null).length} dari 3 gambar`
+                            : 'Klik untuk memilih gambar atau drag & drop'
                           }
                         </p>
                       </label>
                     </div>
-                  </div>
+                  )}
+
+                  {editingRoom && <p className="text-xs text-amber-600 italic mt-1">* Jika ingin mengubah gambar, Anda harus mengunggah 3 gambar baru sekaligus untuk menggantikan gambar sebelumnya.</p>}
+                  {imageFiles.some(f => f !== null) && (
+                    <div className="flex justify-start mt-2">
+                       <Button 
+                         type="button"
+                         variant="destructive" 
+                         size="sm" 
+                         onClick={(e) => {
+                           e.preventDefault();
+                           setImageFiles([null, null, null]);
+                         }}
+                         className="text-xs"
+                       >
+                         <Trash2 className="size-3 mr-1" /> Hapus Semua
+                       </Button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={resetForm} className="bg-transparent border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                  <Button variant="outline" onClick={resetForm} disabled={isSubmitting} className="bg-transparent border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
                     {t('cancel')}
                   </Button>
                   <Button
                     onClick={handleSubmit}
+                    disabled={isSubmitting}
                     className="bg-amber-500 hover:bg-amber-600 text-white"
                   >
-                    {editingRoom ? t('update') : t('create')}
+                    {isSubmitting ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...</>
+                    ) : (
+                      editingRoom ? t('update') : t('create')
+                    )}
                   </Button>
                 </div>
               </div>
@@ -620,8 +724,8 @@ export function LuxuryRoomManagement() {
                     <Button variant="ghost" className="flex-1 text-slate-500 dark:text-slate-400 h-9" onClick={() => handleEdit(room)}>
                       <Edit className="size-4 mr-2" /> {t('edit')}
                     </Button>
-                    <Button variant="ghost" className="size-9 p-0 text-slate-500 hover:text-red-500" onClick={() => handleDelete(room.id)}>
-                      <Trash2 className="size-4" />
+                    <Button variant="ghost" className="size-9 p-0 text-slate-500 hover:text-red-500" disabled={deletingId === room.id} onClick={() => handleDelete(room.id)}>
+                      {deletingId === room.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                     </Button>
                   </div>
                 </div>

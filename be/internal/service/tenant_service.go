@@ -13,6 +13,7 @@ type TenantService interface {
 	GetTenantsByRole(role string) ([]models.Penyewa, error)
 	GetTenantsPaginated(pagination *utils.Pagination, search, role string) ([]models.Penyewa, int64, error)
 	ValidateTenant(penyewa *models.Penyewa) error
+	DeleteTenant(id uint) error
 }
 
 type tenantService struct {
@@ -43,4 +44,8 @@ func (s *tenantService) ValidateTenant(penyewa *models.Penyewa) error {
 		return errors.New("phone number must start with 08 or 62")
 	}
 	return nil
+}
+
+func (s *tenantService) DeleteTenant(id uint) error {
+	return s.repo.Delete(id)
 }

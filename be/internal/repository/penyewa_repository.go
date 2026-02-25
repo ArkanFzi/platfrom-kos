@@ -14,6 +14,7 @@ type PenyewaRepository interface {
 	FindByRole(role string) ([]models.Penyewa, error)
 	Create(penyewa *models.Penyewa) error
 	Update(penyewa *models.Penyewa) error
+	Delete(id uint) error
 	UpdateRole(penyewaID uint, role string) error
 	FindAllPaginated(pagination *utils.Pagination, search, role string) ([]models.Penyewa, int64, error)
 	WithTx(tx *gorm.DB) PenyewaRepository
@@ -51,6 +52,10 @@ func (r *penyewaRepository) Create(penyewa *models.Penyewa) error {
 
 func (r *penyewaRepository) Update(penyewa *models.Penyewa) error {
 	return r.db.Save(penyewa).Error
+}
+
+func (r *penyewaRepository) Delete(id uint) error {
+	return r.db.Where("id = ?", id).Delete(&models.Penyewa{}).Error
 }
 
 func (r *penyewaRepository) FindByRole(role string) ([]models.Penyewa, error) {

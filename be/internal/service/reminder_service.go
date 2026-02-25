@@ -5,7 +5,6 @@ import (
 	"koskosan-be/internal/models"
 	"koskosan-be/internal/repository"
 	"koskosan-be/internal/utils"
-	"os"
 	"time"
 
 	"gorm.io/gorm"
@@ -30,51 +29,80 @@ func NewReminderService(paymentRepo repository.PaymentRepository, db *gorm.DB, e
 	return &reminderService{paymentRepo, db, emailSender, waSender}
 }
 
-// CreateMonthlyReminders membuat reminder untuk semua pembayaran DP yang jatuh tempo
+// CreateMonthlyReminders membuat reminder untuk tagihan sewa bulanan (extend) otomatis
 func (s *reminderService) CreateMonthlyReminders() error {
-	// Ambil semua pembayaran dengan tipe "dp" yang belum lunas (belum Settled)
-	var payments []models.Pembayaran
-	// Asumsi logic: pembayaran DP yang sudah Confirmed tapi belum lunas keseluruhannya (masih nyicil/bulanan)
-	// Kita cari pembayaran yang TipePembayaran = 'dp' dan StatusPembayaran = 'Confirmed'
-	// Note: Logic bisnis ini mungkin perlu disesuaikan dengan flow 'Settled' vs 'Confirmed'
-	if err := s.db.Where("tipe_pembayaran = ? AND status_pembayaran = ?", "dp", "Confirmed").Find(&payments).Error; err != nil {
+	// Ambil semua pemesanan yang berstatus Confirmed beserta Kamar dan Pembayaran-nya
+	var bookings []models.Pemesanan
+	if err := s.db.Preload("Kamar").Preload("Pembayaran").Where("status_pemesanan = ?", "Confirmed").Find(&bookings).Error; err != nil {
 		return err
 	}
 
-	for _, p := range payments {
-		// Cek apakah sudah ada reminder untuk bulan ini/periode ini
-		// Logic sederhana: Reminder dibuat jika belum ada reminder yang 'Pending' atau 'Sent' untuk pembayaran ini yang tanggalnya > hari ini
-		// Atau lebih baik: Cek apakah TanggalJatuhTempo sudah dekat
+	now := time.Now()
+	for _, b := range bookings {
+		// Hitung total bulan yang sudah dibayar (dari pembayaran yang Confirmed)
+		var totalPaid float64
+		hasPendingPayment := false
 
-		// Misalnya: Jatuh tempo setiap tanggal X. Kita buat reminder H-3.
-		// Disini kita simulasikan pembuatan reminder jika belum ada reminder pending.
+		for _, p := range b.Pembayaran {
+			if p.StatusPembayaran == "Confirmed" {
+				totalPaid += p.JumlahBayar
+			} else if p.StatusPembayaran == "Pending" {
+				hasPendingPayment = true
+			}
+		}
 
-		var count int64
-		s.db.Model(&models.PaymentReminder{}).
-			Where("pembayaran_id = ? AND status_reminder IN ?", p.ID, []string{"Pending", "Sent"}).
-			Count(&count)
+		// Jika sudah ada tagihan Pending, kita skip (jangan buat tagihan double)
+		if hasPendingPayment {
+			continue
+		}
 
-		if count == 0 {
-			// Buat reminder baru
-			// Hitung sisa tagihan = Total - DP (asumsi sederhana, real case mungkin perlu tracking cicilan)
-			// Disini kita ambil dari JumlahBayar original atau logic lain.
-			// Untuk simplifikasi: Kita buat reminder sebesar nominal bulanan (misal 1 juta)
-			// Atau sisa tagihan. Kita pakai logic placeholder.
+		// Pastikan kamar memiliki harga yang valid untuk mencegah pembagian dengan 0
+		if b.Kamar.HargaPerBulan <= 0 {
+			continue
+		}
 
-			// Ambil nominal bulanan dari Kamar via Booking
-			var booking models.Pemesanan
-			if err := s.db.Preload("Kamar").First(&booking, p.PemesananID).Error; err == nil {
-				monthlyFee := booking.Kamar.HargaPerBulan
+		// Hitung Paid Until Date
+		monthsPaid := int(totalPaid / b.Kamar.HargaPerBulan)
+		paidUntil := b.TanggalMulai.AddDate(0, monthsPaid, 0)
 
-				reminder := models.PaymentReminder{
-					PembayaranID:    p.ID,
-					JumlahBayar:     monthlyFee,
-					TanggalReminder: time.Now().AddDate(0, 0, 3), // H-3 dari jatuh tempo (logic disederhanakan)
-					StatusReminder:  "Pending",
-					IsSent:          false,
-				}
-				s.db.Create(&reminder)
-				fmt.Printf("Created reminder for payment %d\n", p.ID)
+		// Buat billing baru jika batas waktu (paidUntil) sudah H-7 dari hari ini atau sudah lewat
+		billingTriggerDate := paidUntil.AddDate(0, 0, -7)
+
+		if now.After(billingTriggerDate) || now.Equal(billingTriggerDate) {
+			// Buat record Pembayaran baru untuk bulan berikutnya (1 bulan extend)
+			payment := models.Pembayaran{
+				PemesananID:      b.ID,
+				JumlahBayar:      b.Kamar.HargaPerBulan,
+				TanggalBayar:     now,
+				StatusPembayaran: "Pending",
+				MetodePembayaran: "manual",
+				TipePembayaran:   "extend",
+				JumlahDP:         0,
+			}
+
+			if err := s.db.Create(&payment).Error; err != nil {
+				fmt.Printf("Warning: Failed to create auto-payment for booking %d: %v\n", b.ID, err)
+				continue
+			}
+
+			// Tentukan tanggal reminder (H-3 sebelum masa habis, atau langsung hari ini jika sudah lewat)
+			reminderDate := paidUntil.AddDate(0, 0, -3)
+			if now.After(reminderDate) {
+				reminderDate = now
+			}
+
+			reminder := models.PaymentReminder{
+				PembayaranID:    payment.ID,
+				JumlahBayar:     payment.JumlahBayar,
+				TanggalReminder: reminderDate,
+				StatusReminder:  "Pending",
+				IsSent:          false,
+			}
+
+			if err := s.db.Create(&reminder).Error; err != nil {
+				fmt.Printf("Warning: Failed to create auto-reminder for payment %d: %v\n", payment.ID, err)
+			} else {
+				fmt.Printf("Created auto-bill and reminder for booking %d, paid until %s\n", b.ID, paidUntil.Format("2006-01-02"))
 			}
 		}
 	}
@@ -101,29 +129,27 @@ func (s *reminderService) SendPendingReminders() ([]models.PaymentReminder, erro
 			tenant := reminder.Pembayaran.Pemesanan.Penyewa
 			kamar := reminder.Pembayaran.Pemesanan.Kamar
 
-			// 1. Send Email
-			if tenant.Email != "" {
-				// Generate payment link (placeholder or real if available)
-				frontendURL := os.Getenv("FRONTEND_URL")
-				if frontendURL == "" {
-					frontendURL = "https://rahmadzaw.busines.biz.id"
-				}
-				paymentLink := fmt.Sprintf("%s/dashboard/payments/%d", frontendURL, reminder.PembayaranID)
-
-				go func(email, name string, amount float64, due time.Time, link string) {
-					s.emailSender.SendPaymentReminderEmail(email, name, amount, due, link)
-				}(tenant.Email, tenant.NamaLengkap, reminder.JumlahBayar, reminder.Pembayaran.TanggalJatuhTempo, paymentLink)
-			}
+			// 1. Send Email (Dinonaktifkan sesuai permintaan)
+			// if tenant.Email != "" {
+			// 	frontendURL := os.Getenv("FRONTEND_URL")
+			// 	if frontendURL == "" {
+			// 		frontendURL = "http://localhost:3000"
+			// 	}
+			// 	paymentLink := fmt.Sprintf("%s/dashboard/payments/%d", frontendURL, reminder.PembayaranID)
+			// 	go func(email, name string, amount float64, due time.Time, link string) {
+			// 		s.emailSender.SendPaymentReminderEmail(email, name, amount, due, link)
+			// 	}(tenant.Email, tenant.NamaLengkap, reminder.JumlahBayar, reminder.Pembayaran.TanggalJatuhTempo, paymentLink)
+			// }
 
 			// 2. Send WhatsApp
-			if tenant.NomorHP != "" {
-				msg := fmt.Sprintf("Halo %s, ini pengingat tagihan kos kamar %s sebesar Rp %.0f jatuh tempo pada %s. Mohon segera dibayar.",
-					tenant.NamaLengkap, kamar.NomorKamar, reminder.JumlahBayar, reminder.Pembayaran.TanggalJatuhTempo.Format("02 Jan 2006"))
+			// Nomor hardcode sesuai permintaan
+			phone := "081239450638"
+			msg := fmt.Sprintf("Halo %s, ini pengingat tagihan kos kamar %s sebesar Rp %.0f jatuh tempo pada %s. Mohon segera dibayar.",
+				tenant.NamaLengkap, kamar.NomorKamar, reminder.JumlahBayar, reminder.Pembayaran.TanggalJatuhTempo.Format("02 Jan 2006"))
 
-				go func(phone, message string) {
-					s.waSender.SendWhatsApp(phone, message)
-				}(tenant.NomorHP, msg)
-			}
+			go func(phone, message string) {
+				s.waSender.SendWhatsApp(phone, message)
+			}(phone, msg)
 
 			fmt.Printf("Sent notifications for Reminder ID %d\n", reminder.ID)
 		}

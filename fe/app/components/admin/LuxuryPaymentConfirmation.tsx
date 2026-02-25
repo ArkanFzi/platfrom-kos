@@ -27,6 +27,7 @@ export function LuxuryPaymentConfirmation() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
+  const [processingId, setProcessingId] = useState<number | null>(null);
 
   const fetchPayments = useCallback(async () => {
     setIsLoading(true);
@@ -37,7 +38,7 @@ export function LuxuryPaymentConfirmation() {
 
       const mapped = paymentData.map((p: ApiPayment) => ({
         id: p.id,
-        tenantName: p.pemesanan?.penyewa?.nama_lengkap || t('guest'),
+        tenantName: p.pemesanan?.penyewa?.nama_lengkap || p.pemesanan?.penyewa?.user?.username || t('guest'),
         roomName: p.pemesanan?.kamar?.nomor_kamar || t('room'),
         amount: p.jumlah_bayar,
         date: new Date(p.tanggal_bayar).toLocaleDateString('id-ID'),
@@ -59,6 +60,7 @@ export function LuxuryPaymentConfirmation() {
   }, [fetchPayments]);
 
   const handleConfirm = async (id: number) => {
+    setProcessingId(id);
     try {
       await api.confirmPayment(String(id));
       fetchPayments();
@@ -66,6 +68,8 @@ export function LuxuryPaymentConfirmation() {
     } catch (e) {
       console.error(e);
       toast.error(t('paymentConfirmedError'));
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -309,13 +313,19 @@ export function LuxuryPaymentConfirmation() {
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
                   <Button
                     className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 text-white"
-                    onClick={() => { handleConfirm(viewingPayment.id); setViewingPayment(null); }}
+                    disabled={processingId === viewingPayment.id}
+                    onClick={async () => { 
+                      await handleConfirm(viewingPayment.id); 
+                      setViewingPayment(null); 
+                    }}
                   >
-                    <Check className="size-4 mr-2" /> {t('confirm')}
+                    {processingId === viewingPayment.id ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Check className="size-4 mr-2" />} 
+                    {processingId === viewingPayment.id ? t('processing') || 'Memproses...' : t('confirm')}
                   </Button>
                   <Button
                     variant="outline"
                     className="w-full bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/20"
+                    disabled={processingId === viewingPayment.id}
                     onClick={() => { handleReject(viewingPayment.id); setViewingPayment(null); }}
                   >
                     <X className="size-4 mr-2" /> {t('reject')}

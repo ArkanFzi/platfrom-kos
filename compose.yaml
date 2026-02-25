@@ -14,7 +14,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-your_secret_here}
       PORT: 8080
       GIN_MODE: release
-      ALLOWED_ORIGINS: https://rahmadzaw.busines.biz.id
+      ALLOWED_ORIGINS: http://localhost:3000
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     ports:
       - "8087:8080" # Diarahkan dari Apache (Ganti dari 8085 karena bentrok)
@@ -31,7 +31,7 @@ services:
       context: ./fe
       dockerfile: Dockerfile.prod
       args:
-        NEXT_PUBLIC_API_URL: https://rahmadzaw.busines.biz.id/api
+        NEXT_PUBLIC_API_URL: http://localhost:8081/api
         NEXT_PUBLIC_APP_NAME: "Rahmat ZAW Prime Stay"
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
         NEXT_PUBLIC_GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}

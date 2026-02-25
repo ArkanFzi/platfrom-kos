@@ -90,6 +90,11 @@ func (m *MockPenyewaRepository) Update(penyewa *models.Penyewa) error {
 	return args.Error(0)
 }
 
+func (m *MockPenyewaRepository) Delete(id uint) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
 func (m *MockPenyewaRepository) FindByEmail(email string) (*models.Penyewa, error) {
 	args := m.Called(email)
 	if args.Get(0) == nil {

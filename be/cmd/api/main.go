@@ -19,6 +19,15 @@ import (
 )
 
 func main() {
+	// 0. Set Timezone to Asia/Jakarta (WIB)
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		log.Println("Warning: Could not load Asia/Jakarta timezone, using local system time")
+	} else {
+		time.Local = loc
+		log.Printf("Timezone successfully set to %s\n", loc.String())
+	}
+
 	// 1. Load Configuration
 	cfg := config.LoadConfig()
 
