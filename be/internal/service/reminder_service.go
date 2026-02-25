@@ -44,9 +44,10 @@ func (s *reminderService) CreateMonthlyReminders() error {
 		hasPendingPayment := false
 
 		for _, p := range b.Pembayaran {
-			if p.StatusPembayaran == "Confirmed" {
+			switch p.StatusPembayaran {
+			case "Confirmed":
 				totalPaid += p.JumlahBayar
-			} else if p.StatusPembayaran == "Pending" {
+			case "Pending":
 				hasPendingPayment = true
 			}
 		}

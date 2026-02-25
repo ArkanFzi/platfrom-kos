@@ -56,9 +56,25 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 			return err
 		}
 
+		// Update the reminder status to Paid
+		if err := tx.Model(&models.PaymentReminder{}).Where("pembayaran_id = ?", payment.ID).Update("status_reminder", "Paid").Error; err != nil {
+			return err
+		}
+
 		// Also update booking status if needed
 		booking, err := txBookingRepo.FindByID(payment.PemesananID)
 		if err == nil {
+			// If this is an extension payment, increase the DurasiSewa based on payment amount and room price
+			if payment.TipePembayaran == "extend" {
+				kamar, kamarErr := txKamarRepo.FindByID(booking.KamarID)
+				if kamarErr == nil && kamar.HargaPerBulan > 0 {
+					months := int(payment.JumlahBayar / kamar.HargaPerBulan)
+					if months > 0 {
+						booking.DurasiSewa += months
+					}
+				}
+			}
+
 			booking.StatusPemesanan = "Confirmed"
 			if err := txBookingRepo.Update(booking); err != nil {
 				return err
@@ -210,15 +226,19 @@ func (s *paymentService) ConfirmCashPayment(paymentID uint, buktiTransfer string
 
 func (s *paymentService) GetPaymentReminders(userID uint) ([]models.PaymentReminder, error) {
 	var reminders []models.PaymentReminder
-	// Join tables to find reminders for the specific user
-	// User -> Penyewa -> Pemesanan -> Pembayaran -> PaymentReminder
-	err := s.db.Table("payment_reminders").
-		Joins("JOIN pembayarans ON pembayarans.id = payment_reminders.pembayaran_id").
+
+	// Use subquery to find pembayaran_ids for the specific user
+	// This ensures GORM's Preload works perfectly without Joins-related interference
+	subQuery := s.db.Table("pembayarans").
+		Select("pembayarans.id").
 		Joins("JOIN pemesanans ON pemesanans.id = pembayarans.pemesanan_id").
 		Joins("JOIN penyewas ON penyewas.id = pemesanans.penyewa_id").
-		Where("penyewas.user_id = ?", userID).
+		Where("penyewas.user_id = ?", userID)
+
+	err := s.db.Model(&models.PaymentReminder{}).
+		Where("pembayaran_id IN (?)", subQuery).
 		Preload("Pembayaran.Pemesanan.Kamar").
-		Order("payment_reminders.tanggal_reminder ASC").
+		Order("tanggal_reminder ASC").
 		Find(&reminders).Error
 
 	return reminders, err

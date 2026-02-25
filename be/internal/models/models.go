@@ -123,7 +123,7 @@ type Pembayaran struct {
 type PaymentReminder struct {
 	ID              uint           `gorm:"primaryKey" json:"id"`
 	PembayaranID    uint           `json:"pembayaran_id"`
-	Pembayaran      Pembayaran     `gorm:"foreignKey:PembayaranID" json:"-"`
+	Pembayaran      Pembayaran     `gorm:"foreignKey:PembayaranID" json:"pembayaran,omitempty"`
 	JumlahBayar     float64        `json:"jumlah_bayar"`
 	TanggalReminder time.Time      `json:"tanggal_reminder"`
 	StatusReminder  string         `json:"status_reminder"` // enum: Pending, Paid, Expired

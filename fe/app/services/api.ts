@@ -384,8 +384,8 @@ export const api = {
     return apiCall<MessageResponse>('POST', `/bookings/${id}/cancel`);
   },
 
-  extendBooking: async (id: string, months: number) => {
-    return apiCall<Payment>('POST', `/bookings/${id}/extend`, { months });
+  extendBooking: async (id: string, months: number, paymentMethod: string) => {
+    return apiCall<Payment>('POST', `/bookings/${id}/extend`, { months, payment_method: paymentMethod });
   },
 
   // --- PAYMENTS (Manual Transfer) ---

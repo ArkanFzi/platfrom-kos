@@ -5,6 +5,7 @@ import { ImageWithFallback } from "@/app/components/shared/ImageWithFallback";
 import { SkeletonGrid } from "@/app/components/ui/loading-screen";
 import { ArrowRight } from "lucide-react";
 import { useGallery } from "../dashboard/hooks/useGallery";
+import { useTranslations } from 'next-intl';
 
 interface GalleryItem {
   id: number | string;
@@ -22,6 +23,7 @@ export function Gallery() {
     handleLoadMore,
     isLoadedMore
   } = useGallery();
+  const t = useTranslations('gallery');
 
   // Map hook items to displayItems used in the visual snippet
   const displayItems = items.map(item => ({
@@ -43,11 +45,11 @@ export function Gallery() {
           >
             <div className="space-y-4">
               <h2 className="text-6xl md:text-7xl font-light tracking-tight leading-none text-slate-900 dark:text-white">
-                Elite <br /> <span className="italic font-serif">Residences</span>
+                {t('titlePart1')} <br /> <span className="italic font-serif">{t('titlePart2')}</span>
               </h2>
             </div>
             <p className="max-w-xs text-stone-500 dark:text-slate-400 font-sans text-sm leading-relaxed tracking-wide uppercase">
-              Koleksi pilihan hunian eksklusif dengan kenyamanan hotel berbintang untuk gaya hidup modern.
+              {t('description')}
             </p>
           </motion.div>
         </header>
@@ -85,9 +87,9 @@ export function Gallery() {
         {/* --- COLLECTION GRID (ASIMETRIS) --- */}
         <div className="border-t border-stone-200 dark:border-slate-900 pt-16">
           <div className="flex justify-between items-end mb-20">
-            <h2 className="text-5xl font-light italic font-serif tracking-tighter text-slate-900 dark:text-slate-100">Our Rooms</h2>
+            <h2 className="text-5xl font-light italic font-serif tracking-tighter text-slate-900 dark:text-slate-100">{t('ourRooms')}</h2>
             <button className="font-sans text-xs uppercase tracking-[0.2em] border-b border-black dark:border-white pb-1 hover:opacity-50 transition-opacity text-slate-900 dark:text-slate-100">
-              Lihat Semua Unit
+              {t('seeAllUnits')}
             </button>
           </div>
 
@@ -123,7 +125,7 @@ export function Gallery() {
                       </span>
                       <h4 className="text-xl font-medium font-serif leading-snug text-slate-900 dark:text-slate-200">{item.title}</h4>
                       <p className="font-sans text-xs italic text-stone-500 dark:text-slate-500">
-                        Available from {item.year}
+                        {t('availableFrom')} {item.year}
                       </p>
                     </div>
                   </motion.div>
@@ -141,7 +143,7 @@ export function Gallery() {
               onClick={handleLoadMore}
               className="bg-[#1a1a1a] dark:bg-white text-white dark:text-black px-14 py-5 rounded-full font-sans text-[11px] uppercase tracking-[0.4em] hover:bg-stone-800 dark:hover:bg-slate-200 transition-all active:scale-95 shadow-xl"
             >
-              Cari Unit Lainnya
+              {t('findOtherUnits')}
             </button>
           </div>
         )}

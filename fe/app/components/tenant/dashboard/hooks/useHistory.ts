@@ -33,8 +33,10 @@ export function useHistory() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [viewDetailsModalOpen, setViewDetailsModalOpen] = useState(false);
+  const [viewPaymentDetailsModalOpen, setViewPaymentDetailsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<UIBooking | null>(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null);
+  const [selectedPaidReminder, setSelectedPaidReminder] = useState<PaymentReminder | null>(null);
 
   // Data Fetching with SWR
   const { 
@@ -134,10 +136,14 @@ export function useHistory() {
     setUploadModalOpen,
     viewDetailsModalOpen,
     setViewDetailsModalOpen,
+    viewPaymentDetailsModalOpen,
+    setViewPaymentDetailsModalOpen,
     selectedBooking,
     setSelectedBooking,
     selectedPaymentId,
     setSelectedPaymentId,
+    selectedPaidReminder,
+    setSelectedPaidReminder,
     bookings: mappedBookings,
     reminders: (remindersData || []) as PaymentReminder[],
     activeBooking,
