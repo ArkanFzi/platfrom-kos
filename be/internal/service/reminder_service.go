@@ -71,13 +71,14 @@ func (s *reminderService) CreateMonthlyReminders() error {
 		if now.After(billingTriggerDate) || now.Equal(billingTriggerDate) {
 			// Buat record Pembayaran baru untuk bulan berikutnya (1 bulan extend)
 			payment := models.Pembayaran{
-				PemesananID:      b.ID,
-				JumlahBayar:      b.Kamar.HargaPerBulan,
-				TanggalBayar:     now,
-				StatusPembayaran: "Pending",
-				MetodePembayaran: "manual",
-				TipePembayaran:   "extend",
-				JumlahDP:         0,
+				PemesananID:       b.ID,
+				JumlahBayar:       b.Kamar.HargaPerBulan,
+				TanggalBayar:      now,
+				StatusPembayaran:  "Pending",
+				MetodePembayaran:  "manual",
+				TipePembayaran:    "extend",
+				JumlahDP:          0,
+				TanggalJatuhTempo: paidUntil,
 			}
 
 			if err := s.db.Create(&payment).Error; err != nil {
@@ -143,9 +144,10 @@ func (s *reminderService) SendPendingReminders() ([]models.PaymentReminder, erro
 
 			// 2. Send WhatsApp
 			// Nomor hardcode sesuai permintaan
-			phone := "081239450638"
-			msg := fmt.Sprintf("Halo %s, ini pengingat tagihan kos kamar %s sebesar Rp %.0f jatuh tempo pada %s. Mohon segera dibayar.",
-				tenant.NamaLengkap, kamar.NomorKamar, reminder.JumlahBayar, reminder.Pembayaran.TanggalJatuhTempo.Format("02 Jan 2006"))
+			phone := "081332314854"
+			dueDateFormated := reminder.Pembayaran.TanggalJatuhTempo.Format("02 Jan 2006")
+			msg := fmt.Sprintf("Halo %s 👋\n\nIni adalah pesan dari sistem Kost.\nMengingatkan bahwa tagihan sewa Kamar %s Bapak/Ibu sebesar *Rp %.0f* akan jatuh tempo pada *%s*.\n\nMohon segera melunasi pembayaran bulan ini melalui website Kost agar sewa kamar tetap aktif.\nTerima kasih!",
+				tenant.NamaLengkap, kamar.NomorKamar, reminder.JumlahBayar, dueDateFormated)
 
 			go func(phone, message string) {
 				s.waSender.SendWhatsApp(phone, message)

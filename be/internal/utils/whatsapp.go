@@ -48,8 +48,14 @@ func (s *FonnteSender) SendWhatsApp(to, message string) error {
 	}
 	defer resp.Body.Close()
 
+	// Log the response for debugging Fonnte issues
+	var buf bytes.Buffer
+	buf.ReadFrom(resp.Body)
+	respBody := buf.String()
+	log.Printf("[Fonnte API Response] Status: %s, Body: %s", resp.Status, respBody)
+
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("fonnte api returned status: %s", resp.Status)
+		return fmt.Errorf("fonnte api returned status: %s, body: %s", resp.Status, respBody)
 	}
 
 	return nil
