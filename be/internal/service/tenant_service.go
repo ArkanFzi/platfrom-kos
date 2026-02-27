@@ -13,7 +13,7 @@ type TenantService interface {
 	GetTenantsByRole(role string) ([]models.Penyewa, error)
 	GetTenantsPaginated(pagination *utils.Pagination, search, role string) ([]models.Penyewa, int64, error)
 	ValidateTenant(penyewa *models.Penyewa) error
-	DeleteTenant(id uint) error
+	DeactivateTenant(id uint) error
 }
 
 type tenantService struct {
@@ -46,6 +46,6 @@ func (s *tenantService) ValidateTenant(penyewa *models.Penyewa) error {
 	return nil
 }
 
-func (s *tenantService) DeleteTenant(id uint) error {
-	return s.repo.Delete(id)
+func (s *tenantService) DeactivateTenant(id uint) error {
+	return s.repo.UpdateRole(id, "non_active")
 }

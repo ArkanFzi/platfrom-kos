@@ -52,16 +52,13 @@ func NewRoutes(
 
 // Register registers semua routes ke gin router
 func (r *Routes) Register(router *gin.Engine, cfg *config.Config) {
-	// Static files
-	router.Static("/uploads", "./uploads")
-
 	// Prometheus Monitoring
 	p := ginprometheus.NewPrometheus("gin")
 	p.Use(router)
 
+	// API Route Group
 	api := router.Group("/api")
 	{
-		api.Static("/uploads", "./uploads")
 		// Public routes - tidak perlu auth
 		r.registerPublicRoutes(api)
 
@@ -105,6 +102,9 @@ func (r *Routes) registerPublicRoutes(api *gin.RouterGroup) {
 
 	// Contact form
 	api.POST("/contact", r.contactHandler.HandleContactForm)
+
+	// Public stats (for login page)
+	api.GET("/public-stats", r.dashboardHandler.GetPublicStats)
 }
 
 // Protected routes (auth required)
@@ -175,6 +175,12 @@ func (r *Routes) registerAdminRoutes(protected *gin.RouterGroup) {
 
 		// Tenants management
 		admin.GET("/tenants", r.tenantHandler.GetAllTenants)
-		admin.DELETE("/tenants/:id", r.tenantHandler.DeleteTenant)
+		admin.PUT("/tenants/:id/deactivate", r.tenantHandler.DeactivateTenant)
+
+		// Room occupancy & tenant rooms (enriched data)
+		admin.GET("/room-occupancy", r.dashboardHandler.GetRoomOccupancy)
+		admin.GET("/tenant-rooms", r.dashboardHandler.GetTenantRooms)
+		admin.GET("/room-payments/:id", r.dashboardHandler.GetPaymentsByRoom)
+		admin.GET("/tenant-payments/:id", r.dashboardHandler.GetPaymentsByTenant)
 	}
 }

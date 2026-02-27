@@ -44,7 +44,7 @@ func (h *TenantHandler) GetAllTenants(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func (h *TenantHandler) DeleteTenant(c *gin.Context) {
+func (h *TenantHandler) DeactivateTenant(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -52,10 +52,10 @@ func (h *TenantHandler) DeleteTenant(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteTenant(uint(id)); err != nil {
+	if err := h.service.DeactivateTenant(uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Tenant deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Status pengguna berhasil diubah menjadi Non Active"})
 }

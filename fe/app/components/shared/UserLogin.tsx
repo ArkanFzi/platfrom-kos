@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -27,6 +27,13 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
   const [error, setError] = useState('');
   const t = useTranslations('auth');
   const tc = useTranslations('common');
+
+  // Public stats
+  const [stats, setStats] = useState<{ active_tenants: number; average_rating: number; total_reviews: number } | null>(null);
+
+  useEffect(() => {
+    api.getPublicStats().then(setStats).catch(() => {});
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +95,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
 
             <div className="flex items-center justify-center gap-6 pt-6 border-t border-white/10">
               <div className="text-center">
-                <p className="text-xl md:text-2xl font-bold text-white">500+</p>
+                <p className="text-xl md:text-2xl font-bold text-white">{stats ? stats.active_tenants : '—'}</p>
                 <p className="text-stone-400 text-[10px] md:text-sm uppercase tracking-wider font-semibold">
                   {t('activeTenants')}
                 </p>
@@ -96,7 +103,7 @@ export function UserLogin({ onLoginSuccess, onBack, onRegisterClick, onForgotPas
               <div className="w-px h-8 md:h-10 bg-white/20" />
               <div className="text-center">
                 <p className="text-xl md:text-2xl font-bold text-white">
-                  4.9/5
+                  {stats ? `${stats.average_rating}/5` : '—'}
                 </p>
                 <p className="text-stone-400 text-[10px] md:text-sm uppercase tracking-wider font-semibold">
                   {t('userRating')}

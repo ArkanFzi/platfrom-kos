@@ -66,11 +66,19 @@ func (s *bookingService) GetUserBookings(userID uint) ([]BookingResponse, error)
 			lastStatus = p.StatusPembayaran
 		}
 
+		actualDurasi := b.DurasiSewa
+		if b.Kamar.HargaPerBulan > 0 {
+			paidMonths := int(totalPaid / b.Kamar.HargaPerBulan)
+			if paidMonths > actualDurasi {
+				actualDurasi = paidMonths
+			}
+		}
+
 		response = append(response, BookingResponse{
 			ID:              b.ID,
 			Kamar:           b.Kamar, // Already preloaded
 			TanggalMulai:    b.TanggalMulai.Format("2006-01-02"),
-			DurasiSewa:      b.DurasiSewa,
+			DurasiSewa:      actualDurasi,
 			StatusPemesanan: b.StatusPemesanan,
 			TotalBayar:      totalPaid,
 			StatusBayar:     lastStatus,

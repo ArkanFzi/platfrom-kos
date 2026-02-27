@@ -88,7 +88,7 @@ export interface Tenant {
   alamat_asal: string;
   jenis_kelamin: string;
   foto_profil: string;
-  role?: 'guest' | 'tenant' | 'former_tenant';
+  role?: 'guest' | 'tenant' | 'former_tenant' | 'non_active';
   created_at?: string;
   status?: string; 
   kamar?: { nomor_kamar: string }; 
@@ -439,8 +439,8 @@ export const api = {
     return apiCall<PaginatedResponse<Tenant[]>>('GET', `/tenants?${query.toString()}`);
   },
 
-  deleteTenant: async (id: string | number) => {
-    return apiCall<MessageResponse>('DELETE', `/tenants/${id}`);
+  deactivateTenant: async (id: string | number) => {
+    return apiCall<MessageResponse>('PUT', `/tenants/${id}/deactivate`);
   },
 
   getAllPayments: async () => {
@@ -470,6 +470,26 @@ export const api = {
 
   getDashboardStats: async () => {
     return apiCall<DashboardStats>('GET', '/dashboard');
+  },
+
+  getRoomOccupancy: async () => {
+    return apiCall<{ room_id: number; nomor_kamar: string; tenant_name: string; penyewa_id: number; payment_status: string; last_pay_amount: number; payment_month: string }[]>('GET', '/room-occupancy');
+  },
+
+  getTenantRooms: async () => {
+    return apiCall<{ penyewa_id: number; nama_lengkap: string; nomor_kamar: string; room_id: number; tipe_kamar: string; payment_status: string; last_pay_amount: number; due_date: string; payment_month: string }[]>('GET', '/tenant-rooms');
+  },
+
+  getPaymentsByRoom: async (roomId: number) => {
+    return apiCall<{ tenant_name: string; penyewa_id: number; email: string; nomor_hp: string; check_in: string; check_out: string; durasi_sewa: number; payments: { id: number; jumlah_bayar: number; status_pembayaran: string; metode_pembayaran: string; tanggal_bayar: string; payment_month: string; bukti_transfer: string }[] }>('GET', `/room-payments/${roomId}`);
+  },
+
+  getPaymentsByTenant: async (penyewaId: number) => {
+    return apiCall<{ nama_lengkap: string; email: string; nomor_hp: string; nik: string; alamat_asal: string; jenis_kelamin: string; tanggal_lahir: string; foto_profil: string; role: string; nomor_kamar: string; tipe_kamar: string; harga_per_bulan: number; check_in: string; check_out: string; durasi_sewa: number; payments: { id: number; jumlah_bayar: number; status_pembayaran: string; metode_pembayaran: string; tanggal_bayar: string; payment_month: string; bukti_transfer: string }[] }>('GET', `/tenant-payments/${penyewaId}`);
+  },
+
+  getPublicStats: async () => {
+    return apiCall<{ active_tenants: number; average_rating: number; total_reviews: number }>('GET', '/public-stats');
   },
 
   healthCheck: async () => {

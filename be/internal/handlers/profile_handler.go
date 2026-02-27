@@ -12,12 +12,11 @@ import (
 )
 
 type ProfileHandler struct {
-	service    service.ProfileService
-	cloudinary *utils.CloudinaryService
+	service service.ProfileService
 }
 
-func NewProfileHandler(s service.ProfileService, cld *utils.CloudinaryService) *ProfileHandler {
-	return &ProfileHandler{s, cld}
+func NewProfileHandler(s service.ProfileService) *ProfileHandler {
+	return &ProfileHandler{service: s}
 }
 
 func (h *ProfileHandler) GetProfile(c *gin.Context) {
@@ -95,24 +94,12 @@ func (h *ProfileHandler) UpdateProfile(c *gin.Context) {
 		file, err := c.FormFile("foto_profil")
 		if err == nil {
 			if utils.IsImageFile(file) {
-				if h.cloudinary != nil {
-					src, err := file.Open()
-					if err == nil {
-						defer src.Close()
-						url, err := h.cloudinary.UploadImage(src, "koskosan/profiles")
-						if err == nil {
-							input.FotoProfil = url
-						} else {
-							utils.GlobalLogger.Error("Failed to upload to Cloudinary: %v", err)
-							c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to upload profile photo to cloud: %v", err)})
-							return
-						}
-					} else {
-						c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open profile photo"})
-						return
-					}
+				url, err := utils.SaveUploadedFile(file, "profiles")
+				if err == nil {
+					input.FotoProfil = url
 				} else {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloud storage not configured"})
+					utils.GlobalLogger.Error("Failed to save profile locally: %v", err)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to save profile photo: %v", err)})
 					return
 				}
 			}

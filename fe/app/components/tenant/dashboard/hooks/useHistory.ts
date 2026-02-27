@@ -78,7 +78,7 @@ export function useHistory() {
         moveOutDate: moveOut.toISOString().split('T')[0],
         monthlyRent: b.kamar?.harga_per_bulan || 0,
         totalPaid: b.total_bayar || 0,
-        duration: `${b.durasi_sewa} Months`,
+        duration: b.durasi_sewa.toString(),
         rawStatus: b.status_bayar,
         pendingPaymentId: pendingPayment?.id,
         payments: b.pembayaran || [],

@@ -11,12 +11,11 @@ import (
 )
 
 type BookingHandler struct {
-	service    service.BookingService
-	cloudinary *utils.CloudinaryService
+	service service.BookingService
 }
 
-func NewBookingHandler(s service.BookingService, cld *utils.CloudinaryService) *BookingHandler {
-	return &BookingHandler{s, cld}
+func NewBookingHandler(s service.BookingService) *BookingHandler {
+	return &BookingHandler{service: s}
 }
 
 func (h *BookingHandler) GetMyBookings(c *gin.Context) {
@@ -131,24 +130,11 @@ func (h *BookingHandler) CreateBookingWithProof(c *gin.Context) {
 			return
 		}
 
-		if h.cloudinary != nil {
-			src, err := file.Open()
-			if err == nil {
-				defer src.Close()
-				url, err := h.cloudinary.UploadImage(src, "koskosan/proofs")
-				if err == nil {
-					proofURL = url
-				} else {
-					utils.GlobalLogger.Error("Cloudinary upload failed: %v", err)
-					c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to upload proof to cloud: %v", err)})
-					return
-				}
-			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open proof file"})
-				return
-			}
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloud storage not configured"})
+		var errUpload error
+		proofURL, errUpload = utils.SaveUploadedFile(file, "proofs")
+		if errUpload != nil {
+			utils.GlobalLogger.Error("Local upload failed: %v", errUpload)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to save proof locally: %v", errUpload)})
 			return
 		}
 	case "cash":

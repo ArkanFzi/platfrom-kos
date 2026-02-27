@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { getImageUrl } from '@/app/utils/api-url';
-import { Search, Plus, Edit, Trash2, Eye, Download, ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Eye, Download, ChevronUp, ChevronDown, Loader2, DoorOpen, DoorClosed, Wrench, Building2, Layers, BadgeDollarSign, CalendarDays } from 'lucide-react';
 import { ImageWithFallback } from '@/app/components/shared/ImageWithFallback';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -61,6 +61,10 @@ export function LuxuryRoomManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [totalRevenue, setTotalRevenue] = useState<number>(0);
+  const [occupancyMap, setOccupancyMap] = useState<Record<string, { tenant_name: string; payment_status: string; last_pay_amount: number; payment_month: string }>>({});
+  const [roomPaymentDetail, setRoomPaymentDetail] = useState<{ tenant_name: string; penyewa_id: number; email: string; nomor_hp: string; check_in: string; check_out: string; durasi_sewa: number; payments: { id: number; jumlah_bayar: number; status_pembayaran: string; metode_pembayaran: string; tanggal_bayar: string; payment_month: string }[] } | null>(null);
+  const [loadingPayments, setLoadingPayments] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Room>>({
     name: '',
@@ -105,7 +109,36 @@ export function LuxuryRoomManagement() {
 
   useEffect(() => {
     fetchRooms();
+    // Fetch total revenue from dashboard stats
+    api.getDashboardStats().then(stats => {
+      setTotalRevenue(stats.total_revenue || 0);
+    }).catch(() => {});
+    // Fetch room occupancy data
+    api.getRoomOccupancy().then(data => {
+      const map: Record<string, { tenant_name: string; payment_status: string; last_pay_amount: number; payment_month: string }> = {};
+      for (const item of data) {
+        map[String(item.room_id)] = { tenant_name: item.tenant_name, payment_status: item.payment_status, last_pay_amount: item.last_pay_amount, payment_month: item.payment_month };
+      }
+      setOccupancyMap(map);
+    }).catch(() => {});
   }, []);
+
+  // Fetch payment detail when room detail modal opens
+  useEffect(() => {
+    if (viewingRoom && occupancyMap[viewingRoom.id]) {
+      setLoadingPayments(true);
+      // Extract numeric room ID from the room.id string (e.g., "R001" -> need actual DB id)
+      // The occupancyMap keys are the room.id strings mapped from the API's room_id
+      const numericId = Object.entries(occupancyMap).find(([key]) => key === viewingRoom.id);
+      if (numericId) {
+        api.getPaymentsByRoom(Number(numericId[0])).then(data => {
+          setRoomPaymentDetail(data);
+        }).catch(() => {}).finally(() => setLoadingPayments(false));
+      } else {
+        setLoadingPayments(false);
+      }
+    }
+  }, [viewingRoom, occupancyMap]);
 
   const filteredRooms = rooms
     .filter(room => {
@@ -575,6 +608,53 @@ export function LuxuryRoomManagement() {
         </div>
       </motion.div>
 
+      {/* Room Stats Report Cards */}
+      {!isLoading && rooms.length > 0 && (() => {
+        const totalRooms = rooms.length;
+        const tersedia = rooms.filter(r => r.status === 'Tersedia').length;
+        const terisi = rooms.filter(r => r.status === 'Penuh').length;
+        const maintenance = rooms.filter(r => r.status === 'Maintenance').length;
+        const uniqueTypes = [...new Set(rooms.map(r => r.type))].length;
+
+        const cards = [
+          { label: t('statTotalRooms'), value: totalRooms, icon: Building2, color: 'from-amber-500 to-amber-600', bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/20' },
+          { label: t('statAvailable'), value: tersedia, icon: DoorOpen, color: 'from-green-500 to-emerald-600', bg: 'bg-green-500/10', text: 'text-green-600 dark:text-green-400', border: 'border-green-500/20' },
+          { label: t('statOccupied'), value: terisi, icon: DoorClosed, color: 'from-red-500 to-rose-600', bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400', border: 'border-red-500/20' },
+          { label: t('statMaintenance'), value: maintenance, icon: Wrench, color: 'from-orange-500 to-orange-600', bg: 'bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-500/20' },
+          { label: t('statRoomTypes'), value: uniqueTypes, icon: Layers, color: 'from-blue-500 to-indigo-600', bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/20' },
+          { label: t('statTotalPaid'), value: new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalRevenue), icon: BadgeDollarSign, color: 'from-purple-500 to-violet-600', bg: 'bg-purple-500/10', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-500/20' },
+        ];
+
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05, duration: 0.4 }}
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4"
+          >
+            {cards.map((card, idx) => (
+              <motion.div
+                key={card.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 + idx * 0.05, duration: 0.4 }}
+                className={`relative overflow-hidden p-4 md:p-5 rounded-2xl border ${card.border} ${card.bg} backdrop-blur-sm`}
+              >
+                <div className={`inline-flex items-center justify-center size-9 md:size-10 rounded-xl bg-gradient-to-br ${card.color} mb-3 shadow-lg`}>
+                  <card.icon className="size-4 md:size-5 text-white" />
+                </div>
+                <p className={`text-xl md:text-2xl font-black ${card.text}`}>
+                  {card.value}
+                </p>
+                <p className="text-slate-500 dark:text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mt-1">
+                  {card.label}
+                </p>
+              </motion.div>
+            ))}
+          </motion.div>
+        );
+      })()}
+
       {/* Filter Bar */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -609,10 +689,8 @@ export function LuxuryRoomManagement() {
             </SelectTrigger>
             <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
               <SelectItem value="All">{t('allTypes')}</SelectItem>
-              <SelectItem value="Single">Single</SelectItem>
-              <SelectItem value="Double">Double</SelectItem>
-              <SelectItem value="Suite">Suite</SelectItem>
-              <SelectItem value="Deluxe">Deluxe</SelectItem>
+              <SelectItem value="Standard">Standard</SelectItem>
+              <SelectItem value="Premium">Premium</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -717,6 +795,7 @@ export function LuxuryRoomManagement() {
                       </div>
                     </div>
                   </div>
+                  
                   <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                     <Button variant="ghost" className="flex-1 text-slate-500 dark:text-slate-400 h-9" onClick={() => setViewingRoom(room)}>
                       <Eye className="size-4 mr-2" /> {t('detail')}
@@ -736,8 +815,9 @@ export function LuxuryRoomManagement() {
       </motion.div>
 
       {/* View Dialog - Responsive */}
-      <Dialog open={!!viewingRoom} onOpenChange={() => setViewingRoom(null)}>
-        <DialogContent className="w-[95vw] max-w-2xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-0 overflow-hidden rounded-2xl md:rounded-[2rem]">
+      <Dialog open={!!viewingRoom} onOpenChange={() => { setViewingRoom(null); setRoomPaymentDetail(null); }}>
+        <DialogContent className="w-[95vw] max-w-2xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-0 overflow-hidden rounded-2xl md:rounded-[2rem] max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Detail Kamar {viewingRoom?.name}</DialogTitle>
           {viewingRoom && (
             <div className="space-y-0">
               <div className="aspect-video relative">
@@ -755,23 +835,23 @@ export function LuxuryRoomManagement() {
 
               <div className="p-4 md:p-8 space-y-6 md:space-y-8">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                  <div className="p-3 md:p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">{t('status')}</p>
-                    <p className={`font-black text-xs md:text-sm uppercase ${viewingRoom.status === 'Tersedia' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                  <div className="p-3 md:p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50 min-w-0">
+                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1 truncate">{t('status')}</p>
+                    <p className={`font-black text-xs md:text-sm uppercase truncate ${viewingRoom.status === 'Tersedia' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
                       {t(('status_' + viewingRoom.status.toLowerCase()) as "status_tersedia")}
                     </p>
                   </div>
-                  <div className="p-3 md:p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">{t('price')}</p>
-                    <p className="font-black text-xs md:text-sm text-amber-600 dark:text-amber-500">{formatPrice(viewingRoom.price)}</p>
+                  <div className="p-3 md:p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50 min-w-0">
+                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1 truncate">{t('price')}</p>
+                    <p className="font-black text-xs md:text-sm text-amber-600 dark:text-amber-500 truncate" title={formatPrice(viewingRoom.price)}>{formatPrice(viewingRoom.price)}</p>
                   </div>
-                  <div className="p-3 md:p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">{t('floor')}</p>
-                    <p className="font-black text-xs md:text-sm text-slate-900 dark:text-white">{viewingRoom.floor}</p>
+                  <div className="p-3 md:p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50 min-w-0">
+                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1 truncate">{t('floor')}</p>
+                    <p className="font-black text-xs md:text-sm text-slate-900 dark:text-white truncate">{viewingRoom.floor}</p>
                   </div>
-                  <div className="p-3 md:p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">{t('capacity')}</p>
-                    <p className="font-black text-xs md:text-sm text-slate-900 dark:text-white">{viewingRoom.capacity}</p>
+                  <div className="p-3 md:p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50 min-w-0">
+                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1 truncate">{t('capacity')}</p>
+                    <p className="font-black text-xs md:text-sm text-slate-900 dark:text-white truncate">{viewingRoom.capacity}</p>
                   </div>
                 </div>
 
@@ -790,6 +870,81 @@ export function LuxuryRoomManagement() {
                     &quot;{viewingRoom.description || t('noDescription')}&quot;
                   </p>
                 </div>
+
+                {/* Tenant & Payment History */}
+                {occupancyMap[viewingRoom.id] ? (
+                  <div className="space-y-4">
+                    <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest">Penghuni & Riwayat Pembayaran</p>
+                    <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-500/5 rounded-xl border border-amber-200 dark:border-amber-500/20">
+                      <div className="size-10 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl flex items-center justify-center font-bold text-white uppercase flex-shrink-0">
+                        {occupancyMap[viewingRoom.id].tenant_name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm text-slate-900 dark:text-white">{occupancyMap[viewingRoom.id].tenant_name}</p>
+                        {roomPaymentDetail && (
+                          <p className="text-[10px] text-slate-500">{roomPaymentDetail.email} &bull; {roomPaymentDetail.nomor_hp}</p>
+                        )}
+                      </div>
+                      <span className={`ml-auto flex-shrink-0 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                        occupancyMap[viewingRoom.id].payment_status === 'Lunas' ? 'bg-green-500/10 text-green-600 border border-green-500/20' :
+                        occupancyMap[viewingRoom.id].payment_status === 'Pending' ? 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20' :
+                        'bg-red-500/10 text-red-600 border border-red-500/20'
+                      }`}>
+                        {occupancyMap[viewingRoom.id].payment_status}
+                      </span>
+                    </div>
+                    {roomPaymentDetail && roomPaymentDetail.check_in && (
+                      <div className="grid grid-cols-3 gap-2 mt-3">
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50 text-center">
+                          <p className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-1">Check In</p>
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{roomPaymentDetail.check_in}</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50 text-center">
+                          <p className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-1">Check Out</p>
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{roomPaymentDetail.check_out}</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50 text-center">
+                          <p className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-1">Durasi</p>
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{roomPaymentDetail.durasi_sewa} Bulan</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {loadingPayments ? (
+                      <div className="flex justify-center py-4"><Loader2 className="size-5 animate-spin text-amber-500" /></div>
+                    ) : roomPaymentDetail && roomPaymentDetail.payments.length > 0 ? (
+                      <div className="space-y-2">
+                        {roomPaymentDetail.payments.map((pay) => (
+                          <div key={pay.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                            <div className="flex items-center gap-3">
+                              <CalendarDays className="size-4 text-slate-400" />
+                              <div>
+                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{pay.payment_month || pay.tanggal_bayar}</p>
+                                <p className="text-[10px] text-slate-400">{pay.metode_pembayaran}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs font-bold text-slate-900 dark:text-white">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(pay.jumlah_bayar)}</p>
+                              <span className={`text-[9px] font-bold uppercase ${
+                                pay.status_pembayaran === 'Confirmed' ? 'text-green-600' :
+                                pay.status_pembayaran === 'Pending' ? 'text-yellow-600' :
+                                'text-red-600'
+                              }`}>
+                                {pay.status_pembayaran === 'Confirmed' ? 'Lunas' : pay.status_pembayaran}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-slate-400 text-xs italic text-center py-3">Belum ada riwayat pembayaran</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/50 text-center">
+                    <p className="text-slate-400 text-xs italic">Kamar belum ditempati</p>
+                  </div>
+                )}
               </div>
             </div>
           )}

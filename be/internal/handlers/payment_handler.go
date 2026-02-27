@@ -13,12 +13,11 @@ import (
 )
 
 type PaymentHandler struct {
-	service    service.PaymentService
-	cloudinary *utils.CloudinaryService
+	service service.PaymentService
 }
 
-func NewPaymentHandler(s service.PaymentService, cld *utils.CloudinaryService) *PaymentHandler {
-	return &PaymentHandler{s, cld}
+func NewPaymentHandler(s service.PaymentService) *PaymentHandler {
+	return &PaymentHandler{service: s}
 }
 
 func (h *PaymentHandler) GetAllPayments(c *gin.Context) {
@@ -103,24 +102,12 @@ func (h *PaymentHandler) UploadPaymentProof(c *gin.Context) {
 	}
 
 	var proofURL string
-	if h.cloudinary != nil {
-		src, err := file.Open()
-		if err == nil {
-			defer src.Close()
-			url, err := h.cloudinary.UploadImage(src, "koskosan/proofs")
-			if err == nil {
-				proofURL = url
-			} else {
-				utils.GlobalLogger.Error("Cloudinary upload failed: %v", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to upload proof to cloud: %v", err)})
-				return
-			}
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open proof file"})
-			return
-		}
+	url, err := utils.SaveUploadedFile(file, "proofs")
+	if err == nil {
+		proofURL = url
 	} else {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloud storage not configured"})
+		utils.GlobalLogger.Error("Local upload failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to save proof locally: %v", err)})
 		return
 	}
 

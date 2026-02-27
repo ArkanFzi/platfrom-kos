@@ -451,7 +451,7 @@ export function BookingHistory() {
                             <p className="text-[10px] md:text-xs text-purple-700 dark:text-purple-400 font-semibold mb-1 md:mb-2 uppercase tracking-wide">Duration</p>
                             <div className="flex items-center gap-1.5 md:gap-2">
                               <Clock className="w-4 h-4 md:w-5 md:h-5 text-purple-700 dark:text-purple-400" />
-                              <span className="font-semibold text-xs md:text-base text-purple-900 dark:text-purple-200">{booking.duration}</span>
+                              <span className="font-semibold text-xs md:text-base text-purple-900 dark:text-purple-200">{booking.duration} {t('months')}</span>
                             </div>
                           </motion.div>
 

@@ -12,12 +12,11 @@ import (
 )
 
 type KamarHandler struct {
-	service    service.KamarService
-	cloudinary *utils.CloudinaryService
+	service service.KamarService
 }
 
-func NewKamarHandler(s service.KamarService, cld *utils.CloudinaryService) *KamarHandler {
-	return &KamarHandler{s, cld}
+func NewKamarHandler(s service.KamarService) *KamarHandler {
+	return &KamarHandler{service: s}
 }
 
 func (h *KamarHandler) GetKamars(c *gin.Context) {
@@ -63,10 +62,7 @@ func (h *KamarHandler) CreateKamar(c *gin.Context) {
 	bedrooms, _ := strconv.Atoi(c.PostForm("bedrooms"))
 	bathrooms, _ := strconv.Atoi(c.PostForm("bathrooms"))
 
-	if h.cloudinary == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloud storage not configured"})
-		return
-	}
+	// Cloudinary check removed
 
 	// Parse multipart form to get multiple files
 	form, err := c.MultipartForm()
@@ -81,23 +77,18 @@ func (h *KamarHandler) CreateKamar(c *gin.Context) {
 		return
 	}
 
-	// Upload all images
+	// Upload all images locally
 	var uploadedURLs []string
 	for _, fileHeader := range imageFiles {
 		if !utils.IsImageFile(fileHeader) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Semua file harus berupa gambar"})
 			return
 		}
-		src, err := fileHeader.Open()
+
+		url, err := utils.SaveUploadedFile(fileHeader, "rooms")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open image file"})
-			return
-		}
-		url, err := h.cloudinary.UploadImage(src, "koskosan/rooms")
-		src.Close()
-		if err != nil {
-			utils.GlobalLogger.Error("Failed to upload to Cloudinary: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to upload image: %v", err)})
+			utils.GlobalLogger.Error("Failed to save image locally: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to save image: %v", err)})
 			return
 		}
 		uploadedURLs = append(uploadedURLs, url)
@@ -196,10 +187,6 @@ func (h *KamarHandler) UpdateKamar(c *gin.Context) {
 	if err == nil {
 		imageFiles := form.File["images"]
 		if len(imageFiles) > 0 {
-			if h.cloudinary == nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Cloud storage not configured"})
-				return
-			}
 			if len(imageFiles) < 3 {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Minimal 3 foto kamar diperlukan"})
 				return
@@ -211,16 +198,10 @@ func (h *KamarHandler) UpdateKamar(c *gin.Context) {
 					c.JSON(http.StatusBadRequest, gin.H{"error": "Semua file harus berupa gambar"})
 					return
 				}
-				src, err := fileHeader.Open()
+				url, err := utils.SaveUploadedFile(fileHeader, "rooms")
 				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open image file"})
-					return
-				}
-				url, err := h.cloudinary.UploadImage(src, "koskosan/rooms")
-				src.Close()
-				if err != nil {
-					utils.GlobalLogger.Error("Failed to upload to Cloudinary: %v", err)
-					c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to upload image: %v", err)})
+					utils.GlobalLogger.Error("Failed to save image locally: %v", err)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to save image: %v", err)})
 					return
 				}
 				uploadedURLs = append(uploadedURLs, url)
