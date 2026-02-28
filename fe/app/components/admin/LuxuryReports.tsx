@@ -62,16 +62,7 @@ export function LuxuryReports() {
   ];
 
   // Monthly Data from Backend
-
-
-  const monthlyComparison = [
-    { month: 'Jan', thisYear: 4200000, lastYear: 3800000 },
-    { month: 'Feb', thisYear: 5100000, lastYear: 4500000 },
-    { month: 'Mar', thisYear: 4800000, lastYear: 4200000 },
-    { month: 'Apr', thisYear: 5400000, lastYear: 4900000 },
-    { month: 'May', thisYear: 6200000, lastYear: 5500000 },
-    { month: 'Jun', thisYear: 5900000, lastYear: 5200000 }
-  ];
+  const monthlyData = stats?.monthly_trend || [];
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -165,10 +156,58 @@ export function LuxuryReports() {
     doc.setFont("helvetica", "bold");
     doc.text(`${occupancyRate}%`, 14 + (boxWidth * 2) + 15, summaryY + 18);
 
+    // --- Row 2: Secondary Metrics ---
+    const summaryY2 = summaryY + boxHeight + 5;
+    
+    // Box 4: Available Rooms
+    doc.setFillColor(240, 253, 244); // Green 50
+    doc.setDrawColor(220, 252, 231); // Green 100
+    doc.roundedRect(14, summaryY2, boxWidth, boxHeight, 3, 3, "FD");
+
+    doc.setFontSize(9);
+    doc.setTextColor(22, 163, 74); // Green 600
+    doc.setFont("helvetica", "normal");
+    doc.text(t('availableRooms').toUpperCase(), 14 + 5, summaryY2 + 8);
+
+    doc.setFontSize(14);
+    doc.setTextColor(21, 128, 61); // Green 700
+    doc.setFont("helvetica", "bold");
+    doc.text(`${rooms.filter(r => r.status === 'Tersedia').length}`, 14 + 5, summaryY2 + 18);
+
+    // Box 5: Maintenance
+    doc.setFillColor(254, 242, 242); // Red 50
+    doc.setDrawColor(254, 226, 226); // Red 100
+    doc.roundedRect(14 + boxWidth + 5, summaryY2, boxWidth, boxHeight, 3, 3, "FD");
+
+    doc.setFontSize(9);
+    doc.setTextColor(220, 38, 38); // Red 600
+    doc.setFont("helvetica", "normal");
+    doc.text(t('maintenanceRooms').toUpperCase(), 14 + boxWidth + 10, summaryY2 + 8);
+
+    doc.setFontSize(14);
+    doc.setTextColor(185, 28, 28); // Red 700
+    doc.setFont("helvetica", "bold");
+    doc.text(`${rooms.filter(r => r.status === 'Perbaikan').length}`, 14 + boxWidth + 10, summaryY2 + 18);
+
+    // Box 6: Active Tenants
+    doc.setFillColor(245, 243, 255); // Purple 50
+    doc.setDrawColor(237, 233, 254); // Purple 100
+    doc.roundedRect(14 + (boxWidth * 2) + 10, summaryY2, boxWidth, boxHeight, 3, 3, "FD");
+
+    doc.setFontSize(9);
+    doc.setTextColor(124, 58, 237); // Purple 600
+    doc.setFont("helvetica", "normal");
+    doc.text(t('totalActiveTenants').toUpperCase(), 14 + (boxWidth * 2) + 15, summaryY2 + 8);
+
+    doc.setFontSize(14);
+    doc.setTextColor(109, 40, 217); // Purple 700
+    doc.setFont("helvetica", "bold");
+    doc.text(`${tenants.filter(t => t.role === 'tenant').length}`, 14 + (boxWidth * 2) + 15, summaryY2 + 18);
+
     // --- Transaction Details Table ---
     doc.setFontSize(12);
     doc.setTextColor(15, 23, 42); // Slate 900
-    doc.text(t('transactionDetails'), 14, 80);
+    doc.text(t('transactionDetails'), 14, summaryY2 + boxHeight + 15);
 
     const tableColumn = [t('date'), t('tenantName'), t('roomType'), t('roomNo'), t('status'), t('amount')];
     const tableRows: (string | number)[][] = [];
@@ -193,7 +232,7 @@ export function LuxuryReports() {
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 85,
+      startY: summaryY2 + boxHeight + 20,
       theme: 'grid',
       headStyles: { 
         fillColor: [245, 158, 11], // Amber 500
@@ -532,21 +571,16 @@ export function LuxuryReports() {
               <div className="size-3 bg-amber-500 rounded-full" />
               <span className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400">{t('thisYear')}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="size-3 bg-blue-500 rounded-full" />
-              <span className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400">{t('lastYear')}</span>
-            </div>
           </div>
         </div>
         <div className="h-64 md:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthlyComparison}>
+            <BarChart data={monthlyData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" opacity={0.1} vertical={false} />
               <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '10px' }} axisLine={false} tickLine={false} />
               <YAxis stroke="#64748b" style={{ fontSize: '10px' }} axisLine={false} tickLine={false} tickFormatter={(value) => formatPrice(value)} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="thisYear" name={t('thisYear')} fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={30} />
-              <Bar dataKey="lastYear" name={t('lastYear')} fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={30} />
+              <Bar dataKey="revenue" name={t('thisYear')} fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={30} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -608,6 +642,66 @@ export function LuxuryReports() {
                 {formatPrice(rooms.reduce((sum, r) => sum + (r.harga_per_bulan || 0), 0))}
               </p>
             </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Property & User Overview Section */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.4 }}
+        className="space-y-4"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{t('propertyOverview')}</h3>
+        </div>
+        
+        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
+          {/* Total Rooms */}
+          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm dark:shadow-none">
+            <p className="text-slate-500 dark:text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">{t('totalRooms')}</p>
+            <p className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">{rooms.length}</p>
+          </div>
+
+          {/* Available Rooms */}
+          <div className="p-4 bg-white dark:bg-slate-900 border border-green-200 dark:border-green-500/20 rounded-2xl shadow-sm dark:shadow-none">
+            <p className="text-slate-500 dark:text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">{t('availableRooms')}</p>
+            <p className="text-xl md:text-2xl font-bold text-green-600 dark:text-green-400">
+              {rooms.filter(r => r.status === 'Tersedia').length}
+            </p>
+          </div>
+
+          {/* Occupied Rooms */}
+          <div className="p-4 bg-white dark:bg-slate-900 border border-red-200 dark:border-red-500/20 rounded-2xl shadow-sm dark:shadow-none">
+            <p className="text-slate-500 dark:text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">{t('occupiedRooms')}</p>
+            <p className="text-xl md:text-2xl font-bold text-red-600 dark:text-red-400">
+              {rooms.filter(r => r.status === 'Terisi').length}
+            </p>
+          </div>
+
+          {/* Maintenance Rooms */}
+          <div className="p-4 bg-white dark:bg-slate-900 border border-orange-200 dark:border-orange-500/20 rounded-2xl shadow-sm dark:shadow-none">
+            <p className="text-slate-500 dark:text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">{t('maintenanceRooms')}</p>
+            <p className="text-xl md:text-2xl font-bold text-orange-600 dark:text-orange-400">
+              {rooms.filter(r => r.status === 'Perbaikan').length}
+            </p>
+          </div>
+
+          {/* Active Tenants */}
+          <div className="p-4 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-500/20 rounded-2xl shadow-sm dark:shadow-none">
+            <p className="text-slate-500 dark:text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">{t('totalActiveTenants')}</p>
+            <p className="text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {tenants.filter(t => t.role === 'tenant').length}
+            </p>
+          </div>
+
+          {/* Total Guests */}
+          <div className="p-4 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-500/20 rounded-2xl shadow-sm dark:shadow-none">
+            <p className="text-slate-500 dark:text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">{t('totalGuests')}</p>
+            <p className="text-xl md:text-2xl font-bold text-amber-600 dark:text-amber-400">
+              {tenants.filter(te => te.role === 'guest' || !te.role).length}
+            </p>
           </div>
         </div>
       </motion.div>
