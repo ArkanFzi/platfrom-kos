@@ -48,6 +48,22 @@ func (h *PaymentHandler) ConfirmPayment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "payment confirmed successfully"})
 }
 
+func (h *PaymentHandler) RejectPayment(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment ID"})
+		return
+	}
+
+	if err := h.service.RejectPayment(uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "payment rejected successfully"})
+}
+
 func (h *PaymentHandler) CreatePayment(c *gin.Context) {
 	var req struct {
 		PemesananID uint   `json:"pemesanan_id" binding:"required"`

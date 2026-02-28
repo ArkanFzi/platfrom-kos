@@ -171,8 +171,7 @@ export function RoomDetail({
   }
 
   const handleSubmitReview = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (!isLoggedIn) {
       toast.error("Please login as a tenant to write a review.");
       return;
     }

@@ -17,6 +17,7 @@ export interface UIBooking {
   duration: string;
   rawStatus?: string;
   pendingPaymentId?: number;
+  paymentStatus?: string;
   payments?: Payment[];
   startDate: Date;
   endDate: Date;
@@ -38,17 +39,22 @@ export function useHistory() {
   const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null);
   const [selectedPaidReminder, setSelectedPaidReminder] = useState<PaymentReminder | null>(null);
 
-  // Data Fetching with SWR
+  // Get user ID securely for SWR cache-busting keys
+  const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+  const userId = userStr ? JSON.parse(userStr)?.id || 'guest' : 'guest';
+
+  // Data Fetching with SWR - keys must be unique per user to prevent cache bleeding on logout
   const { 
     data: bookingsData, 
     isLoading: isLoadingBookings, 
     mutate: mutateBookings 
-  } = useSWR('api/my-bookings', api.getMyBookings);
+  } = useSWR(`api/my-bookings_${userId}`, api.getMyBookings);
 
   const { 
     data: remindersData, 
-    isLoading: isLoadingReminders 
-  } = useSWR('api/reminders', api.getReminders);
+    isLoading: isLoadingReminders,
+    mutate: mutateReminders
+  } = useSWR(`api/reminders_${userId}`, api.getReminders);
 
   const mappedBookings = useMemo(() => {
     if (!bookingsData || !Array.isArray(bookingsData)) return [];
@@ -58,7 +64,7 @@ export function useHistory() {
       const moveOut = new Date(moveIn);
       moveOut.setMonth(moveOut.getMonth() + b.durasi_sewa);
 
-      const pendingPayment = b.pembayaran?.find((p: Payment) => p.status_pembayaran === 'Pending');
+      const actionablePayment = b.pembayaran?.slice().reverse().find((p: Payment) => p.status_pembayaran === 'Pending' || p.status_pembayaran === 'Rejected');
 
       const start = new Date(b.tanggal_mulai);
       const end = new Date(moveOut);
@@ -80,7 +86,8 @@ export function useHistory() {
         totalPaid: b.total_bayar || 0,
         duration: b.durasi_sewa.toString(),
         rawStatus: b.status_bayar,
-        pendingPaymentId: pendingPayment?.id,
+        pendingPaymentId: actionablePayment?.id,
+        paymentStatus: actionablePayment?.status_pembayaran,
         payments: b.pembayaran || [],
         startDate: start,
         endDate: end,
@@ -119,7 +126,8 @@ export function useHistory() {
 
   const refreshData = useCallback(() => {
     mutateBookings();
-  }, [mutateBookings]);
+    mutateReminders();
+  }, [mutateBookings, mutateReminders]);
 
   return {
     activeTab,

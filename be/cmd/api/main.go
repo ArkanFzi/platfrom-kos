@@ -126,6 +126,10 @@ func main() {
 
 	// Serve Static Files for local uploads
 	r.Static("/uploads", "./public/uploads")
+	r.Static("/rooms", "./public/rooms")
+	r.Static("/gallery", "./public/gallery")
+	r.Static("/profiles", "./public/profiles")
+	r.Static("/proofs", "./public/proofs")
 
 	// API Routes
 	appRoutes.Register(r, cfg)

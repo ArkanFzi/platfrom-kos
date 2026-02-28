@@ -73,11 +73,18 @@ export function LuxuryPaymentConfirmation() {
     }
   };
 
-  const handleReject = (id: number) => {
-    // Backend Reject not yet implemented, keeping local update for demo or skipping
-    setPayments(payments.map(p =>
-      p.id === id ? { ...p, status: 'Rejected' as const } : p
-    ));
+  const handleReject = async (id: number) => {
+    setProcessingId(id);
+    try {
+      await api.rejectPayment(String(id));
+      fetchPayments();
+      toast.success(t('paymentRejectedSuccess') || 'Payment rejected successfully');
+    } catch (e) {
+      console.error(e);
+      toast.error(t('paymentRejectedError') || 'Failed to reject payment');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const formatPrice = (price: number) => {

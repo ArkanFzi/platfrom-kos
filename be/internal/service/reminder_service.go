@@ -39,21 +39,24 @@ func (s *reminderService) CreateMonthlyReminders() error {
 
 	now := time.Now()
 	for _, b := range bookings {
-		// Hitung total bulan yang sudah dibayar (dari pembayaran yang Confirmed)
-		var totalPaid float64
-		hasPendingPayment := false
+		// Cek apakah ada tagihan yang masih menunggu (Pending atau Rejected).
+		// - Pending  : user belum bayar, jangan buat tagihan baru.
+		// - Rejected : admin menolak bukti, user perlu upload ulang ke tagihan YANG SAMA,
+		//              jangan buat tagihan baru (nanti duplikat).
+		hasActionablePayment := false
+		var confirmedMonths int
 
 		for _, p := range b.Pembayaran {
 			switch p.StatusPembayaran {
+			case "Pending", "Rejected":
+				hasActionablePayment = true
 			case "Confirmed":
-				totalPaid += p.JumlahBayar
-			case "Pending":
-				hasPendingPayment = true
+				confirmedMonths++
 			}
 		}
 
-		// Jika sudah ada tagihan Pending, kita skip (jangan buat tagihan double)
-		if hasPendingPayment {
+		// Kalau ada tagihan Pending/Rejected, jangan buat tagihan baru
+		if hasActionablePayment {
 			continue
 		}
 
@@ -62,9 +65,10 @@ func (s *reminderService) CreateMonthlyReminders() error {
 			continue
 		}
 
-		// Hitung Paid Until Date
-		monthsPaid := int(totalPaid / b.Kamar.HargaPerBulan)
-		paidUntil := b.TanggalMulai.AddDate(0, monthsPaid, 0)
+		// Hitung Paid Until Date berdasarkan jumlah bulan yang sudah Confirmed.
+		// Ini lebih akurat daripada membagi total uang dengan harga per bulan,
+		// karena pembayaran DP (30%) tidak akan menghasilkan angka bulan yang bulat.
+		paidUntil := b.TanggalMulai.AddDate(0, confirmedMonths, 0)
 
 		// Buat billing baru jika batas waktu (paidUntil) sudah H-7 dari hari ini atau sudah lewat
 		billingTriggerDate := paidUntil.AddDate(0, 0, -7)

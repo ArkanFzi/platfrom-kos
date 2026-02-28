@@ -13,6 +13,7 @@ import (
 type PaymentService interface {
 	GetAllPayments() ([]models.Pembayaran, error)
 	ConfirmPayment(paymentID uint) error
+	RejectPayment(paymentID uint) error
 	CreatePaymentSession(pemesananID uint, paymentType string) (*models.Pembayaran, error)
 	ConfirmCashPayment(paymentID uint, buktiTransfer string) error
 	GetPaymentReminders(userID uint) ([]models.PaymentReminder, error)
@@ -116,6 +117,19 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 
 		return nil
 	})
+}
+
+func (s *paymentService) RejectPayment(paymentID uint) error {
+	payment, err := s.repo.FindByID(paymentID)
+	if err != nil {
+		return err
+	}
+
+	payment.StatusPembayaran = "Rejected"
+	// Optional: You can reset the BuktiTransfer so the tenant must re-upload,
+	// but keeping it allows them to see what was rejected.
+
+	return s.repo.Update(payment)
 }
 
 // CreatePaymentSession now only creates a Pending Manual payment

@@ -23,7 +23,8 @@ import {
   Home,
   Wallet,
   Upload,
-  Search
+  Search,
+  AlertCircle
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs-component";
 import { UploadProofModal } from '../booking/upload-proof-modal';
@@ -514,19 +515,27 @@ export function BookingHistory() {
                                       </Button>
                                     </motion.div>
 
+                                    {booking.status === 'Pending' && booking.paymentStatus === 'Rejected' && (
+                                       <div className="w-full bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded-xl mb-3 flex items-start gap-2 text-sm text-red-600 dark:text-red-400">
+                                         <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                         <p>Pembayaran ditolak oleh admin. Silakan unggah ulang bukti pembayaran yang valid.</p>
+                                       </div>
+                                    )}
+
                                     {booking.status === 'Pending' && booking.pendingPaymentId && (
                                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                                           <Button
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                              e.stopPropagation(); // Prevent card click
                                               if (booking.pendingPaymentId) {
                                                 setSelectedPaymentId(booking.pendingPaymentId);
                                                 setUploadModalOpen(true);
                                               }
                                             }}
-                                            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+                                            className={`${booking.paymentStatus === 'Rejected' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold shadow-lg hover:shadow-xl transition-all`}
                                           >
                                             <Upload className="w-4 h-4 mr-2" />
-                                            {t('uploadProof')}
+                                            {booking.paymentStatus === 'Rejected' ? 'Upload Ulang Bukti' : t('uploadProof')}
                                           </Button>
                                        </motion.div>
                                     )}

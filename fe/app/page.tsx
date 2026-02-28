@@ -72,15 +72,13 @@ export default function App() {
           
           if (user.role === 'admin') {
             setUserRole('admin');
-            if (storedViewMode === 'login' || storedViewMode === 'register' || storedViewMode === 'forgot-password' || !storedViewMode) {
-               setViewMode('admin');
-            } else {
-               setViewMode(storedViewMode);
-            }
+            // Fix: NEVER auto-remember "tenant" view for admins on hard-reload.
+            // Always restore them to their primary admin dashboard safely.
+            setViewMode('admin');
           } else {
             setUserRole('tenant');
             if (storedViewMode === 'login' || storedViewMode === 'register' || storedViewMode === 'forgot-password' || !storedViewMode || storedViewMode === 'admin') {
-               setViewMode('tenant');
+               setViewMode('home');
             } else {
                setViewMode(storedViewMode);
             }
@@ -247,11 +245,12 @@ export default function App() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
+                  onClick={async () => {
                     clearStoredState();
                     setUserRole(null);
                     setAdminPage("dashboard");
-                    setViewMode("login");
+                    await import('@/app/services/api').then(mod => mod.api.logout());
+                    window.location.href = '/login'; // Hard flush SWR cache memory
                   }}
                   className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950 font-medium"
                 >
@@ -284,10 +283,13 @@ export default function App() {
         {/* Tenant/Default Portal */}
         {(viewMode === "tenant" || viewMode === "home" || (!viewMode && isClient)) && (
             <UserPlatform 
-                onLogout={() => {
+                isLoggedIn={!!userRole}
+                isAdmin={userRole === 'admin'}
+                onLogout={async () => {
                     clearStoredState();
                     setUserRole(null);
-                    setViewMode("login");
+                    await import('@/app/services/api').then(mod => mod.api.logout());
+                    window.location.href = '/login'; // Hard flush memory
                 }}
                 onBackToAdmin={() => setViewMode("admin")}
             />

@@ -170,6 +170,7 @@ func (r *Routes) registerAdminRoutes(protected *gin.RouterGroup) {
 		{
 			payments.GET("", r.paymentHandler.GetAllPayments)                       // GET /api/payments
 			payments.PUT("/:id/confirm", r.paymentHandler.ConfirmPayment)           // PUT /api/payments/:id/confirm
+			payments.PUT("/:id/reject", r.paymentHandler.RejectPayment)             // PUT /api/payments/:id/reject
 			payments.POST("/confirm-cash/:id", r.paymentHandler.ConfirmCashPayment) // POST /api/payments/confirm-cash/:id (Admin only)
 		}
 

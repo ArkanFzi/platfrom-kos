@@ -101,7 +101,7 @@ export interface Payment {
   jumlah_bayar: number;
   tanggal_bayar: string;
   bukti_transfer: string;
-  status_pembayaran: 'Pending' | 'Confirmed' | 'Failed' | 'Settled';
+  status_pembayaran: 'Pending' | 'Confirmed' | 'Failed' | 'Settled' | 'Rejected';
   order_id: string;
   metode_pembayaran: string;
   tipe_pembayaran: string;
@@ -252,9 +252,14 @@ const apiCall = async <T>(method: string, endpoint: string, body?: unknown): Pro
     }
   }
 
-  const res = await fetch(`${API_URL}${endpoint}`, config);
-  
-  // Handle token refresh on 401
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${endpoint}`, config);
+  } catch (_err) {
+    // Catch network errors
+    throw new ApiErrorClass('Koneksi ke server gagal. Harap periksa jaringan Anda atau hubungi admin.', 0);
+  }
+
   if (res.status === 401 && endpoint !== '/auth/refresh' && endpoint !== '/auth/login') {
     // Try to refresh token
     const refreshed = await refreshAccessToken();
@@ -450,6 +455,11 @@ export const api = {
   confirmPayment: async (paymentId: string) => {
     // Admin confirmation
     return apiCall<MessageResponse>('PUT', `/payments/${paymentId}/confirm`);
+  },
+
+  rejectPayment: async (paymentId: string) => {
+    // Admin rejection
+    return apiCall<MessageResponse>('PUT', `/payments/${paymentId}/reject`);
   },
   
 
