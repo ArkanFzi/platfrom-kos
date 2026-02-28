@@ -119,9 +119,9 @@ export function useHome() {
       if (selectedPrice === '1jt' && p !== 1000000) return false;
       if (selectedPrice === '800rb' && p !== 800000) return false;
 
-      // 4. Status Filter
+      // Status 'tidak tersedia' still hidden, but 'penuh' rooms are now shown with a badge
       const status = (room.status || '').toLowerCase();
-      if (status === 'tidak tersedia' || status === 'penuh') return false;
+      if (status === 'tidak tersedia') return false;
 
       return true;
     });

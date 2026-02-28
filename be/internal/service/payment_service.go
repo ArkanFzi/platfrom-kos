@@ -81,7 +81,7 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 				return err
 			}
 
-			// Update room status to 'Penuh'
+			// 1 kamar = 1 penyewa: langsung tandai Penuh saat ada booking Confirmed
 			kamar, err := txKamarRepo.FindByID(booking.KamarID)
 			if err == nil {
 				kamar.Status = "Penuh"

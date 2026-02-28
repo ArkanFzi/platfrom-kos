@@ -330,26 +330,35 @@ export function Homepage({
                 displayRooms.map((room) => (
                   <motion.div
                     key={room.id}
-                    layout // Keep layout for smooth reordering
+                    layout
                     variants={fadeInUp}
                     initial="hidden"
                     animate="visible"
-                    whileHover={{ y: -5 }}
-                    className="group cursor-pointer h-full"
-                    onClick={() => onRoomClick(room.id)}
+                    whileHover={room.status?.toLowerCase() === 'penuh' ? {} : { y: -5 }}
+                    className={`group h-full ${room.status?.toLowerCase() === 'penuh' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                    onClick={() => room.status?.toLowerCase() !== 'penuh' && onRoomClick(room.id)}
                   >
-                    <Card className="overflow-hidden border-0 bg-white dark:bg-slate-900 shadow-lg lg:shadow-xl lg:shadow-slate-200/50 dark:shadow-none rounded-[1.2rem] lg:rounded-[2.5rem] h-full flex flex-col transition-all duration-300 hover:shadow-2xl">
+                    <Card className={`overflow-hidden border-0 bg-white dark:bg-slate-900 shadow-lg lg:shadow-xl lg:shadow-slate-200/50 dark:shadow-none rounded-[1.2rem] lg:rounded-[2.5rem] h-full flex flex-col transition-all duration-300 hover:shadow-2xl ${room.status?.toLowerCase() === 'penuh' ? 'opacity-75 grayscale-[30%]' : ''}`}>
                       <div className="relative aspect-[4/3] overflow-hidden rounded-t-[1.2rem] lg:rounded-t-[2.5rem] transform-gpu">
                         <ImageWithFallback
                           src={room.image}
                           alt={room.name}
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         />
+                        {/* Type Badge */}
                         <div className="absolute top-2 left-2 lg:top-4 lg:left-4">
                           <Badge className="bg-white/90 backdrop-blur-md text-slate-900 border-0 px-2 lg:px-4 py-0.5 lg:py-1.5 rounded-full font-bold shadow-sm text-[8px] lg:text-xs">
                             {room.type}
                           </Badge>
                         </div>
+                        {/* PENUH overlay badge */}
+                        {room.status?.toLowerCase() === 'penuh' && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
+                            <span className="bg-red-600 text-white text-xs lg:text-base font-black uppercase tracking-widest px-4 py-1.5 lg:px-6 lg:py-2 rounded-full shadow-2xl border-2 border-red-400 rotate-[-8deg]">
+                              PENUH
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <CardHeader className="p-3 lg:p-6 pb-2">
                         <div className="flex justify-between items-start mb-1">
@@ -387,17 +396,27 @@ export function Homepage({
                             {tc('perMonth')}
                           </span>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="default"
-                          className="h-7 lg:h-12 px-3 lg:px-6 bg-slate-900 hover:bg-amber-500 text-white rounded-lg lg:rounded-xl text-[8px] lg:text-sm font-bold transition-all flex items-center gap-1 group/btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRoomClick(room.id);
-                          }}
-                        >
-                          {t('selectRoom')} <ArrowRight className="w-2 h-2 lg:w-4 lg:h-4 group-hover/btn:translate-x-1 transition-transform" />
-                        </Button>
+                        {room.status?.toLowerCase() === 'penuh' ? (
+                          <Button
+                            size="sm"
+                            disabled
+                            className="h-7 lg:h-12 px-3 lg:px-6 bg-red-100 text-red-500 rounded-lg lg:rounded-xl text-[8px] lg:text-sm font-bold cursor-not-allowed"
+                          >
+                            Penuh
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="h-7 lg:h-12 px-3 lg:px-6 bg-slate-900 hover:bg-amber-500 text-white rounded-lg lg:rounded-xl text-[8px] lg:text-sm font-bold transition-all flex items-center gap-1 group/btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRoomClick(room.id);
+                            }}
+                          >
+                            {t('selectRoom')} <ArrowRight className="w-2 h-2 lg:w-4 lg:h-4 group-hover/btn:translate-x-1 transition-transform" />
+                          </Button>
+                        )}
                       </CardFooter>
                     </Card>
                   </motion.div>

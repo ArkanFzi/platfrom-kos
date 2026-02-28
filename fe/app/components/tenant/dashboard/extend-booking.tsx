@@ -24,7 +24,7 @@ interface ExtendBookingProps {
 export function ExtendBooking({ isOpen, onClose, bookingData, onSuccess }: ExtendBookingProps) {
   const [duration, setDuration] = useState(1); // dalam bulan
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'Transfer Bank' | 'Cash'>('Transfer Bank');
+  const [paymentMethod, setPaymentMethod] = useState<'transfer' | 'cash'>('transfer');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -44,7 +44,7 @@ export function ExtendBooking({ isOpen, onClose, bookingData, onSuccess }: Exten
   };
 
   const handleConfirmExtend = async () => {
-    if (paymentMethod === 'Transfer Bank' && !proofFile) {
+    if (paymentMethod === 'transfer' && !proofFile) {
       toast.error('Bukti Transfer Diperlukan', {
         description: 'Silahkan unggah bukti transfer anda terlebih dahulu.'
       });
@@ -55,7 +55,7 @@ export function ExtendBooking({ isOpen, onClose, bookingData, onSuccess }: Exten
     try {
       const paymentResponse = await api.extendBooking(bookingData.id, duration, paymentMethod); // Call API Directly
 
-      if (paymentMethod === 'Transfer Bank' && proofFile && paymentResponse.id) {
+      if (paymentMethod === 'transfer' && proofFile && paymentResponse.id) {
         await api.uploadPaymentProof(paymentResponse.id, proofFile);
       }
 
@@ -161,28 +161,28 @@ export function ExtendBooking({ isOpen, onClose, bookingData, onSuccess }: Exten
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => setPaymentMethod('Transfer Bank')}
+                    onClick={() => setPaymentMethod('transfer')}
                     className={`p-4 rounded-xl border-2 transition-all flex flex-col items-start gap-2 ${
-                      paymentMethod === 'Transfer Bank'
+                      paymentMethod === 'transfer'
                         ? 'border-blue-600 bg-blue-50 text-blue-700'
                         : 'border-slate-100 bg-white text-slate-600 hover:border-slate-300'
                     }`}
                   >
-                    <Building className={`w-6 h-6 ${paymentMethod === 'Transfer Bank' ? 'text-blue-600' : 'text-slate-400'}`} />
+                    <Building className={`w-6 h-6 ${paymentMethod === 'transfer' ? 'text-blue-600' : 'text-slate-400'}`} />
                     <div className="text-left">
                       <span className="block text-sm font-bold">Transfer Bank</span>
                       <span className="text-[10px] mt-1 line-clamp-2 leading-tight opacity-80">Verifikasi manual dengan bukti transfer</span>
                     </div>
                   </button>
                   <button
-                    onClick={() => setPaymentMethod('Cash')}
+                    onClick={() => setPaymentMethod('cash')}
                     className={`p-4 rounded-xl border-2 transition-all flex flex-col items-start gap-2 ${
-                      paymentMethod === 'Cash'
+                      paymentMethod === 'cash'
                         ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
                         : 'border-slate-100 bg-white text-slate-600 hover:border-slate-300'
                     }`}
                   >
-                    <Banknote className={`w-6 h-6 ${paymentMethod === 'Cash' ? 'text-emerald-600' : 'text-slate-400'}`} />
+                    <Banknote className={`w-6 h-6 ${paymentMethod === 'cash' ? 'text-emerald-600' : 'text-slate-400'}`} />
                     <div className="text-left">
                       <span className="block text-sm font-bold">Tunai (Cash)</span>
                       <span className="text-[10px] mt-1 line-clamp-2 leading-tight opacity-80">Bayar langsung dan konfirmasi ke admin</span>
@@ -192,7 +192,7 @@ export function ExtendBooking({ isOpen, onClose, bookingData, onSuccess }: Exten
               </div>
 
               {/* Upload Proof for Transfer Bank */}
-              {paymentMethod === 'Transfer Bank' && (
+              {paymentMethod === 'transfer' && (
                 <div className="space-y-3">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <Upload className="w-4 h-4" /> Bukti Transfer
@@ -260,7 +260,7 @@ export function ExtendBooking({ isOpen, onClose, bookingData, onSuccess }: Exten
             <div className="p-6 border-t border-slate-100 bg-white">
               <Button 
                 onClick={handleConfirmExtend}
-                disabled={loading || (paymentMethod === 'Transfer Bank' && !proofFile)}
+                disabled={loading || (paymentMethod === 'transfer' && !proofFile)}
                 className="w-full h-14 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-600 text-white rounded-2xl flex items-center justify-center gap-2 text-lg font-bold shadow-xl shadow-stone-200 group transition-all"
               >
                 {loading ? 'Memproses...' : 'Konfirmasi & Bayar'}

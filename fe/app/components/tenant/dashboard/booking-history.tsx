@@ -33,23 +33,50 @@ import { PaymentDetailsModal } from './payment-details-modal';
 import { useHistory } from './hooks/useHistory';
 import { PaymentReminder } from '@/app/services/api';
 
-const getReminderTitle = (reminder: PaymentReminder, t: any) => {
+const getReminderTitle = (reminder: PaymentReminder, t: (key: string) => string) => {
   if (!reminder.pembayaran) return t('monthlyRentBill');
   const type = reminder.pembayaran.tipe_pembayaran;
   if (type === 'dp') return t('remainingDp');
-  if (type === 'extend') return t('leaseExtension');
+  if (type === 'extend') return `🔄 ${t('leaseExtension')}`;
   if (type === 'full') return t('fullPayment');
   return t('roomRentBill');
 };
 
-const getReminderDescription = (reminder: PaymentReminder, t: any) => {
+const getReminderDescription = (reminder: PaymentReminder, t: (key: string) => string) => {
   if (!reminder.pembayaran?.pemesanan?.kamar) return t('standardRentBill');
   const kamar = reminder.pembayaran.pemesanan.kamar;
   const type = reminder.pembayaran.tipe_pembayaran;
-  
-  if (type === 'extend') return `${t('extensionCostFor')} ${kamar.nomor_kamar}`;
+  const months = kamar.harga_per_bulan > 0
+    ? Math.round(reminder.jumlah_bayar / kamar.harga_per_bulan)
+    : 1;
+  const monthLabel = months > 0 ? ` (${months} ${months === 1 ? 'bulan' : 'bulan'})` : '';
+
+  if (type === 'extend') return `${t('extensionCostFor')} ${kamar.nomor_kamar}${monthLabel}`;
   if (type === 'dp') return `${t('dpSettlementFor')} ${kamar.nomor_kamar}`;
   return `${t('rentPaymentFor')} ${kamar.nomor_kamar}`;
+};
+
+const getReminderTypeBadge = (reminder: PaymentReminder) => {
+  const type = reminder.pembayaran?.tipe_pembayaran;
+  if (type === 'extend') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+        🔄 Perpanjang Sewa
+      </span>
+    );
+  }
+  if (type === 'dp') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+        💳 DP Cicilan
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+      🏠 Booking Awal
+    </span>
+  );
 };
 
 import { useTranslations } from 'next-intl';
@@ -96,6 +123,7 @@ export function BookingHistory() {
       case 'Pending': return <Clock className="w-5 h-5" />;
       case 'Completed': return <CheckCircle2 className="w-5 h-5" />;
       case 'Cancelled': return <XCircle className="w-5 h-5" />;
+      case 'Rejected': return <XCircle className="w-5 h-5" />;
       default: return null;
     }
   };
@@ -106,6 +134,7 @@ export function BookingHistory() {
       case 'Pending': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800';
       case 'Completed': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800';
       case 'Cancelled': return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
+      case 'Rejected': return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
       default: return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-700';
     }
   };
@@ -415,10 +444,17 @@ export function BookingHistory() {
                             </div>
                           </div>
                           <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                            <Badge className={`${getStatusColor(booking.status)} border-2 flex items-center gap-2 px-4 py-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all`}>
-                              {getStatusIcon(booking.status)}
-                              {booking.status}
-                            </Badge>
+                            {booking.paymentStatus === 'Rejected' ? (
+                              <Badge className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 border-2 flex items-center gap-2 px-4 py-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all">
+                                <XCircle className="w-5 h-5" />
+                                Pembayaran Ditolak
+                              </Badge>
+                            ) : (
+                              <Badge className={`${getStatusColor(booking.status)} border-2 flex items-center gap-2 px-4 py-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all`}>
+                                {getStatusIcon(booking.status)}
+                                {booking.status}
+                              </Badge>
+                            )}
                           </motion.div>
                         </div>
 
@@ -603,7 +639,7 @@ export function BookingHistory() {
                        <Card key={reminder.id} className="p-6 border-l-4 border-l-orange-500 shadow-lg hover:shadow-xl transition-all bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
                          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                            <div>
-                             <div className="flex items-center gap-3 mb-2">
+                             <div className="flex items-center gap-2 flex-wrap mb-2">
                                <Badge variant={reminder.status_reminder === 'Paid' ? 'default' : 'secondary'} className={
                                  reminder.status_reminder === 'Paid' 
                                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' 
@@ -611,6 +647,7 @@ export function BookingHistory() {
                                }>
                                  {reminder.status_reminder === 'Paid' ? t('paid') : t('pendingPayment')}
                                </Badge>
+                               {getReminderTypeBadge(reminder)}
                                <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
                                  ID: #{reminder.id}
                                </span>
@@ -664,7 +701,7 @@ export function BookingHistory() {
                                }
 
                                const hasProof = !!reminder.pembayaran?.bukti_transfer;
-                               const isCash = reminder.pembayaran?.metode_pembayaran === 'Cash';
+                               const isCash = (reminder.pembayaran?.metode_pembayaran || '').toLowerCase() === 'cash';
                                const needsPaymentInfo = !hasProof && !isCash;
 
                                if (needsPaymentInfo) {

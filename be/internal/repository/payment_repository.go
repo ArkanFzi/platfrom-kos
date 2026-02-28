@@ -14,6 +14,7 @@ type PaymentRepository interface {
 	CreateReminder(reminder *models.PaymentReminder) error
 	Update(payment *models.Pembayaran) error
 	DeleteByBookingID(bookingID uint) error
+	DeleteRemindersByBookingID(bookingID uint) error
 	WithTx(tx *gorm.DB) PaymentRepository
 }
 
@@ -60,5 +61,17 @@ func (r *paymentRepository) WithTx(tx *gorm.DB) PaymentRepository {
 }
 
 func (r *paymentRepository) DeleteByBookingID(bookingID uint) error {
+	// First delete associated reminders, then delete payments
+	if err := r.DeleteRemindersByBookingID(bookingID); err != nil {
+		return err
+	}
 	return r.db.Where("pemesanan_id = ?", bookingID).Delete(&models.Pembayaran{}).Error
+}
+
+func (r *paymentRepository) DeleteRemindersByBookingID(bookingID uint) error {
+	// Delete all reminders linked to payments of this booking
+	return r.db.Where(
+		"pembayaran_id IN (SELECT id FROM pembayarans WHERE pemesanan_id = ?)",
+		bookingID,
+	).Delete(&models.PaymentReminder{}).Error
 }
