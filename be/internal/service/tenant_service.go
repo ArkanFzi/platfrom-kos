@@ -47,5 +47,16 @@ func (s *tenantService) ValidateTenant(penyewa *models.Penyewa) error {
 }
 
 func (s *tenantService) DeactivateTenant(id uint) error {
+	// Fetch penyewa first to check role
+	penyewa, err := s.repo.FindByID(id)
+	if err != nil {
+		return errors.New("user tidak ditemukan")
+	}
+
+	// Lindungi akun admin dari di-nonaktifkan
+	if penyewa.Role == "admin" {
+		return errors.New("akun admin tidak dapat dinonaktifkan")
+	}
+
 	return s.repo.UpdateRole(id, "non_active")
 }

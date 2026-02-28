@@ -9,6 +9,7 @@ import (
 
 type PenyewaRepository interface {
 	FindByUserID(userID uint) (*models.Penyewa, error)
+	FindByID(id uint) (*models.Penyewa, error)
 	FindByEmail(email string) (*models.Penyewa, error)
 	FindAll() ([]models.Penyewa, error)
 	FindByRole(role string) ([]models.Penyewa, error)
@@ -31,6 +32,12 @@ func NewPenyewaRepository(db *gorm.DB) PenyewaRepository {
 func (r *penyewaRepository) FindByUserID(userID uint) (*models.Penyewa, error) {
 	var penyewa models.Penyewa
 	err := r.db.Where("user_id = ?", userID).First(&penyewa).Error
+	return &penyewa, err
+}
+
+func (r *penyewaRepository) FindByID(id uint) (*models.Penyewa, error) {
+	var penyewa models.Penyewa
+	err := r.db.Where("id = ?", id).First(&penyewa).Error
 	return &penyewa, err
 }
 
@@ -72,7 +79,8 @@ func (r *penyewaRepository) FindAllPaginated(pagination *utils.Pagination, searc
 	var penyewas []models.Penyewa
 	var totalRows int64
 
-	query := r.db.Model(&models.Penyewa{}).Preload("User")
+	// Selalu kecualikan admin dari daftar penyewa
+	query := r.db.Model(&models.Penyewa{}).Preload("User").Where("role != ?", "admin")
 
 	if role != "" {
 		query = query.Where("role = ?", role)

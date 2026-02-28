@@ -132,6 +132,14 @@ func (m *MockPenyewaRepository) WithTx(tx *gorm.DB) repository.PenyewaRepository
 	return args.Get(0).(repository.PenyewaRepository)
 }
 
+func (m *MockPenyewaRepository) FindByID(id uint) (*models.Penyewa, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Penyewa), args.Error(1)
+}
+
 // MockEmailSender implements utils.EmailSender interface
 type MockEmailSender struct {
 	mock.Mock
