@@ -17,7 +17,7 @@ services:
       ALLOWED_ORIGINS: http://localhost:3000
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     ports:
-      - "8087:8080" # Diarahkan dari Apache (Ganti dari 8085 karena bentrok)
+      - "8087:8080"
     networks:
       - app-network
     deploy:
