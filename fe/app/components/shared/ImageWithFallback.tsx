@@ -48,7 +48,6 @@ export function ImageWithFallback(props: ImageWithFallbackProps) {
         alt={alt ?? 'Image'} 
         fill 
         className="object-cover"
-        unoptimized
         onError={handleError}
         crossOrigin="anonymous"
         // Use eager (priority) only for above-the-fold. Default: lazy loading.

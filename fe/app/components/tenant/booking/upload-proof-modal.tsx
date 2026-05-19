@@ -31,7 +31,8 @@ export function UploadProofModal({
   const [loading, setLoading] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    // Only allow changes when not loading (prevent changing file during upload)
+    if (!loading && e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
     }
   };
@@ -39,6 +40,11 @@ export function UploadProofModal({
   const handleUpload = async () => {
     if (!file) {
       toast.error("Please select a file first");
+      return;
+    }
+
+    // FIX #19: Prevent double-submission
+    if (loading) {
       return;
     }
 
@@ -87,6 +93,7 @@ export function UploadProofModal({
               type="file"
               accept="image/*"
               onChange={handleFileChange}
+              disabled={loading}
             />
           </div>
         </div>

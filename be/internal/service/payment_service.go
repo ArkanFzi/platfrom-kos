@@ -7,6 +7,7 @@ import (
 	"koskosan-be/internal/utils"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm"
 )
@@ -64,14 +65,24 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 			return err
 		}
 
-		// Update the reminder status to Paid
-		if err := tx.Model(&models.PaymentReminder{}).Where("pembayaran_id = ?", payment.ID).Update("status_reminder", "Paid").Error; err != nil {
-			return err
+		// Update the reminder status to Paid (use proper GORM column name)
+		if err := tx.Model(&models.PaymentReminder{}).
+			Where("pembayaran_id = ?", payment.ID).
+			Update("status_reminder", "Paid").Error; err != nil {
+			// Log error but continue (reminders are secondary)
+			// Don't abort transaction if reminder update fails
+			fmt.Printf("[WARNING] Failed to update payment reminder %d: %v\n", payment.ID, err)
 		}
 
 		// Also update booking status if needed
 		booking, err := txBookingRepo.FindByID(payment.PemesananID)
-		if err == nil {
+		if err != nil {
+			// If booking not found, still allow payment confirmation
+			fmt.Printf("[WARNING] Booking not found for payment %d: %v\n", payment.ID, err)
+			return nil
+		}
+
+		if booking != nil {
 			// FIX #3: Pessimistic lock for extend payment with race condition protection
 			if payment.TipePembayaran == "extend" {
 				// Re-fetch booking with lock to prevent race condition
@@ -106,35 +117,43 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 			}
 
 			if err := txBookingRepo.Update(booking); err != nil {
+				fmt.Printf("[ERROR] Failed to update booking %d: %v\n", booking.ID, err)
 				return err
 			}
 
 			// FIX #1: Atomic room status update - use pessimistic lock
 			// Only mark Room as "Penuh" if booking is truly Confirmed or securing it with DP
 			var lockedKamar models.Kamar
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lockedKamar, booking.KamarID).Error; err == nil {
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lockedKamar, booking.KamarID).Error; err != nil {
+				fmt.Printf("[WARNING] Could not lock room for update: %v\n", err)
+				// Don't abort transaction if room lock fails
+			} else {
 				lockedKamar.Status = "Penuh"
 				if err := txKamarRepo.Update(&lockedKamar); err != nil {
-					return err
+					fmt.Printf("[WARNING] Failed to update room status: %v\n", err)
+					// Don't abort transaction if room update fails
 				}
 			}
 
 			// Update penyewa role from guest to tenant on first confirmed payment
 			if s.penyewaRepo != nil {
 				var penyewa models.Penyewa
-				if err := tx.Where("id = ?", booking.PenyewaID).First(&penyewa).Error; err == nil {
-					if penyewa.Role == "guest" {
-						// Check if this is the first confirmed payment
-						var confirmedPaymentCount int64
-						tx.Table("pembayaran").
-							Joins("JOIN pemesanan ON pemesanan.id = pembayaran.pemesanan_id").
-							Where("pemesanan.penyewa_id = ? AND pembayaran.status_pembayaran = ?", booking.PenyewaID, "Confirmed").
-							Count(&confirmedPaymentCount)
-
-						if confirmedPaymentCount <= 1 { // This is the first confirmed payment
-							if err := tx.Model(&penyewa).Update("role", "tenant").Error; err != nil {
-								return err
-							}
+				if err := tx.Where("id = ?", booking.PenyewaID).First(&penyewa).Error; err != nil {
+					fmt.Printf("[WARNING] Could not fetch penyewa %d: %v\n", booking.PenyewaID, err)
+					// Continue even if penyewa fetch fails
+				} else if penyewa.Role == "guest" {
+					// Check if this is the first confirmed payment
+					var confirmedPaymentCount int64
+					if err := tx.Table("pembayaran").
+						Joins("JOIN pemesanan ON pemesanan.id = pembayaran.pemesanan_id").
+						Where("pemesanan.penyewa_id = ? AND pembayaran.status_pembayaran = ?", booking.PenyewaID, "Confirmed").
+						Count(&confirmedPaymentCount).Error; err != nil {
+						fmt.Printf("[WARNING] Could not count confirmed payments: %v\n", err)
+						// Continue even if count fails
+					} else if confirmedPaymentCount <= 1 { // This is the first confirmed payment
+						if err := tx.Model(&penyewa).Update("role", "tenant").Error; err != nil {
+							fmt.Printf("[WARNING] Failed to promote penyewa to tenant: %v\n", err)
+							// Continue even if promotion fails
 						}
 					}
 				}
@@ -163,9 +182,15 @@ func (s *paymentService) RejectPayment(paymentID uint) error {
 		}
 
 		// Also update the reminder status to Rejected so frontend reflects it
-		return tx.Model(&models.PaymentReminder{}).
+		// Don't abort transaction if reminder update fails
+		if err := tx.Model(&models.PaymentReminder{}).
 			Where("pembayaran_id = ?", payment.ID).
-			Update("status_reminder", "Rejected").Error
+			Update("status_reminder", "Rejected").Error; err != nil {
+			fmt.Printf("[WARNING] Failed to update payment reminder status: %v\n", err)
+			// Continue without aborting transaction
+		}
+
+		return nil
 	})
 }
 
@@ -191,6 +216,15 @@ func (s *paymentService) CreatePaymentSession(pemesananID uint, paymentType stri
 		return nil, err
 	}
 
+	// FIX #19: Check for existing pending payment with same type to prevent duplicates
+	existingPayments, _ := s.repo.FindByBookingID(pemesananID)
+	for _, p := range existingPayments {
+		if p.TipePembayaran == paymentType && p.StatusPembayaran == "Pending" {
+			// Return existing payment instead of creating duplicate
+			return &p, nil
+		}
+	}
+
 	// Hitung total amount
 	totalAmount := float64(booking.DurasiSewa) * kamar.HargaPerBulan
 	var dpAmount float64
@@ -206,6 +240,9 @@ func (s *paymentService) CreatePaymentSession(pemesananID uint, paymentType stri
 		dpAmount = 0
 	}
 
+	// Generate unique idempotency key to prevent duplicate payments
+	idempotencyKey := fmt.Sprintf("%d-%s-%s", pemesananID, paymentType, uuid.New().String())
+
 	// Save payment record
 	payment := models.Pembayaran{
 		PemesananID:      pemesananID,
@@ -214,6 +251,7 @@ func (s *paymentService) CreatePaymentSession(pemesananID uint, paymentType stri
 		MetodePembayaran: "manual", // Forced to manual
 		TipePembayaran:   paymentType,
 		JumlahDP:         dpAmount,
+		IdempotencyKey:   idempotencyKey,
 	}
 
 	// Set jatuh tempo untuk pembayaran cicilan

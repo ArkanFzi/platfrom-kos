@@ -42,7 +42,7 @@ export function GoogleButton({ onSuccess, isLoading }: GoogleButtonProps) {
                         }}
                         theme="outline"
                         size="large"
-                        width="100%"
+                        width={380}
                         text="signin_with"
                         shape="pill"
                     />

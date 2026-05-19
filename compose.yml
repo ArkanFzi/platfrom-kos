@@ -1,0 +1,61 @@
+services:
+  backend:
+    build:
+      context: ./be
+      dockerfile: Dockerfile
+    container_name: senvanda-app-rahmatzaw-backend
+    restart: always
+    env_file:
+      - ./be/.env
+    environment:
+      - DB_HOST=172.17.0.1
+      - DB_PORT=5432
+      - PORT=8080
+    ports:
+      - "8087:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./be/public/uploads:/app/public/uploads
+      - ./be/public/rooms:/app/public/rooms
+      - ./be/public/gallery:/app/public/gallery
+      - ./be/public/profiles:/app/public/profiles
+      - ./be/public/proofs:/app/public/proofs
+    networks:
+      - rahmat_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  frontend:
+    build:
+      context: ./fe
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+        NEXT_PUBLIC_GOOGLE_REDIRECT_URL: ${NEXT_PUBLIC_GOOGLE_REDIRECT_URL}
+        NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
+        NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
+    container_name: senvanda-app-rahmatzaw-frontend
+    restart: always
+    env_file:
+      - ./be/.env
+    environment:
+      - PORT=3000
+    ports:
+      - "3007:3000"
+    depends_on:
+      - backend
+    networks:
+      - rahmat_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+networks:
+  rahmat_network:
+    driver: bridge

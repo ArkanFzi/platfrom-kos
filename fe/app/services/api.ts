@@ -192,7 +192,7 @@ class ApiErrorClass extends Error implements ApiError {
   }
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
 // 2. Helper Functions
 

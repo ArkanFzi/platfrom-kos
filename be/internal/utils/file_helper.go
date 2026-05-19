@@ -60,7 +60,13 @@ func UploadToCloudinary(fileHeader *multipart.FileHeader, folder string) (string
 		Transformation: "q_auto,f_auto",
 	})
 	if err != nil {
-		return "", fmt.Errorf("cloudinary upload failed: %v", err)
+		GlobalLogger.Error("Cloudinary request failed, falling back to local storage: %v", err)
+		return SaveUploadedFile(fileHeader, folder)
+	}
+
+	if uploadResult.Error.Message != "" {
+		GlobalLogger.Error("Cloudinary api error, falling back to local storage: %s", uploadResult.Error.Message)
+		return SaveUploadedFile(fileHeader, folder)
 	}
 
 	return uploadResult.SecureURL, nil

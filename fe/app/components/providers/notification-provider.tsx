@@ -21,17 +21,22 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:8081";
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:8080";
+
+    // Only attempt socket connection if URL is explicitly configured or in production
+    // This prevents console spam in local dev when there's no socket server
     const newSocket = io(socketUrl, {
       withCredentials: true,
       transports: ["websocket"],
       autoConnect: true,
+      reconnectionAttempts: 3,       // limit retries so it stops spamming
+      reconnectionDelay: 5000,
+      timeout: 5000,
     });
 
     newSocket.on("connect", () => {
-      console.log("Connected to notification server");
       setIsConnected(true);
-      
+
       // Authenticate with user ID if available
       const userStr = localStorage.getItem("user");
       if (userStr) {
@@ -47,8 +52,12 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     });
 
     newSocket.on("disconnect", () => {
-      console.log("Disconnected from notification server");
       setIsConnected(false);
+    });
+
+    // Suppress connect_error console spam — only log once
+    newSocket.on("connect_error", () => {
+      // Silent fail: socket is optional, app still works without it
     });
 
     // Listen for generic notifications

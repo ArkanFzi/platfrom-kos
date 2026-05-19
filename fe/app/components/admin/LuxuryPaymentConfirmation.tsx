@@ -18,7 +18,7 @@ interface Payment {
   amount: number;
   date: string;
   method: string;
-  status: 'Pending' | 'Confirmed' | 'Rejected';
+  status: 'Pending' | 'Confirmed' | 'Rejected' | 'Settled' | 'Failed';
   receiptUrl: string;
   paymentType: string; // 'full' | 'dp' | 'extend'
 }
@@ -38,17 +38,26 @@ export function LuxuryPaymentConfirmation() {
       
       const paymentData = Array.isArray(response) ? response : [];
 
-      const mapped = paymentData.map((p: ApiPayment) => ({
-        id: p.id,
-        tenantName: p.pemesanan?.penyewa?.nama_lengkap || p.pemesanan?.penyewa?.user?.username || t('guest'),
-        roomName: p.pemesanan?.kamar?.nomor_kamar || t('room'),
-        amount: p.jumlah_bayar,
-        date: new Date(p.tanggal_bayar).toLocaleDateString('id-ID'),
-        method: (p.metode_pembayaran || '').toLowerCase() === 'cash' ? t('cash') : t('transferBank'),
-        status: p.status_pembayaran as Payment['status'],
-        receiptUrl: getImageUrl(p.bukti_transfer) || '',
-        paymentType: p.tipe_pembayaran || 'full',
-      }));
+      const mapped = paymentData.map((p: ApiPayment) => {
+        // tanggal_bayar can be null/zero for Pending payments — guard against '1/1/1970'
+        const rawDate = p.tanggal_bayar;
+        const parsedDate = rawDate ? new Date(rawDate) : null;
+        const displayDate = parsedDate && !isNaN(parsedDate.getTime()) && parsedDate.getFullYear() > 2000
+          ? parsedDate.toLocaleDateString('id-ID')
+          : '-';
+
+        return {
+          id: p.id,
+          tenantName: p.pemesanan?.penyewa?.nama_lengkap || p.pemesanan?.penyewa?.user?.username || t('guest'),
+          roomName: p.pemesanan?.kamar?.nomor_kamar || t('room'),
+          amount: p.jumlah_bayar,
+          date: displayDate,
+          method: (p.metode_pembayaran || '').toLowerCase() === 'cash' ? t('cash') : t('transferBank'),
+          status: p.status_pembayaran as Payment['status'],
+          receiptUrl: getImageUrl(p.bukti_transfer) || '',
+          paymentType: p.tipe_pembayaran || 'full',
+        };
+      });
       
       setPayments(mapped);
     } catch (e) {
@@ -100,18 +109,18 @@ export function LuxuryPaymentConfirmation() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'Confirmed': return <CheckCircle2 className="size-5" />;
+      case 'Confirmed': case 'Settled': return <CheckCircle2 className="size-5" />;
       case 'Pending': return <Clock className="size-5" />;
-      case 'Rejected': return <XCircle className="size-5" />;
+      case 'Rejected': case 'Failed': return <XCircle className="size-5" />;
       default: return <AlertCircle className="size-5" />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Confirmed': return 'from-green-500/20 to-green-600/20 border-green-500/30 text-green-600 dark:text-green-400';
+      case 'Confirmed': case 'Settled': return 'from-green-500/20 to-green-600/20 border-green-500/30 text-green-600 dark:text-green-400';
       case 'Pending': return 'from-orange-500/20 to-orange-600/20 border-orange-500/30 text-orange-600 dark:text-orange-400';
-      case 'Rejected': return 'from-red-500/20 to-red-600/20 border-red-500/30 text-red-600 dark:text-red-400';
+      case 'Rejected': case 'Failed': return 'from-red-500/20 to-red-600/20 border-red-500/30 text-red-600 dark:text-red-400';
       default: return 'from-slate-500/20 to-slate-600/20 border-slate-500/30 text-slate-600 dark:text-slate-400';
     }
   };
@@ -242,8 +251,16 @@ export function LuxuryPaymentConfirmation() {
         ) : (
           (() => {
             const filteredPayments = payments
-              .filter(p => activeTab === 'pending' ? p.status === 'Pending' : p.status !== 'Pending')
-              .sort(() => 0);
+              .filter(p => activeTab === 'pending'
+                ? p.status === 'Pending'
+                : (p.status === 'Confirmed' || p.status === 'Rejected' || p.status === 'Settled' || p.status === 'Failed')
+              )
+              .sort((a, b) => {
+                // Newest first in history, urgent first in pending
+                const dateA = a.date === '-' ? 0 : new Date(a.date).getTime();
+                const dateB = b.date === '-' ? 0 : new Date(b.date).getTime();
+                return dateB - dateA;
+              });
 
             if (filteredPayments.length === 0) {
               return (

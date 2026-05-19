@@ -250,6 +250,7 @@
     "status_tersedia": "Tersedia",
     "status_penuh": "Penuh",
     "status_maintenance": "Perbaikan",
+    "status_terpesan": "Proses Pesan",
     "type_standard": "Standar (Kamar Mandi Luar)",
     "type_premium": "Premium (Kamar Mandi Dalam)",
     "imageFormatHelp": "SVG, PNG, JPG atau GIF (maks. 5MB)",

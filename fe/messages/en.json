@@ -250,6 +250,7 @@
     "status_tersedia": "Available",
     "status_penuh": "Full",
     "status_maintenance": "Maintenance",
+    "status_terpesan": "Pending",
     "type_standard": "Standard (Shared Bathroom)",
     "type_premium": "Premium (Private Bathroom)",
     "imageFormatHelp": "SVG, PNG, JPG or GIF (max. 5MB)",

@@ -125,6 +125,8 @@ func (h *KamarHandler) CreateKamar(c *gin.Context) {
 		}
 		if err := h.service.AddImage(&img); err != nil {
 			utils.GlobalLogger.Error("Failed to save kamar image: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan data gambar ke database: " + err.Error()})
+			return
 		}
 	}
 
@@ -219,7 +221,11 @@ func (h *KamarHandler) UpdateKamar(c *gin.Context) {
 					KamarID:  uint(id),
 					ImageURL: url,
 				}
-				_ = h.service.AddImage(&img)
+				if err := h.service.AddImage(&img); err != nil {
+					utils.GlobalLogger.Error("Failed to save kamar image on update: %v", err)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan data gambar ke database: " + err.Error()})
+					return
+				}
 			}
 		}
 	}
@@ -241,6 +247,17 @@ func (h *KamarHandler) UpdateKamar(c *gin.Context) {
 func (h *KamarHandler) DeleteKamar(c *gin.Context) {
 	idStr := c.Param("id")
 	id, _ := strconv.ParseUint(idStr, 10, 32)
+
+	// NEW: Check if we can safely delete
+	canDelete, message, err := h.service.CanDeleteRoom(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memverifikasi status kamar"})
+		return
+	}
+	if !canDelete {
+		c.JSON(http.StatusBadRequest, gin.H{"error": message})
+		return
+	}
 
 	// Delete associated images first
 	_ = h.service.DeleteImagesByKamarID(uint(id))

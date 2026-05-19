@@ -18,14 +18,18 @@ type KamarService interface {
 }
 
 type kamarService struct {
-	repo            repository.KamarRepository
-	bookingRepo     repository.BookingRepository // NEW: Add booking repo to check active bookings
+	repo                repository.KamarRepository
+	bookingRepo         repository.BookingRepository // NEW: Add booking repo to check active bookings
+	paymentRepo         repository.PaymentRepository // NEW: Add payment repo to check pending payments
+	notificationService NotificationService          // NEW: Add notification service for admin alerts
 }
 
-func NewKamarService(repo repository.KamarRepository, bookingRepo repository.BookingRepository) KamarService {
+func NewKamarService(repo repository.KamarRepository, bookingRepo repository.BookingRepository, paymentRepo repository.PaymentRepository, notificationService NotificationService) KamarService {
 	return &kamarService{
-		repo:        repo,
-		bookingRepo: bookingRepo,
+		repo:                repo,
+		bookingRepo:         bookingRepo,
+		paymentRepo:         paymentRepo,
+		notificationService: notificationService,
 	}
 }
 
@@ -62,6 +66,25 @@ func (s *kamarService) Delete(id uint) error {
 	if !canDelete {
 		return errors.New(reason)
 	}
+
+	// NEW: Before deleting, check for any pending transfer payments for this room
+	// This is to notify admin if they accidentally delete a room with pending payments
+	pendingPayments, err := s.paymentRepo.FindPendingTransferPaymentsByRoomID(id)
+	if err == nil && len(pendingPayments) > 0 {
+		// Room is being deleted with pending transfer payments
+		// Send notification to admin for each booking with pending payments
+		for _, payment := range pendingPayments {
+			booking, _ := s.bookingRepo.FindByID(payment.PemesananID)
+			if booking != nil {
+				// Send notification to admin
+				_ = s.notificationService.NotifyAdminRoomDeletionWithPendingPayment(id, booking, []models.Pembayaran{payment})
+
+				// Cancel the booking to prevent further issues
+				_ = s.bookingRepo.UpdateStatus(booking.ID, "Cancelled")
+			}
+		}
+	}
+
 	return s.repo.Delete(id)
 }
 

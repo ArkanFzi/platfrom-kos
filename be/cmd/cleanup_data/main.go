@@ -1,19 +1,81 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"koskosan-be/internal/config"
 	"koskosan-be/internal/models"
-	"fmt"
 	
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func main() {
-	// 1. Load Config (Manually or via init)
-	// We need to load .env manually if we are not using the main config loader logic or just reuse it
-	// Assuming running from root, .env should be accessible
+	// Check command line arguments
+	if len(os.Args) < 2 {
+		printUsage()
+		os.Exit(1)
+	}
+
+	command := os.Args[1]
+
+	switch command {
+	case "orphaned":
+		cleanupOrphanedBookings()
+	case "all":
+		fmt.Println("⚠️  WARNING: This will delete ALL bookings, payments, and reminders!")
+		fmt.Println("Use 'orphaned' instead to clean up only orphaned bookings.")
+		cleanupAllData()
+	case "help":
+		printUsage()
+	default:
+		fmt.Printf("❌ Unknown command: %s\n", command)
+		printUsage()
+		os.Exit(1)
+	}
+}
+
+func printUsage() {
+	fmt.Println(`
+╔════════════════════════════════════════════════════════════════╗
+║           KOSKOSAN DATA CLEANUP UTILITY                        ║
+╚════════════════════════════════════════════════════════════════╝
+
+USAGE:
+  go run ./cmd/cleanup_data orphaned    - Clean orphaned bookings only
+  go run ./cmd/cleanup_data all         - Delete ALL data (use with caution!)
+  go run ./cmd/cleanup_data help        - Show this help message
+
+COMMANDS:
+  orphaned  - Remove bookings whose rooms have been deleted
+              Handles: pending bookings, active bookings, payments
+              Smart cleanup that protects valid data
+              
+  all       - DESTRUCTIVE: Delete ALL bookings, payments, reminders
+              Use only for testing/reset
+              Resets all room statuses to 'Tersedia'
+
+EXAMPLES:
+  # Clean orphaned bookings (RECOMMENDED)
+  $ go run ./cmd/cleanup_data orphaned
+  
+  # Full reset (careful!)
+  $ go run ./cmd/cleanup_data all
+
+ENVIRONMENT:
+  Make sure .env is configured with valid database credentials
+  The script will connect using DB_* variables from .env
+
+NOTES:
+  - Orphaned cleanup is safe for production
+  - All cleanup is logged for audit trail
+  - Check output for any critical warnings
+`)
+}
+
+func cleanupAllData() {
+	// 1. Load Config
 	cfg := config.LoadConfig()
 
 	// 2. Connect to DB
@@ -24,7 +86,7 @@ func main() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	log.Println("Database connected. Starting cleanup...")
+	log.Println("Database connected. Starting full cleanup...")
 
 	// 3. Delete Data
 	// Transaction to ensure atomicity
@@ -61,5 +123,5 @@ func main() {
 		log.Fatalf("Cleanup failed: %v", err)
 	}
 
-	log.Println("Cleanup completed successfully!")
+	log.Println("✅ Full cleanup completed successfully!")
 }

@@ -7,6 +7,7 @@ import (
 	"koskosan-be/internal/utils"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -249,6 +250,9 @@ func (s *bookingService) CreateBookingWithProof(userID uint, kamarID uint, tangg
 			dpAmount = 0
 		}
 
+		// FIX #19: Generate unique idempotency key to prevent duplicate payments
+		idempotencyKey := fmt.Sprintf("booking-%d-%s-%s", newBooking.ID, paymentType, uuid.New().String())
+
 		payment := models.Pembayaran{
 			PemesananID:      newBooking.ID,
 			JumlahBayar:      finalAmount,
@@ -258,6 +262,7 @@ func (s *bookingService) CreateBookingWithProof(userID uint, kamarID uint, tangg
 			JumlahDP:         dpAmount,
 			BuktiTransfer:    proofURL,
 			TanggalBayar:     time.Now(),
+			IdempotencyKey:   idempotencyKey,
 		}
 
 		if paymentType == "dp" {

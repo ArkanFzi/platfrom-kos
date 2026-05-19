@@ -39,6 +39,7 @@ type Config struct {
 
 	// WhatsApp Config
 	FonnteToken string
+	AdminPhone  string // Admin WhatsApp number for notifications
 }
 
 func LoadConfig() *Config {
@@ -77,6 +78,7 @@ func LoadConfig() *Config {
 
 		// WhatsApp Config
 		FonnteToken: getEnv("FONNTE_TOKEN", ""),
+		AdminPhone:  getEnv("ADMIN_PHONE", ""),
 	}
 
 	// Validate required environment variables

@@ -124,6 +124,9 @@ export function useHistory() {
   const handleViewDetails = useCallback((booking: UIBooking) => {
     setSelectedBooking(booking);
     setViewDetailsModalOpen(true);
+    setActiveTab("bookings");
+    setSelectedBooking(booking);
+    setSelectedBooking(booking);
   }, []);
 
   const refreshData = useCallback(() => {
