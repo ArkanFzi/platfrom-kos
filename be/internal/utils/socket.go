@@ -9,6 +9,7 @@ import (
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/googollee/go-socket.io/engineio"
 	"github.com/googollee/go-socket.io/engineio/transport"
+	"github.com/googollee/go-socket.io/engineio/transport/polling"
 	"github.com/googollee/go-socket.io/engineio/transport/websocket"
 )
 
@@ -26,6 +27,11 @@ func InitSocketServer() (*SocketServer, error) {
 		PingTimeout:  20 * 1000,
 		PingInterval: 10 * 1000,
 		Transports: []transport.Transport{
+			&polling.Transport{
+				CheckOrigin: func(r *http.Request) bool {
+					return true
+				},
+			},
 			&websocket.Transport{
 				CheckOrigin: func(r *http.Request) bool {
 					return true

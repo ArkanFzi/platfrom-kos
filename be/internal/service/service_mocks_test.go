@@ -337,12 +337,28 @@ func (m *MockPaymentRepository) FindByID(id uint) (*models.Pembayaran, error) {
 	return args.Get(0).(*models.Pembayaran), args.Error(1)
 }
 
-func (m *MockPaymentRepository) FindByBookingID(bookingID uint) (*models.Pembayaran, error) {
+func (m *MockPaymentRepository) FindByBookingID(bookingID uint) ([]models.Pembayaran, error) {
 	args := m.Called(bookingID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.Pembayaran), args.Error(1)
+	return args.Get(0).([]models.Pembayaran), args.Error(1)
+}
+
+func (m *MockPaymentRepository) FindPendingTransferPaymentsByBookingID(bookingID uint) ([]models.Pembayaran, error) {
+	args := m.Called(bookingID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Pembayaran), args.Error(1)
+}
+
+func (m *MockPaymentRepository) FindPendingTransferPaymentsByRoomID(roomID uint) ([]models.Pembayaran, error) {
+	args := m.Called(roomID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Pembayaran), args.Error(1)
 }
 
 func (m *MockPaymentRepository) WithTx(tx *gorm.DB) repository.PaymentRepository {

@@ -366,8 +366,8 @@ func (s *bookingService) CancelBooking(id uint, userID uint) error {
 
 		// Also mark associated payment reminders as Cancelled
 		if err := tx.Model(&models.PaymentReminder{}).
-			Joins("JOIN pembayaran ON pembayaran.id = payment_reminder.pembayaran_id").
-			Where("pembayaran.pemesanan_id = ?", id).
+			Joins("JOIN pembayarans ON pembayarans.id = payment_reminders.pembayaran_id").
+			Where("pembayarans.pemesanan_id = ?", id).
 			Update("status_reminder", "Cancelled").Error; err != nil {
 			return fmt.Errorf("failed to cancel payment reminders: %v", err)
 		}

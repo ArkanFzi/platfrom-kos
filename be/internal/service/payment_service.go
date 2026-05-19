@@ -144,9 +144,9 @@ func (s *paymentService) ConfirmPayment(paymentID uint) error {
 				} else if penyewa.Role == "guest" {
 					// Check if this is the first confirmed payment
 					var confirmedPaymentCount int64
-					if err := tx.Table("pembayaran").
-						Joins("JOIN pemesanan ON pemesanan.id = pembayaran.pemesanan_id").
-						Where("pemesanan.penyewa_id = ? AND pembayaran.status_pembayaran = ?", booking.PenyewaID, "Confirmed").
+					if err := tx.Table("pembayarans").
+						Joins("JOIN pemesanans ON pemesanans.id = pembayarans.pemesanan_id").
+						Where("pemesanans.penyewa_id = ? AND pembayarans.status_pembayaran = ?", booking.PenyewaID, "Confirmed").
 						Count(&confirmedPaymentCount).Error; err != nil {
 						fmt.Printf("[WARNING] Could not count confirmed payments: %v\n", err)
 						// Continue even if count fails

@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"koskosan-be/internal/models"
-	"koskosan-be/internal/repository"
 )
 
 // TestConfirmPaymentFlow tests the complete payment confirmation workflow
